@@ -10,8 +10,8 @@ const BASE_URL = 'https://rynk.io';
 // Configure Google Sign In
 GoogleSignin.configure({
   // You'll need to add your web client ID for ID token
-  webClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
-  iosClientId: 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com',
+  webClientId: '401382357558-s9fq3lsl2sog3lndd8v4l92mqek3sbbr.apps.googleusercontent.com',
+  iosClientId: '401382357558-g2615f5a98vegfeks9ugjsoi36an3qls.apps.googleusercontent.com',
   offlineAccess: true,
 });
 
@@ -235,10 +235,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const signOut = useCallback(async () => {
     try {
+      // Get current session for backend signout
+      const currentSession = await loadSession();
+      
       // Sign out from Google if previously signed in
       const hasPreviousGoogleSignIn = GoogleSignin.hasPreviousSignIn();
       if (hasPreviousGoogleSignIn) {
         await GoogleSignin.signOut();
+      }
+      
+      // Invalidate session on backend
+      if (currentSession?.accessToken) {
+        try {
+          await fetch(`${BASE_URL}/api/auth/mobile`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${currentSession.accessToken}`,
+            },
+          });
+          console.log('[Auth] Server session invalidated');
+        } catch (e) {
+          console.warn('[Auth] Failed to invalidate server session:', e);
+        }
       }
       
       // Clear local session

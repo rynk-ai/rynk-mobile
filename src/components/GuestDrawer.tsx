@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   FlatList,
   Dimensions,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Plus, LogIn, MessageSquare, Clock, X } from 'lucide-react-native';
+import { Plus, LogIn, LogOut, MessageSquare, User } from 'lucide-react-native';
 import { theme } from '../lib/theme';
-import { guestApi } from '../lib/api/guest';
 import type { Conversation } from '../lib/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -26,6 +26,16 @@ interface GuestDrawerProps {
   creditsRemaining: number | null;
   onRefresh: () => void;
   isLoading?: boolean;
+  // Auth props
+  isAuthenticated?: boolean;
+  user?: {
+    email?: string;
+    name?: string | null;
+    image?: string | null;
+    credits?: number;
+    subscriptionTier?: string;
+  } | null;
+  onSignOut?: () => void;
 }
 
 export function GuestDrawer({
@@ -37,6 +47,9 @@ export function GuestDrawer({
   creditsRemaining,
   onRefresh,
   isLoading = false,
+  isAuthenticated = false,
+  user = null,
+  onSignOut,
 }: GuestDrawerProps) {
   const router = useRouter();
 
@@ -53,6 +66,13 @@ export function GuestDrawer({
   const handleSignIn = () => {
     onClose();
     router.push('/login');
+  };
+
+  const handleSignOut = async () => {
+    if (onSignOut) {
+      await onSignOut();
+    }
+    onClose();
   };
 
   const formatDate = (dateString: string | number) => {
@@ -100,6 +120,11 @@ export function GuestDrawer({
 
   if (!isOpen) return null;
 
+  // Get user display info
+  const userDisplayName = user?.name || user?.email?.split('@')[0] || 'User';
+  const userEmail = user?.email || '';
+  const tierLabel = user?.subscriptionTier === 'pro' ? 'Pro' : user?.subscriptionTier === 'enterprise' ? 'Enterprise' : 'Free';
+
   return (
     <View style={styles.overlay}>
       {/* Backdrop */}
@@ -111,28 +136,68 @@ export function GuestDrawer({
       
       {/* Drawer */}
       <SafeAreaView style={styles.drawer} edges={['top', 'bottom']}>
-        {/* Header with credits */}
+        {/* Header - Auth Aware */}
         <View style={styles.header}>
-          <View style={styles.creditsSection}>
-            <Text style={styles.creditsLabel}>
-              {creditsRemaining !== null ? (
-                <>
-                  <Text style={styles.creditsValue}>{creditsRemaining}</Text> free messages remaining
-                </>
-              ) : (
-                'Try our AI chat for free!'
-              )}
-            </Text>
-          </View>
-          
-          <TouchableOpacity 
-            style={styles.signInButton}
-            onPress={handleSignIn}
-            activeOpacity={0.8}
-          >
-            <LogIn size={16} color={theme.colors.text.inverse} />
-            <Text style={styles.signInText}>Sign in to continue</Text>
-          </TouchableOpacity>
+          {isAuthenticated && user ? (
+            // Authenticated User Header
+            <>
+              <View style={styles.userSection}>
+                <View style={styles.avatarContainer}>
+                  {user.image ? (
+                    <Image source={{ uri: user.image }} style={styles.avatar} />
+                  ) : (
+                    <View style={styles.avatarPlaceholder}>
+                      <User size={20} color={theme.colors.text.secondary} />
+                    </View>
+                  )}
+                </View>
+                <View style={styles.userInfo}>
+                  <Text style={styles.userName} numberOfLines={1}>
+                    {userDisplayName}
+                  </Text>
+                  <Text style={styles.userEmail} numberOfLines={1}>
+                    {userEmail}
+                  </Text>
+                  <View style={styles.tierBadge}>
+                    <Text style={styles.tierText}>{tierLabel}</Text>
+                  </View>
+                </View>
+              </View>
+              
+              <TouchableOpacity 
+                style={styles.signOutButton}
+                onPress={handleSignOut}
+                activeOpacity={0.8}
+              >
+                <LogOut size={16} color={theme.colors.text.secondary} />
+                <Text style={styles.signOutText}>Sign Out</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            // Guest Header
+            <>
+              <View style={styles.creditsSection}>
+                <Text style={styles.creditsLabel}>
+                  {creditsRemaining !== null ? (
+                    <>
+                      <Text style={styles.creditsValue}>{creditsRemaining}</Text> free messages remaining
+                    </>
+                  ) : (
+                    'Try our AI chat for free!'
+                  )}
+                </Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={styles.signInButton}
+                onPress={handleSignIn}
+                activeOpacity={0.8}
+              >
+                <LogIn size={16} color={theme.colors.text.inverse} />
+                <Text style={styles.signInText}>Sign in to continue</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         {/* New Chat Button */}
@@ -190,12 +255,14 @@ export function GuestDrawer({
           }
         />
 
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Sign in to save your chats permanently
-          </Text>
-        </View>
+        {/* Footer - Only show for guests */}
+        {!isAuthenticated && (
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              Sign in to save your chats permanently
+            </Text>
+          </View>
+        )}
       </SafeAreaView>
     </View>
   );
@@ -226,6 +293,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border.subtle,
   },
+  // Guest header styles
   creditsSection: {
     marginBottom: 12,
   },
@@ -252,6 +320,73 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.text.inverse,
   },
+  // Authenticated header styles
+  userSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  avatarContainer: {
+    marginRight: 12,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  avatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.colors.background.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+  },
+  userEmail: {
+    fontSize: 12,
+    color: theme.colors.text.secondary,
+    marginTop: 2,
+  },
+  tierBadge: {
+    marginTop: 4,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    backgroundColor: theme.colors.accent.primary + '20',
+    borderRadius: theme.borderRadius.sm,
+  },
+  tierText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: theme.colors.accent.primary,
+    textTransform: 'uppercase',
+  },
+  signOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: theme.colors.background.secondary,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border.default,
+  },
+  signOutText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.text.secondary,
+  },
+  // Rest of styles
   newChatSection: {
     padding: 12,
     borderBottomWidth: 1,

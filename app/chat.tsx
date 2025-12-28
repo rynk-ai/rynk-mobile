@@ -370,6 +370,9 @@ export default function ChatScreen() {
         creditsRemaining={creditsRemaining}
         onRefresh={loadConversations}
         isLoading={isLoadingConversations}
+        isAuthenticated={isAuthenticated}
+        user={user}
+        onSignOut={signOut}
       />
 
       {/* Sign In Modal */}
