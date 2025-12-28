@@ -1,25 +1,106 @@
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { ArrowLeft, Mail, ArrowRight } from 'lucide-react-native';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Mail, ArrowRight, Check } from 'lucide-react-native';
 import { theme } from '../src/lib/theme';
+import { useAuth } from '../src/lib/auth';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { signIn, isAuthenticated, isLoading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = async () => {
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace('/chat');
+    }
+  }, [isAuthenticated, router]);
+
+  const handleEmailLogin = async () => {
     if (!email.trim()) return;
     
     setIsLoading(true);
-    // TODO: Implement actual login with magic link
-    setTimeout(() => {
+    setError(null);
+    
+    try {
+      const result = await signIn('email', email.trim());
+      if (result.success) {
+        setEmailSent(true);
+      } else {
+        setError(result.error || 'Failed to send magic link');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong');
+    } finally {
       setIsLoading(false);
-      router.push('/chat');
-    }, 1500);
+    }
   };
+
+  const handleGoogleLogin = async () => {
+    setIsGoogleLoading(true);
+    setError(null);
+    
+    try {
+      const result = await signIn('google');
+      if (!result.success) {
+        setError(result.error || 'Google sign in failed');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Google sign in failed');
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  // Show magic link sent confirmation
+  if (emailSent) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <View style={styles.successIcon}>
+            <Check size={32} color={theme.colors.accent.success} />
+          </View>
+          <Text style={styles.logo}>rynk.</Text>
+          <Text style={styles.title}>Check your email</Text>
+          <Text style={styles.subtitle}>
+            We sent a magic link to{'\n'}
+            <Text style={styles.emailHighlight}>{email}</Text>
+          </Text>
+          <Text style={[styles.subtitle, { marginTop: 8 }]}>
+            Click the link in the email to sign in.
+          </Text>
+          
+          <TouchableOpacity 
+            style={styles.backToLoginButton}
+            onPress={() => {
+              setEmailSent(false);
+              setEmail('');
+            }}
+            activeOpacity={0.7}
+          >
+            <ArrowLeft size={16} color={theme.colors.text.secondary} />
+            <Text style={styles.backToLoginText}>Use a different email</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (authLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <ActivityIndicator size="large" color={theme.colors.accent.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -43,8 +124,15 @@ export default function LoginScreen() {
           <Text style={styles.logo}>rynk.</Text>
           <Text style={styles.title}>Welcome back</Text>
           <Text style={styles.subtitle}>
-            Sign in with your email to continue
+            Sign in to your account to continue
           </Text>
+
+          {/* Error Message */}
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
 
           {/* Email Input */}
           <View style={styles.inputContainer}>
@@ -58,37 +146,57 @@ export default function LoginScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
+              editable={!isLoading}
             />
           </View>
 
-          {/* Login Button */}
+          {/* Email Login Button */}
           <TouchableOpacity
-            style={[styles.loginButton, !email.trim() && styles.buttonDisabled]}
-            onPress={handleLogin}
+            style={[styles.loginButton, (!email.trim() || isLoading) && styles.buttonDisabled]}
+            onPress={handleEmailLogin}
             disabled={!email.trim() || isLoading}
             activeOpacity={0.8}
           >
-            <Text style={[styles.loginButtonText, !email.trim() && styles.buttonTextDisabled]}>
-              {isLoading ? 'Sending link...' : 'Continue with Email'}
-            </Text>
-            {!isLoading && email.trim() && (
-              <ArrowRight size={18} color={theme.colors.text.inverse} />
+            {isLoading ? (
+              <ActivityIndicator size="small" color={theme.colors.text.inverse} />
+            ) : (
+              <>
+                <Mail size={18} color={email.trim() ? theme.colors.text.inverse : theme.colors.text.tertiary} />
+                <Text style={[styles.loginButtonText, !email.trim() && styles.buttonTextDisabled]}>
+                  Continue with Email
+                </Text>
+              </>
             )}
           </TouchableOpacity>
 
           {/* Divider */}
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or continue with</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Google Button */}
+          <TouchableOpacity 
+            style={[styles.socialButton, isGoogleLoading && styles.buttonDisabled]}
+            onPress={handleGoogleLogin}
+            disabled={isGoogleLoading}
+            activeOpacity={0.7}
+          >
+            {isGoogleLoading ? (
+              <ActivityIndicator size="small" color={theme.colors.text.primary} />
+            ) : (
+              <Text style={styles.socialButtonText}>Google</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Guest Mode */}
+          <View style={styles.guestDivider}>
+            <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>or</Text>
             <View style={styles.dividerLine} />
           </View>
 
-          {/* Social Buttons */}
-          <TouchableOpacity style={styles.socialButton} activeOpacity={0.7}>
-            <Text style={styles.socialButtonText}>Continue with Google</Text>
-          </TouchableOpacity>
-
-          {/* Guest Mode */}
           <TouchableOpacity 
             style={styles.guestButton}
             onPress={() => router.push('/chat')}
@@ -96,6 +204,7 @@ export default function LoginScreen() {
           >
             <Text style={styles.guestButtonText}>Continue as Guest</Text>
           </TouchableOpacity>
+          <Text style={styles.guestNote}>Try without an account • Limited features</Text>
         </View>
 
         {/* Footer */}
@@ -108,6 +217,7 @@ export default function LoginScreen() {
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -231,13 +341,28 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: theme.colors.text.primary,
   },
+  guestDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginVertical: 16,
+  },
   guestButton: {
     paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderWidth: 1,
+    borderColor: theme.colors.border.default,
+    borderRadius: theme.borderRadius.lg,
+    borderStyle: 'dashed',
   },
   guestButtonText: {
     fontSize: 14,
     color: theme.colors.text.secondary,
-    textDecorationLine: 'underline',
+  },
+  guestNote: {
+    fontSize: 12,
+    color: theme.colors.text.tertiary,
+    marginTop: 8,
   },
   footer: {
     alignItems: 'center',
@@ -247,6 +372,46 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 12,
     color: theme.colors.text.tertiary,
+    textAlign: 'center',
+  },
+  // Magic link sent screen styles
+  successIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  emailHighlight: {
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+  },
+  backToLoginButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 32,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  backToLoginText: {
+    fontSize: 14,
+    color: theme.colors.text.secondary,
+  },
+  // Error styles
+  errorContainer: {
+    width: '100%',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  errorText: {
+    fontSize: 14,
+    color: theme.colors.accent.error,
     textAlign: 'center',
   },
 });
