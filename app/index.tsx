@@ -35,20 +35,20 @@ export default function HomeScreen() {
         <View style={styles.actions}>
           <TouchableOpacity 
             style={styles.primaryButton}
-            onPress={() => router.push('/login')}
+            onPress={() => router.push('/chat')}
             activeOpacity={0.8}
           >
-            <Text style={styles.primaryButtonText}>Get Started</Text>
+            <Text style={styles.primaryButtonText}>Start Chatting</Text>
             <ArrowRight size={20} color="#fff" />
           </TouchableOpacity>
 
           <TouchableOpacity 
             style={styles.secondaryButton}
-            onPress={() => router.push('/chat')}
+            onPress={() => router.push('/conversations')}
             activeOpacity={0.8}
           >
             <MessageSquare size={20} color="#a855f7" />
-            <Text style={styles.secondaryButtonText}>Try as Guest</Text>
+            <Text style={styles.secondaryButtonText}>View Conversations</Text>
           </TouchableOpacity>
         </View>
 

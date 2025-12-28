@@ -1,48 +1,102 @@
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useRef, useCallback } from 'react';
-import { Send, Menu, Plus, Sparkles } from 'lucide-react-native';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  createdAt: Date;
-}
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { useLocalSearchParams } from 'expo-router';
+import { Send, Plus, Sparkles, AlertCircle } from 'lucide-react-native';
+import { useCreateConversation, useSendMessage } from '../src/lib/hooks/useChat';
+import { guestApi } from '../src/lib/api/guest';
+import type { Message } from '../src/lib/types';
 
 export default function ChatScreen() {
+  const params = useLocalSearchParams<{ conversationId?: string }>();
+  const [conversationId, setConversationId] = useState<string | null>(params.conversationId || null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [streamingContent, setStreamingContent] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
+
+  const createConversation = useCreateConversation();
+  const sendMessage = useSendMessage();
+
+  // Load existing messages if conversationId is provided
+  useEffect(() => {
+    if (conversationId) {
+      loadMessages(conversationId);
+    }
+  }, [conversationId]);
+
+  const loadMessages = async (convId: string) => {
+    try {
+      const response = await guestApi.get<{ messages: Message[] }>(`/guest/conversations/${convId}/messages`);
+      if (response.messages) {
+        setMessages(response.messages);
+      }
+    } catch (err) {
+      console.error('Failed to load messages:', err);
+    }
+  };
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || isLoading) return;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: input.trim(),
-      createdAt: new Date(),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
+    const userContent = input.trim();
     setInput('');
+    setError(null);
     setIsLoading(true);
+    setStreamingContent('');
 
-    // TODO: Actually call the API
-    // Simulating API response for now
-    setTimeout(() => {
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `This is a placeholder response. The API integration with rynk.io/api is coming soon!\n\nYou said: "${userMessage.content}"`,
-        createdAt: new Date(),
+    try {
+      // Create conversation if we don't have one
+      let currentConvId = conversationId;
+      if (!currentConvId) {
+        const newConv = await createConversation.mutateAsync();
+        currentConvId = newConv.id;
+        setConversationId(currentConvId);
+      }
+
+      // Add user message immediately (optimistic)
+      const userMessage: Message = {
+        id: `msg_${Date.now()}_user`,
+        conversationId: currentConvId,
+        role: 'user',
+        content: userContent,
+        attachments: null,
+        parentMessageId: null,
+        versionOf: null,
+        versionNumber: 1,
+        branchId: null,
+        reasoningContent: null,
+        reasoningMetadata: null,
+        webAnnotations: null,
+        modelUsed: null,
+        createdAt: new Date().toISOString(),
       };
+      setMessages(prev => [...prev, userMessage]);
+
+      // Send message with streaming
+      const { assistantMessage } = await sendMessage.mutateAsync({
+        conversationId: currentConvId,
+        message: userContent,
+        onChunk: (chunk) => {
+          setStreamingContent(prev => prev + chunk);
+        },
+      });
+
+      // Replace streaming content with final message
       setMessages(prev => [...prev, assistantMessage]);
+      setStreamingContent('');
+
+    } catch (err: any) {
+      console.error('Send message error:', err);
+      setError(err.message || 'Failed to send message');
+      // Remove the optimistic user message on error
+      setMessages(prev => prev.slice(0, -1));
+    } finally {
       setIsLoading(false);
-    }, 1000);
-  }, [input, isLoading]);
+    }
+  }, [input, isLoading, conversationId, createConversation, sendMessage]);
 
   const renderMessage = useCallback(({ item }: { item: Message }) => (
     <View style={[
@@ -68,6 +122,9 @@ export default function ChatScreen() {
     </View>
   ), []);
 
+  // Combine messages with streaming content for display
+  const displayMessages = [...messages];
+  
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <KeyboardAvoidingView 
@@ -76,7 +133,7 @@ export default function ChatScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         {/* Messages */}
-        {messages.length === 0 ? (
+        {displayMessages.length === 0 && !isLoading ? (
           <View style={styles.emptyState}>
             <View style={styles.emptyIcon}>
               <Sparkles size={48} color="#a855f7" />
@@ -89,20 +146,42 @@ export default function ChatScreen() {
         ) : (
           <FlatList
             ref={flatListRef}
-            data={messages}
+            data={displayMessages}
             renderItem={renderMessage}
             keyExtractor={item => item.id}
             contentContainerStyle={styles.messagesList}
             showsVerticalScrollIndicator={false}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            ListFooterComponent={
+              streamingContent ? (
+                <View style={[styles.messageContainer, styles.assistantMessage]}>
+                  <View style={styles.assistantIcon}>
+                    <Sparkles size={16} color="#a855f7" />
+                  </View>
+                  <View style={[styles.messageBubble, styles.assistantBubble]}>
+                    <Text style={[styles.messageText, styles.assistantText]}>
+                      {streamingContent}
+                    </Text>
+                  </View>
+                </View>
+              ) : null
+            }
           />
         )}
 
         {/* Loading indicator */}
-        {isLoading && (
+        {isLoading && !streamingContent && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="small" color="#a855f7" />
             <Text style={styles.loadingText}>Thinking...</Text>
+          </View>
+        )}
+
+        {/* Error message */}
+        {error && (
+          <View style={styles.errorContainer}>
+            <AlertCircle size={16} color="#ef4444" />
+            <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
 
@@ -120,6 +199,7 @@ export default function ChatScreen() {
             onChangeText={setInput}
             multiline
             maxLength={4000}
+            onSubmitEditing={handleSend}
           />
           
           <TouchableOpacity 
@@ -179,6 +259,7 @@ const styles = StyleSheet.create({
   messageContainer: {
     flexDirection: 'row',
     gap: 8,
+    marginBottom: 12,
   },
   userMessage: {
     justifyContent: 'flex-end',
@@ -228,6 +309,21 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 14,
     color: '#71717a',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    marginHorizontal: 16,
+    borderRadius: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#ef4444',
   },
   inputContainer: {
     flexDirection: 'row',
