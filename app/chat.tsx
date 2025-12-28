@@ -157,6 +157,7 @@ export default function ChatScreen() {
         },
         onStatus: (status) => {
           console.log('[Chat] Status:', status.message);
+          setStreamingStatus(status.message);
         },
         onComplete: (finalContent) => {
           // Ensure final content is set
@@ -166,6 +167,7 @@ export default function ChatScreen() {
               : m
           ));
           setIsLoading(false);
+          setStreamingStatus(null);
           loadConversations();
         },
         onError: (error) => {
@@ -199,40 +201,44 @@ export default function ChatScreen() {
 
   const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
     const isUser = item.role === 'user';
-    const isStreaming = isLoading && index === messages.length - 1 && !isUser;
+    const isStreamingMsg = isLoading && index === messages.length - 1 && !isUser;
     
     return (
       <View style={[
         styles.messageContainer,
         isUser ? styles.userMessageContainer : styles.assistantMessageContainer
       ]}>
-        {!isUser && (
-          <View style={styles.assistantAvatar}>
-            <Text style={styles.avatarText}>R</Text>
-          </View>
-        )}
         <View style={[
           styles.messageBubble,
           isUser ? styles.userBubble : styles.assistantBubble
         ]}>
+          {/* Status indicator for streaming */}
+          {isStreamingMsg && streamingStatus && (
+            <View style={styles.statusIndicator}>
+              <ActivityIndicator size="small" color={theme.colors.accent.primary} />
+              <Text style={styles.statusText}>{streamingStatus}</Text>
+            </View>
+          )}
+          
           {isUser ? (
             <Text style={[styles.messageText, styles.userText]}>
               {item.content}
             </Text>
           ) : (
-            <Markdown style={markdownStyles}>
-              {item.content || ' '}
-            </Markdown>
-          )}
-          {isStreaming && !item.content && (
-            <View style={styles.streamingIndicator}>
-              <ActivityIndicator size="small" color={theme.colors.accent.primary} />
-            </View>
+            item.content ? (
+              <Markdown style={markdownStyles}>
+                {item.content}
+              </Markdown>
+            ) : isStreamingMsg ? (
+              <View style={styles.streamingIndicator}>
+                <ActivityIndicator size="small" color={theme.colors.accent.primary} />
+              </View>
+            ) : null
           )}
         </View>
       </View>
     );
-  }, [isLoading, messages.length]);
+  }, [isLoading, messages.length, streamingStatus]);
 
   const EmptyState = () => (
     <View style={styles.emptyState}>
@@ -560,6 +566,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 4,
+  },
+  statusIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginBottom: 8,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.background.secondary,
+  },
+  statusText: {
+    fontSize: 13,
+    color: theme.colors.text.secondary,
+    fontWeight: '500',
   },
 });
 
