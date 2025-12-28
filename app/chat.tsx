@@ -28,6 +28,7 @@ export default function ChatScreen() {
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [streamingStatus, setStreamingStatus] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const isSendingRef = useRef(false);  // Guard against duplicate sends
 
   const createConversation = useCreateConversation();
   const sendMessage = useSendMessage();
@@ -50,12 +51,8 @@ export default function ChatScreen() {
     loadConversations();
   }, [loadConversations]);
 
-  // Auto-submit if query parameter is provided
-  useEffect(() => {
-    if (params.q && params.q.trim() && !isLoading && messages.length === 0) {
-      handleSend();
-    }
-  }, [params.q]);
+  // Note: Auto-submit removed - was causing duplicate sends
+  // If you want auto-submit, handle it once in a controlled way
 
   // Load existing messages if conversationId is provided
   useEffect(() => {
@@ -85,6 +82,12 @@ export default function ChatScreen() {
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || isLoading) return;
+    
+    // Guard against duplicate sends
+    if (isSendingRef.current) {
+      console.log('[Chat] Ignoring duplicate send');
+      return;
+    }
 
     // Check if credits exhausted
     if (isExhausted) {
@@ -92,6 +95,7 @@ export default function ChatScreen() {
       return;
     }
 
+    isSendingRef.current = true;
     const userContent = input.trim();
     setInput('');
     setError(null);
@@ -168,6 +172,7 @@ export default function ChatScreen() {
           ));
           setIsLoading(false);
           setStreamingStatus(null);
+          isSendingRef.current = false;
           loadConversations();
         },
         onError: (error) => {
@@ -180,6 +185,7 @@ export default function ChatScreen() {
           // Remove placeholder assistant message on error
           setMessages(prev => prev.filter(m => m.id !== assistantMsgId));
           setIsLoading(false);
+          isSendingRef.current = false;
         },
       });
 
@@ -196,6 +202,7 @@ export default function ChatScreen() {
       // Remove the optimistic messages on error
       setMessages(prev => prev.slice(0, -2));
       setIsLoading(false);
+      isSendingRef.current = false;
     }
   }, [input, isLoading, conversationId, createConversation, isExhausted]);
 
