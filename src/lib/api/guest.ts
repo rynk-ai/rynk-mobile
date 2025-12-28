@@ -166,8 +166,8 @@ class GuestApiClient {
   }
 
   /**
-   * Send a chat message and get response
-   * Note: React Native doesn't support ReadableStream, so we get the full response
+   * Send a chat message and get response (non-streaming fallback)
+   * Used when streaming is not needed or fails
    */
   async sendChat(
     conversationId: string,
@@ -187,11 +187,20 @@ class GuestApiClient {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Chat request failed');
+      
+      // Check for credit exhaustion
+      if (response.status === 402 || errorText.toLowerCase().includes('credit')) {
+        this.updateCredits(0);
+        throw new GuestApiError(402, 'Credits exhausted. Please sign in to continue.');
+      }
+      
       throw new GuestApiError(response.status, errorText);
     }
 
+    // Parse credits from headers
+    this.parseCreditsFromHeaders(response.headers);
+
     // Get the full response text
-    // The server streams SSE events, but we'll collect them all
     const text = await response.text();
     
     // Parse SSE events and extract content
@@ -205,13 +214,11 @@ class GuestApiClient {
           if (data.type === 'content' && data.content) {
             fullContent += data.content;
           } else if (data.content && !data.type) {
-            // Direct content without type
             fullContent += data.content;
           } else if (data.type === 'error') {
             throw new GuestApiError(500, data.error || 'Chat error');
           }
         } catch (e) {
-          // Not JSON, check if it's raw content
           const content = line.slice(6).trim();
           if (content && content !== '[DONE]') {
             fullContent += content;
@@ -220,12 +227,117 @@ class GuestApiClient {
       }
     }
     
-    // If no SSE parsing worked, return raw text (fallback)
     if (!fullContent && text) {
       fullContent = text;
     }
 
     return fullContent;
+  }
+
+  /**
+   * Send a chat message with SSE streaming
+   * Provides real-time updates via callbacks
+   */
+  async sendChatStreaming(
+    conversationId: string,
+    message: string,
+    callbacks: {
+      onContent?: (content: string, fullContent: string) => void;
+      onStatus?: (status: { status: string; message: string }) => void;
+      onSearchResults?: (results: any) => void;
+      onComplete?: (fullContent: string) => void;
+      onError?: (error: Error) => void;
+    }
+  ): Promise<void> {
+    const guestId = await getOrCreateGuestId();
+    
+    // Check credits before sending
+    if (this._creditsRemaining !== null && this._creditsRemaining <= 0) {
+      callbacks.onError?.(new GuestApiError(402, 'Credits exhausted'));
+      return;
+    }
+
+    let fullContent = '';
+    
+    try {
+      // Use react-native-sse for streaming
+      const EventSource = require('react-native-sse').default;
+      
+      const es = new EventSource(`${this.baseUrl}/guest/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${guestId}`,
+        },
+        body: JSON.stringify({
+          conversationId,
+          message,
+          useReasoning: 'auto',
+        }),
+      });
+
+      es.addEventListener('open', () => {
+        console.log('[SSE] Connection opened');
+        callbacks.onStatus?.({ status: 'analyzing', message: 'Analyzing request...' });
+      });
+
+      es.addEventListener('message', (event: any) => {
+        const data = event.data;
+        
+        if (!data || data === '[DONE]') {
+          return;
+        }
+
+        try {
+          // Try parsing as JSON (status updates, search results)
+          const parsed = JSON.parse(data);
+          
+          if (parsed.type === 'status') {
+            callbacks.onStatus?.({
+              status: parsed.status,
+              message: parsed.message,
+            });
+          } else if (parsed.type === 'search_results') {
+            callbacks.onSearchResults?.(parsed);
+          } else if (parsed.type === 'error') {
+            callbacks.onError?.(new GuestApiError(500, parsed.error || 'Chat error'));
+            es.close();
+          }
+        } catch {
+          // Not JSON - it's content
+          fullContent += data;
+          callbacks.onContent?.(data, fullContent);
+        }
+      });
+
+      es.addEventListener('error', (event: any) => {
+        console.error('[SSE] Error:', event);
+        
+        if (event.status === 402 || event.message?.includes('credit')) {
+          this.updateCredits(0);
+          callbacks.onError?.(new GuestApiError(402, 'Credits exhausted'));
+        } else {
+          callbacks.onError?.(new GuestApiError(event.status || 500, event.message || 'Stream error'));
+        }
+        
+        es.close();
+      });
+
+      es.addEventListener('close', () => {
+        console.log('[SSE] Connection closed');
+        callbacks.onStatus?.({ status: 'complete', message: 'Complete' });
+        callbacks.onComplete?.(fullContent);
+        
+        // Decrement credits locally
+        if (this._creditsRemaining !== null && this._creditsRemaining > 0) {
+          this.updateCredits(this._creditsRemaining - 1);
+        }
+      });
+
+    } catch (error: any) {
+      console.error('[SSE] Setup error:', error);
+      callbacks.onError?.(error);
+    }
   }
 }
 

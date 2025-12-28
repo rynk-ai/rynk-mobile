@@ -121,36 +121,79 @@ export default function ChatScreen() {
         modelUsed: null,
         createdAt: new Date().toISOString(),
       };
-      setMessages(prev => [...prev, userMessage]);
 
-      // Send message and get response
-      const { assistantMessage } = await sendMessage.mutateAsync({
+      // Add placeholder assistant message for streaming
+      const assistantMsgId = `msg_${Date.now()}_assistant`;
+      const assistantMessage: Message = {
+        id: assistantMsgId,
         conversationId: currentConvId,
-        message: userContent,
+        role: 'assistant',
+        content: '',
+        attachments: null,
+        parentMessageId: null,
+        versionOf: null,
+        versionNumber: 1,
+        branchId: null,
+        reasoningContent: null,
+        reasoningMetadata: null,
+        webAnnotations: null,
+        modelUsed: null,
+        createdAt: new Date().toISOString(),
+      };
+
+      setMessages(prev => [...prev, userMessage, assistantMessage]);
+
+      // Use streaming for real-time response
+      await guestApi.sendChatStreaming(currentConvId, userContent, {
+        onContent: (chunk, fullContent) => {
+          // Update assistant message content in real-time
+          setMessages(prev => prev.map(m => 
+            m.id === assistantMsgId 
+              ? { ...m, content: fullContent }
+              : m
+          ));
+        },
+        onStatus: (status) => {
+          console.log('[Chat] Status:', status.message);
+        },
+        onComplete: (finalContent) => {
+          // Ensure final content is set
+          setMessages(prev => prev.map(m => 
+            m.id === assistantMsgId 
+              ? { ...m, content: finalContent }
+              : m
+          ));
+          setIsLoading(false);
+          loadConversations();
+        },
+        onError: (error) => {
+          console.error('Streaming error:', error);
+          if (error instanceof GuestApiError && (error.status === 402 || error.status === 403)) {
+            setShowSignInModal(true);
+          } else {
+            setError(error.message || 'Failed to send message');
+          }
+          // Remove placeholder assistant message on error
+          setMessages(prev => prev.filter(m => m.id !== assistantMsgId));
+          setIsLoading(false);
+        },
       });
-
-      // Add the assistant message
-      setMessages(prev => [...prev, assistantMessage]);
-
-      // Update conversation title in list
-      loadConversations();
 
     } catch (err: any) {
       console.error('Send message error:', err);
       
       // Check for credit exhaustion
-      if (err instanceof GuestApiError && err.status === 403) {
+      if (err instanceof GuestApiError && (err.status === 402 || err.status === 403)) {
         setShowSignInModal(true);
       } else {
         setError(err.message || 'Failed to send message');
       }
       
-      // Remove the optimistic user message on error
-      setMessages(prev => prev.slice(0, -1));
-    } finally {
+      // Remove the optimistic messages on error
+      setMessages(prev => prev.slice(0, -2));
       setIsLoading(false);
     }
-  }, [input, isLoading, conversationId, createConversation, sendMessage, isExhausted]);
+  }, [input, isLoading, conversationId, createConversation, isExhausted]);
 
   const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
     const isUser = item.role === 'user';
