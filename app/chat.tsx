@@ -149,39 +149,30 @@ export default function ChatScreen() {
 
       setMessages(prev => [...prev, userMessage, assistantMessage]);
 
-      // Use streaming for real-time response
+      // Send message and get response (non-streaming for now)
+      setStreamingStatus('Thinking...');
+      
       try {
-        const finalContent = await guestApi.sendChatStreaming(currentConvId, userContent, {
-          onContent: (chunk, fullContent) => {
-            // Update assistant message content in real-time
-            setMessages(prev => prev.map(m => 
-              m.id === assistantMsgId 
-                ? { ...m, content: fullContent }
-                : m
-            ));
-          },
-          onStatus: (status) => {
-            console.log('[Chat] Status:', status.message);
-            setStreamingStatus(status.message);
-          },
-        });
+        const responseContent = await guestApi.sendChat(currentConvId, userContent);
         
-        // Ensure final content is set
+        console.log('[Chat] Response received, length:', responseContent.length);
+        
+        // Update assistant message with response
         setMessages(prev => prev.map(m => 
           m.id === assistantMsgId 
-            ? { ...m, content: finalContent }
+            ? { ...m, content: responseContent }
             : m
         ));
         
         setStreamingStatus(null);
         loadConversations();
         
-      } catch (streamError: any) {
-        console.error('Streaming error:', streamError);
-        if (streamError instanceof GuestApiError && (streamError.status === 402 || streamError.status === 403)) {
+      } catch (chatError: any) {
+        console.error('Chat error:', chatError);
+        if (chatError instanceof GuestApiError && (chatError.status === 402 || chatError.status === 403)) {
           setShowSignInModal(true);
         } else {
-          setError(streamError.message || 'Failed to send message');
+          setError(chatError.message || 'Failed to send message');
         }
         // Remove placeholder assistant message on error
         setMessages(prev => prev.filter(m => m.id !== assistantMsgId));

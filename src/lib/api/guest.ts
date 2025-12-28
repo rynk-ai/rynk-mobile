@@ -166,14 +166,16 @@ class GuestApiClient {
   }
 
   /**
-   * Send a chat message and get response (non-streaming fallback)
-   * Used when streaming is not needed or fails
+   * Send a chat message and get response (non-streaming - waits for full response)
+   * Server sends: JSON status lines + raw text content
    */
   async sendChat(
     conversationId: string,
     message: string,
   ): Promise<string> {
     const headers = await this.getHeaders();
+    
+    console.log('[sendChat] Starting request to:', `${this.baseUrl}/guest/chat`);
     
     const response = await fetch(`${this.baseUrl}/guest/chat`, {
       method: 'POST',
@@ -185,11 +187,14 @@ class GuestApiClient {
       }),
     });
 
+    console.log('[sendChat] Response status:', response.status);
+
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Chat request failed');
+      console.error('[sendChat] Error response:', errorText);
       
       // Check for credit exhaustion
-      if (response.status === 402 || errorText.toLowerCase().includes('credit')) {
+      if (response.status === 403 || response.status === 402 || errorText.toLowerCase().includes('credit')) {
         this.updateCredits(0);
         throw new GuestApiError(402, 'Credits exhausted. Please sign in to continue.');
       }
@@ -202,34 +207,57 @@ class GuestApiClient {
 
     // Get the full response text
     const text = await response.text();
+    console.log('[sendChat] Raw response length:', text.length);
     
-    // Parse SSE events and extract content
+    // Server sends: JSON lines (for status) + raw text (for content)
+    // Each line is either a JSON object or raw content text
     let fullContent = '';
     const lines = text.split('\n');
     
     for (const line of lines) {
-      if (line.startsWith('data: ')) {
+      const trimmedLine = line.trim();
+      if (!trimmedLine) continue;
+      
+      // Try to parse as JSON (status updates, search results, errors)
+      if (trimmedLine.startsWith('{')) {
         try {
-          const data = JSON.parse(line.slice(6));
-          if (data.type === 'content' && data.content) {
-            fullContent += data.content;
-          } else if (data.content && !data.type) {
-            fullContent += data.content;
-          } else if (data.type === 'error') {
-            throw new GuestApiError(500, data.error || 'Chat error');
+          const parsed = JSON.parse(trimmedLine);
+          
+          // Skip status updates, they're just metadata
+          if (parsed.type === 'status') {
+            console.log('[sendChat] Status:', parsed.message);
+            continue;
           }
+          
+          // Handle errors
+          if (parsed.type === 'error') {
+            throw new GuestApiError(500, parsed.message || 'Chat error');
+          }
+          
+          // Handle search results (skip, just metadata)
+          if (parsed.type === 'search_results') {
+            console.log('[sendChat] Search results received');
+            continue;
+          }
+          
+          // Handle context cards (skip, just metadata)
+          if (parsed.type === 'context_cards') {
+            continue;
+          }
+          
+          // Unknown JSON type - might be content structured differently
+          console.log('[sendChat] Unknown JSON type:', parsed.type);
         } catch (e) {
-          const content = line.slice(6).trim();
-          if (content && content !== '[DONE]') {
-            fullContent += content;
-          }
+          // Not valid JSON starting with {, treat as content
+          fullContent += line;
         }
+      } else {
+        // Raw text content
+        fullContent += line;
       }
     }
     
-    if (!fullContent && text) {
-      fullContent = text;
-    }
+    console.log('[sendChat] Parsed content length:', fullContent.length);
 
     return fullContent;
   }
