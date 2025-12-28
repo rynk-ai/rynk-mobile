@@ -9,41 +9,6 @@ import type { Message, Conversation } from '../types';
 export interface SendMessageParams {
   conversationId: string;
   message: string;
-  onChunk?: (chunk: string) => void;
-}
-
-export interface StreamingMessage {
-  id: string;
-  content: string;
-  role: 'assistant';
-  isStreaming: boolean;
-}
-
-/**
- * Parse SSE stream chunks into content
- */
-function parseSSEChunk(chunk: string): { type: string; content?: string; error?: string }[] {
-  const events: { type: string; content?: string; error?: string }[] = [];
-  
-  // SSE format: data: {...}\n\n
-  const lines = chunk.split('\n');
-  
-  for (const line of lines) {
-    if (line.startsWith('data: ')) {
-      try {
-        const data = JSON.parse(line.slice(6));
-        events.push(data);
-      } catch {
-        // Not JSON, might be raw content
-        events.push({ type: 'content', content: line.slice(6) });
-      }
-    } else if (line.trim() && !line.startsWith(':')) {
-      // Raw content without SSE wrapper
-      events.push({ type: 'content', content: line });
-    }
-  }
-  
-  return events;
 }
 
 /**
@@ -64,7 +29,7 @@ export function useCreateConversation() {
 }
 
 /**
- * Hook to send a message with streaming
+ * Hook to send a message
  */
 export function useSendMessage() {
   const queryClient = useQueryClient();
@@ -73,29 +38,12 @@ export function useSendMessage() {
     mutationFn: async ({
       conversationId,
       message,
-      onChunk,
     }: SendMessageParams): Promise<{ userMessage: Message; assistantMessage: Message }> => {
       const userMessageId = `msg_${Date.now()}_user`;
       const assistantMessageId = `msg_${Date.now()}_assistant`;
       
-      let fullContent = '';
-      
-      // Stream the response
-      await guestApi.streamChat(
-        conversationId,
-        message,
-        (chunk) => {
-          const events = parseSSEChunk(chunk);
-          for (const event of events) {
-            if (event.type === 'content' && event.content) {
-              fullContent += event.content;
-              onChunk?.(event.content);
-            } else if (event.type === 'error') {
-              throw new Error(event.error || 'Chat error');
-            }
-          }
-        }
-      );
+      // Get the full response (React Native doesn't support streaming)
+      const fullContent = await guestApi.sendChat(conversationId, message);
 
       const userMessage: Message = {
         id: userMessageId,

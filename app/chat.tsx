@@ -13,7 +13,6 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [streamingContent, setStreamingContent] = useState('');
   const [error, setError] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
@@ -45,7 +44,6 @@ export default function ChatScreen() {
     setInput('');
     setError(null);
     setIsLoading(true);
-    setStreamingContent('');
 
     try {
       // Create conversation if we don't have one
@@ -75,18 +73,14 @@ export default function ChatScreen() {
       };
       setMessages(prev => [...prev, userMessage]);
 
-      // Send message with streaming
+      // Send message and get response
       const { assistantMessage } = await sendMessage.mutateAsync({
         conversationId: currentConvId,
         message: userContent,
-        onChunk: (chunk) => {
-          setStreamingContent(prev => prev + chunk);
-        },
       });
 
-      // Replace streaming content with final message
+      // Add the assistant message
       setMessages(prev => [...prev, assistantMessage]);
-      setStreamingContent('');
 
     } catch (err: any) {
       console.error('Send message error:', err);
@@ -152,25 +146,11 @@ export default function ChatScreen() {
             contentContainerStyle={styles.messagesList}
             showsVerticalScrollIndicator={false}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-            ListFooterComponent={
-              streamingContent ? (
-                <View style={[styles.messageContainer, styles.assistantMessage]}>
-                  <View style={styles.assistantIcon}>
-                    <Sparkles size={16} color="#a855f7" />
-                  </View>
-                  <View style={[styles.messageBubble, styles.assistantBubble]}>
-                    <Text style={[styles.messageText, styles.assistantText]}>
-                      {streamingContent}
-                    </Text>
-                  </View>
-                </View>
-              ) : null
-            }
           />
         )}
 
         {/* Loading indicator */}
-        {isLoading && !streamingContent && (
+        {isLoading && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="small" color="#a855f7" />
             <Text style={styles.loadingText}>Thinking...</Text>

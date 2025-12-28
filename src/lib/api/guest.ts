@@ -118,14 +118,13 @@ class GuestApiClient {
   }
 
   /**
-   * Stream a chat response
+   * Send a chat message and get response
+   * Note: React Native doesn't support ReadableStream, so we get the full response
    */
-  async streamChat(
+  async sendChat(
     conversationId: string,
     message: string,
-    onChunk: (chunk: string) => void,
-    onDone?: () => void
-  ): Promise<void> {
+  ): Promise<string> {
     const headers = await this.getHeaders();
     
     const response = await fetch(`${this.baseUrl}/guest/chat`, {
@@ -139,27 +138,46 @@ class GuestApiClient {
     });
 
     if (!response.ok) {
-      throw new GuestApiError(response.status, 'Chat request failed');
+      const errorText = await response.text().catch(() => 'Chat request failed');
+      throw new GuestApiError(response.status, errorText);
     }
 
-    if (!response.body) {
-      throw new GuestApiError(500, 'No response body');
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        const chunk = decoder.decode(value, { stream: true });
-        onChunk(chunk);
+    // Get the full response text
+    // The server streams SSE events, but we'll collect them all
+    const text = await response.text();
+    
+    // Parse SSE events and extract content
+    let fullContent = '';
+    const lines = text.split('\n');
+    
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.type === 'content' && data.content) {
+            fullContent += data.content;
+          } else if (data.content && !data.type) {
+            // Direct content without type
+            fullContent += data.content;
+          } else if (data.type === 'error') {
+            throw new GuestApiError(500, data.error || 'Chat error');
+          }
+        } catch (e) {
+          // Not JSON, check if it's raw content
+          const content = line.slice(6).trim();
+          if (content && content !== '[DONE]') {
+            fullContent += content;
+          }
+        }
       }
-    } finally {
-      onDone?.();
     }
+    
+    // If no SSE parsing worked, return raw text (fallback)
+    if (!fullContent && text) {
+      fullContent = text;
+    }
+
+    return fullContent;
   }
 }
 
