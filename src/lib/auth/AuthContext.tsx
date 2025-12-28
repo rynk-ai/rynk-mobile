@@ -76,10 +76,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('[Auth] Redirect URI:', redirectUri);
 
       if (method === 'google') {
-        // Open web browser for Google OAuth
-        // Use mobile-callback page that will create mobile session and redirect back
+        // Open web browser for login
+        // The login page will handle OAuth, then redirect to mobile-callback
+        // which creates a mobile session token and redirects back to the app
         const mobileCallbackUrl = `${BASE_URL}/auth/mobile-callback?redirect_uri=${encodeURIComponent(redirectUri)}`;
-        const authUrl = `${BASE_URL}/api/auth/signin/google?callbackUrl=${encodeURIComponent(mobileCallbackUrl)}`;
+        const authUrl = `${BASE_URL}/login?callbackUrl=${encodeURIComponent(mobileCallbackUrl)}`;
         
         const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
         
