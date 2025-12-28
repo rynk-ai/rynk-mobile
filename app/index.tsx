@@ -1,206 +1,307 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MessageSquare, Sparkles, ArrowRight } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { ArrowRight, MessageSquare, Sparkles, BookOpen, Target, HelpCircle } from 'lucide-react-native';
+import { theme } from '../src/lib/theme';
+
+const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const router = useRouter();
+  const [query, setQuery] = useState('');
+
+  const handleSearch = () => {
+    if (query.trim()) {
+      router.push(`/chat?q=${encodeURIComponent(query)}`);
+    } else {
+      router.push('/chat');
+    }
+  };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container}>
       <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.logo}>rynk.</Text>
-          <Text style={styles.tagline}>AI-powered conversations</Text>
         </View>
 
         {/* Hero Section */}
         <View style={styles.hero}>
-          <View style={styles.iconContainer}>
-            <Sparkles size={48} color="#a855f7" />
+          {/* Badge */}
+          <View style={styles.badge}>
+            <View style={styles.badgeDot} />
+            <Text style={styles.badgeText}>RESEARCH ENGINE</Text>
+            <ArrowRight size={10} color={theme.colors.text.secondary} style={{ marginLeft: 4 }} />
           </View>
-          <Text style={styles.heroTitle}>Welcome to Rynk</Text>
-          <Text style={styles.heroDescription}>
-            Experience intelligent conversations with context-aware AI. 
-            Organize your chats, collaborate on projects, and discover insights.
+
+          {/* Headline */}
+          <Text style={styles.headline}>
+            Ask once.{'\n'}
+            <Text style={styles.headlineSecondary}>Get it your way.</Text>
           </Text>
+
+          {/* Subheadline */}
+          <Text style={styles.subheadline}>
+            Timelines, comparisons, quizzes, courses—{'\n'}
+            <Text style={styles.subheadlineHighlight}>pick the format that fits your brain.</Text>
+          </Text>
+
+          {/* Search Input */}
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Ask anything..."
+              placeholderTextColor={theme.colors.text.tertiary}
+              value={query}
+              onChangeText={setQuery}
+              onSubmitEditing={handleSearch}
+              returnKeyType="search"
+            />
+            <TouchableOpacity 
+              style={styles.searchButton}
+              onPress={handleSearch}
+              activeOpacity={0.8}
+            >
+              <ArrowRight size={18} color={theme.colors.text.inverse} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Quick Action Buttons */}
+          <View style={styles.quickActions}>
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => router.push('/chat')}
+              activeOpacity={0.7}
+            >
+              <MessageSquare size={16} color={theme.colors.text.secondary} />
+              <Text style={styles.quickActionText}>New Chat</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => router.push('/conversations')}
+              activeOpacity={0.7}
+            >
+              <Sparkles size={16} color={theme.colors.text.secondary} />
+              <Text style={styles.quickActionText}>History</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* CTA Buttons */}
-        <View style={styles.actions}>
-          <TouchableOpacity 
-            style={styles.primaryButton}
-            onPress={() => router.push('/chat')}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.primaryButtonText}>Start Chatting</Text>
-            <ArrowRight size={20} color="#fff" />
-          </TouchableOpacity>
+        {/* Features Grid */}
+        <View style={styles.featuresSection}>
+          <Text style={styles.sectionTitle}>What can you do?</Text>
+          
+          <View style={styles.featuresGrid}>
+            <TouchableOpacity style={styles.featureCard} activeOpacity={0.7}>
+              <View style={[styles.featureIcon, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
+                <MessageSquare size={20} color="#3b82f6" />
+              </View>
+              <Text style={styles.featureTitle}>Chat</Text>
+              <Text style={styles.featureDescription}>Ask anything and get intelligent responses</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.secondaryButton}
-            onPress={() => router.push('/conversations')}
-            activeOpacity={0.8}
-          >
-            <MessageSquare size={20} color="#a855f7" />
-            <Text style={styles.secondaryButtonText}>View Conversations</Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity style={styles.featureCard} activeOpacity={0.7}>
+              <View style={[styles.featureIcon, { backgroundColor: 'rgba(34, 197, 94, 0.1)' }]}>
+                <BookOpen size={20} color="#22c55e" />
+              </View>
+              <Text style={styles.featureTitle}>Research</Text>
+              <Text style={styles.featureDescription}>Deep dive into topics with sources</Text>
+            </TouchableOpacity>
 
-        {/* Features */}
-        <View style={styles.features}>
-          <FeatureItem 
-            icon="💬" 
-            title="Smart Conversations" 
-            description="AI that understands context and learns from your interactions"
-          />
-          <FeatureItem 
-            icon="📁" 
-            title="Project Organization" 
-            description="Keep your work organized with projects and custom instructions"
-          />
-          <FeatureItem 
-            icon="🔍" 
-            title="Web Search" 
-            description="Get real-time information with integrated web search"
-          />
+            <TouchableOpacity style={styles.featureCard} activeOpacity={0.7}>
+              <View style={[styles.featureIcon, { backgroundColor: 'rgba(236, 72, 153, 0.1)' }]}>
+                <Target size={20} color="#ec4899" />
+              </View>
+              <Text style={styles.featureTitle}>Quiz</Text>
+              <Text style={styles.featureDescription}>Test your knowledge interactively</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.featureCard} activeOpacity={0.7}>
+              <View style={[styles.featureIcon, { backgroundColor: 'rgba(168, 85, 247, 0.1)' }]}>
+                <HelpCircle size={20} color="#a855f7" />
+              </View>
+              <Text style={styles.featureTitle}>Compare</Text>
+              <Text style={styles.featureDescription}>Analyze differences between topics</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function FeatureItem({ icon, title, description }: { icon: string; title: string; description: string }) {
-  return (
-    <View style={styles.featureItem}>
-      <Text style={styles.featureIcon}>{icon}</Text>
-      <View style={styles.featureText}>
-        <Text style={styles.featureTitle}>{title}</Text>
-        <Text style={styles.featureDescription}>{description}</Text>
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0f',
+    backgroundColor: theme.colors.background.primary,
   },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: 24,
-    paddingBottom: 48,
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 40,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
     paddingTop: 16,
-    marginBottom: 48,
+    paddingBottom: 8,
   },
   logo: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
-    color: '#fff',
-  },
-  tagline: {
-    fontSize: 14,
-    color: '#71717a',
-    marginTop: 4,
+    color: theme.colors.text.primary,
+    letterSpacing: -1,
   },
   hero: {
     alignItems: 'center',
-    marginBottom: 48,
+    paddingHorizontal: 24,
+    paddingTop: 40,
+    paddingBottom: 32,
   },
-  iconContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 24,
-    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+  badge: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: theme.colors.background.secondary,
+    borderWidth: 1,
+    borderColor: theme.colors.border.default,
+    borderRadius: theme.borderRadius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     marginBottom: 24,
   },
-  heroTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 12,
+  badgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#6366f1',
+    marginRight: 8,
   },
-  heroDescription: {
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: theme.colors.text.secondary,
+    letterSpacing: 1,
+  },
+  headline: {
+    fontSize: width > 380 ? 36 : 32,
+    fontWeight: '700',
+    color: theme.colors.text.primary,
+    textAlign: 'center',
+    lineHeight: width > 380 ? 44 : 40,
+    letterSpacing: -1,
+    marginBottom: 16,
+  },
+  headlineSecondary: {
+    color: 'rgba(229, 229, 229, 0.85)',
+  },
+  subheadline: {
     fontSize: 16,
-    color: '#a1a1aa',
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
+    marginBottom: 32,
+    paddingHorizontal: 16,
   },
-  actions: {
+  subheadlineHighlight: {
+    color: theme.colors.text.primary,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: theme.colors.background.secondary,
+    borderRadius: theme.borderRadius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
+    paddingLeft: 20,
+    paddingRight: 6,
+    paddingVertical: 6,
+    marginBottom: 20,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    fontSize: 16,
+    color: theme.colors.text.primary,
+  },
+  searchButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.text.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickActions: {
+    flexDirection: 'row',
     gap: 12,
-    marginBottom: 48,
   },
-  primaryButton: {
+  quickActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#a855f7',
-    paddingVertical: 16,
-    borderRadius: 12,
-  },
-  primaryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  secondaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(168, 85, 247, 0.1)',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: theme.colors.background.secondary,
     borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.3)',
+    borderColor: theme.colors.border.default,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: theme.borderRadius.lg,
   },
-  secondaryButtonText: {
-    fontSize: 16,
+  quickActionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.text.secondary,
+  },
+  featuresSection: {
+    paddingHorizontal: 20,
+    marginTop: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: '600',
-    color: '#a855f7',
+    color: theme.colors.text.primary,
+    marginBottom: 16,
+    textAlign: 'center',
   },
-  features: {
-    gap: 16,
-  },
-  featureItem: {
+  featuresGrid: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'center',
+  },
+  featureCard: {
+    width: (width - 52) / 2,
+    backgroundColor: theme.colors.background.card,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
     padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   featureIcon: {
-    fontSize: 24,
-  },
-  featureText: {
-    flex: 1,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   featureTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#fff',
+    color: theme.colors.text.primary,
     marginBottom: 4,
   },
   featureDescription: {
-    fontSize: 14,
-    color: '#71717a',
-    lineHeight: 20,
+    fontSize: 12,
+    color: theme.colors.text.secondary,
+    lineHeight: 17,
   },
 });

@@ -1,10 +1,13 @@
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
-import { MessageSquare, Plus, Trash2, Clock } from 'lucide-react-native';
+import { MessageSquare, Plus, Trash2, Clock, ArrowLeft } from 'lucide-react-native';
 import { guestApi } from '../src/lib/api/guest';
+import { theme } from '../src/lib/theme';
 import type { Conversation } from '../src/lib/types';
+
+const { width } = Dimensions.get('window');
 
 export default function ConversationsScreen() {
   const router = useRouter();
@@ -66,15 +69,12 @@ export default function ConversationsScreen() {
       onPress={() => handleOpenConversation(item.id)}
       activeOpacity={0.7}
     >
-      <View style={styles.conversationIcon}>
-        <MessageSquare size={20} color="#a855f7" />
-      </View>
       <View style={styles.conversationContent}>
         <Text style={styles.conversationTitle} numberOfLines={1}>
           {item.title || 'Untitled Chat'}
         </Text>
         <View style={styles.conversationMeta}>
-          <Clock size={12} color="#52525b" />
+          <Clock size={11} color={theme.colors.text.tertiary} />
           <Text style={styles.conversationTime}>
             {formatDate(item.updatedAt || item.createdAt)}
           </Text>
@@ -84,8 +84,9 @@ export default function ConversationsScreen() {
         style={styles.deleteButton}
         onPress={() => handleDeleteConversation(item.id)}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        activeOpacity={0.6}
       >
-        <Trash2 size={18} color="#71717a" />
+        <Trash2 size={16} color={theme.colors.text.tertiary} />
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -94,22 +95,28 @@ export default function ConversationsScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Conversations</Text>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <ArrowLeft size={20} color={theme.colors.text.primary} />
+        </TouchableOpacity>
+        <Text style={styles.title}>History</Text>
         <TouchableOpacity
           style={styles.newChatButton}
           onPress={handleNewChat}
           activeOpacity={0.8}
         >
-          <Plus size={20} color="#fff" />
-          <Text style={styles.newChatText}>New Chat</Text>
+          <Plus size={18} color={theme.colors.text.inverse} />
         </TouchableOpacity>
       </View>
 
       {/* Content */}
       {isLoading ? (
         <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#a855f7" />
-          <Text style={styles.loadingText}>Loading conversations...</Text>
+          <ActivityIndicator size="large" color={theme.colors.accent.primary} />
+          <Text style={styles.loadingText}>Loading...</Text>
         </View>
       ) : error ? (
         <View style={styles.centerContent}>
@@ -121,11 +128,11 @@ export default function ConversationsScreen() {
       ) : conversations.length === 0 ? (
         <View style={styles.centerContent}>
           <View style={styles.emptyIcon}>
-            <MessageSquare size={48} color="#52525b" />
+            <MessageSquare size={40} color={theme.colors.text.tertiary} />
           </View>
           <Text style={styles.emptyTitle}>No conversations yet</Text>
           <Text style={styles.emptyDescription}>
-            Start a new chat to begin your conversation with Rynk AI.
+            Start a new chat to begin
           </Text>
           <TouchableOpacity
             style={styles.startChatButton}
@@ -144,6 +151,7 @@ export default function ConversationsScreen() {
           showsVerticalScrollIndicator={false}
           onRefresh={loadConversations}
           refreshing={isLoading}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
       )}
     </SafeAreaView>
@@ -153,35 +161,37 @@ export default function ConversationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0f',
+    backgroundColor: theme.colors.background.primary,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    borderBottomColor: theme.colors.border.subtle,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.background.secondary,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
   },
   newChatButton: {
-    flexDirection: 'row',
+    width: 36,
+    height: 36,
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#a855f7',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  newChatText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.text.primary,
+    borderRadius: theme.borderRadius.lg,
   },
   centerContent: {
     flex: 1,
@@ -192,43 +202,43 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#71717a',
+    color: theme.colors.text.secondary,
   },
   errorText: {
-    fontSize: 16,
-    color: '#ef4444',
+    fontSize: 15,
+    color: theme.colors.accent.error,
     textAlign: 'center',
   },
   retryButton: {
     marginTop: 16,
     paddingHorizontal: 20,
     paddingVertical: 10,
-    backgroundColor: 'rgba(168, 85, 247, 0.2)',
-    borderRadius: 8,
+    backgroundColor: theme.colors.background.secondary,
+    borderRadius: theme.borderRadius.lg,
   },
   retryText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#a855f7',
+    fontWeight: '500',
+    color: theme.colors.text.primary,
   },
   emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    width: 72,
+    height: 72,
+    borderRadius: 18,
+    backgroundColor: theme.colors.background.secondary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: theme.colors.text.primary,
     marginBottom: 8,
   },
   emptyDescription: {
     fontSize: 14,
-    color: '#71717a',
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -236,43 +246,37 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: '#a855f7',
-    borderRadius: 12,
+    backgroundColor: theme.colors.text.primary,
+    borderRadius: theme.borderRadius.lg,
   },
   startChatText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#fff',
+    color: theme.colors.text.inverse,
   },
   list: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 32,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: theme.colors.border.subtle,
+    marginVertical: 4,
   },
   conversationItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  conversationIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: 'rgba(168, 85, 247, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 4,
   },
   conversationContent: {
     flex: 1,
   },
   conversationTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
-    color: '#fff',
+    color: theme.colors.text.primary,
     marginBottom: 4,
   },
   conversationMeta: {
@@ -282,9 +286,10 @@ const styles = StyleSheet.create({
   },
   conversationTime: {
     fontSize: 12,
-    color: '#52525b',
+    color: theme.colors.text.tertiary,
   },
   deleteButton: {
-    padding: 8,
+    padding: 10,
+    marginRight: -8,
   },
 });

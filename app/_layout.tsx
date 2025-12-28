@@ -3,46 +3,37 @@ import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet } from 'react-native';
+import { theme } from '../src/lib/theme';
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      retry: 2,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
     },
   },
 });
 
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView style={styles.container}>
-      <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
           <StatusBar style="light" />
           <Stack
             screenOptions={{
-              headerStyle: {
-                backgroundColor: '#0a0a0f',
-              },
-              headerTintColor: '#fff',
-              headerTitleStyle: {
-                fontWeight: '600',
-              },
-              contentStyle: {
-                backgroundColor: '#0a0a0f',
-              },
+              headerShown: false,
+              contentStyle: { backgroundColor: theme.colors.background.primary },
+              animation: 'slide_from_right',
             }}
-          />
-        </QueryClientProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+          >
+            <Stack.Screen name="index" />
+            <Stack.Screen name="login" />
+            <Stack.Screen name="chat" />
+            <Stack.Screen name="conversations" />
+          </Stack>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </QueryClientProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0a0a0f',
-  },
-});
