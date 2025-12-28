@@ -236,108 +236,151 @@ class GuestApiClient {
 
   /**
    * Send a chat message with SSE streaming
-   * Provides real-time updates via callbacks
+   * Returns a Promise that resolves when streaming completes
    */
-  async sendChatStreaming(
+  sendChatStreaming(
     conversationId: string,
     message: string,
     callbacks: {
       onContent?: (content: string, fullContent: string) => void;
       onStatus?: (status: { status: string; message: string }) => void;
       onSearchResults?: (results: any) => void;
-      onComplete?: (fullContent: string) => void;
-      onError?: (error: Error) => void;
     }
-  ): Promise<void> {
-    const guestId = await getOrCreateGuestId();
-    
-    // Check credits before sending
-    if (this._creditsRemaining !== null && this._creditsRemaining <= 0) {
-      callbacks.onError?.(new GuestApiError(402, 'Credits exhausted'));
-      return;
-    }
-
-    let fullContent = '';
-    
-    try {
-      // Use react-native-sse for streaming
-      const EventSource = require('react-native-sse').default;
-      
-      const es = new EventSource(`${this.baseUrl}/guest/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${guestId}`,
-        },
-        body: JSON.stringify({
-          conversationId,
-          message,
-          useReasoning: 'auto',
-        }),
-      });
-
-      es.addEventListener('open', () => {
-        console.log('[SSE] Connection opened');
-        callbacks.onStatus?.({ status: 'analyzing', message: 'Analyzing request...' });
-      });
-
-      es.addEventListener('message', (event: any) => {
-        const data = event.data;
+  ): Promise<string> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const guestId = await getOrCreateGuestId();
         
-        if (!data || data === '[DONE]') {
+        // Check credits before sending
+        if (this._creditsRemaining !== null && this._creditsRemaining <= 0) {
+          reject(new GuestApiError(402, 'Credits exhausted'));
           return;
         }
 
-        try {
-          // Try parsing as JSON (status updates, search results)
-          const parsed = JSON.parse(data);
-          
-          if (parsed.type === 'status') {
-            callbacks.onStatus?.({
-              status: parsed.status,
-              message: parsed.message,
-            });
-          } else if (parsed.type === 'search_results') {
-            callbacks.onSearchResults?.(parsed);
-          } else if (parsed.type === 'error') {
-            callbacks.onError?.(new GuestApiError(500, parsed.error || 'Chat error'));
+        let fullContent = '';
+        let hasResolved = false;
+        
+        // Use react-native-sse for streaming
+        const EventSource = require('react-native-sse').default;
+        
+        const es = new EventSource(`${this.baseUrl}/guest/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${guestId}`,
+          },
+          body: JSON.stringify({
+            conversationId,
+            message,
+            useReasoning: 'auto',
+          }),
+        });
+
+        // Timeout to prevent hanging
+        const timeoutId = setTimeout(() => {
+          if (!hasResolved) {
+            hasResolved = true;
             es.close();
+            if (fullContent) {
+              resolve(fullContent);
+            } else {
+              reject(new GuestApiError(408, 'Request timeout'));
+            }
           }
-        } catch {
-          // Not JSON - it's content
-          fullContent += data;
-          callbacks.onContent?.(data, fullContent);
-        }
-      });
+        }, 60000); // 60 second timeout
 
-      es.addEventListener('error', (event: any) => {
-        console.error('[SSE] Error:', event);
-        
-        if (event.status === 402 || event.message?.includes('credit')) {
-          this.updateCredits(0);
-          callbacks.onError?.(new GuestApiError(402, 'Credits exhausted'));
-        } else {
-          callbacks.onError?.(new GuestApiError(event.status || 500, event.message || 'Stream error'));
-        }
-        
-        es.close();
-      });
+        es.addEventListener('open', () => {
+          console.log('[SSE] Connection opened');
+          callbacks.onStatus?.({ status: 'analyzing', message: 'Thinking...' });
+        });
 
-      es.addEventListener('close', () => {
-        console.log('[SSE] Connection closed');
-        callbacks.onStatus?.({ status: 'complete', message: 'Complete' });
-        callbacks.onComplete?.(fullContent);
-        
-        // Decrement credits locally
-        if (this._creditsRemaining !== null && this._creditsRemaining > 0) {
-          this.updateCredits(this._creditsRemaining - 1);
-        }
-      });
+        es.addEventListener('message', (event: any) => {
+          const data = event.data;
+          
+          if (!data) return;
+          
+          // Handle completion signal
+          if (data === '[DONE]') {
+            if (!hasResolved) {
+              hasResolved = true;
+              clearTimeout(timeoutId);
+              callbacks.onStatus?.({ status: 'complete', message: 'Complete' });
+              
+              // Decrement credits locally
+              if (this._creditsRemaining !== null && this._creditsRemaining > 0) {
+                this.updateCredits(this._creditsRemaining - 1);
+              }
+              
+              es.close();
+              resolve(fullContent);
+            }
+            return;
+          }
 
-    } catch (error: any) {
-      console.error('[SSE] Setup error:', error);
-      callbacks.onError?.(error);
-    }
+          try {
+            // Try parsing as JSON (status updates, search results)
+            const parsed = JSON.parse(data);
+            
+            if (parsed.type === 'status') {
+              callbacks.onStatus?.({
+                status: parsed.status,
+                message: parsed.message,
+              });
+            } else if (parsed.type === 'search_results') {
+              callbacks.onSearchResults?.(parsed);
+            } else if (parsed.type === 'error') {
+              if (!hasResolved) {
+                hasResolved = true;
+                clearTimeout(timeoutId);
+                es.close();
+                reject(new GuestApiError(500, parsed.error || 'Chat error'));
+              }
+            }
+          } catch {
+            // Not JSON - it's content
+            fullContent += data;
+            callbacks.onContent?.(data, fullContent);
+          }
+        });
+
+        es.addEventListener('error', (event: any) => {
+          console.error('[SSE] Error:', event);
+          
+          if (!hasResolved) {
+            hasResolved = true;
+            clearTimeout(timeoutId);
+            
+            if (event.status === 402 || event.message?.includes('credit')) {
+              this.updateCredits(0);
+              reject(new GuestApiError(402, 'Credits exhausted'));
+            } else {
+              // If we have content, still resolve with it
+              if (fullContent) {
+                resolve(fullContent);
+              } else {
+                reject(new GuestApiError(event.status || 500, event.message || 'Stream error'));
+              }
+            }
+          }
+          
+          es.close();
+        });
+
+        es.addEventListener('close', () => {
+          console.log('[SSE] Connection closed');
+          
+          if (!hasResolved) {
+            hasResolved = true;
+            clearTimeout(timeoutId);
+            resolve(fullContent);
+          }
+        });
+
+      } catch (error: any) {
+        console.error('[SSE] Setup error:', error);
+        reject(error);
+      }
+    });
   }
 }
 

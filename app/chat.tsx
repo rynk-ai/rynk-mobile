@@ -150,44 +150,42 @@ export default function ChatScreen() {
       setMessages(prev => [...prev, userMessage, assistantMessage]);
 
       // Use streaming for real-time response
-      await guestApi.sendChatStreaming(currentConvId, userContent, {
-        onContent: (chunk, fullContent) => {
-          // Update assistant message content in real-time
-          setMessages(prev => prev.map(m => 
-            m.id === assistantMsgId 
-              ? { ...m, content: fullContent }
-              : m
-          ));
-        },
-        onStatus: (status) => {
-          console.log('[Chat] Status:', status.message);
-          setStreamingStatus(status.message);
-        },
-        onComplete: (finalContent) => {
-          // Ensure final content is set
-          setMessages(prev => prev.map(m => 
-            m.id === assistantMsgId 
-              ? { ...m, content: finalContent }
-              : m
-          ));
-          setIsLoading(false);
-          setStreamingStatus(null);
-          isSendingRef.current = false;
-          loadConversations();
-        },
-        onError: (error) => {
-          console.error('Streaming error:', error);
-          if (error instanceof GuestApiError && (error.status === 402 || error.status === 403)) {
-            setShowSignInModal(true);
-          } else {
-            setError(error.message || 'Failed to send message');
-          }
-          // Remove placeholder assistant message on error
-          setMessages(prev => prev.filter(m => m.id !== assistantMsgId));
-          setIsLoading(false);
-          isSendingRef.current = false;
-        },
-      });
+      try {
+        const finalContent = await guestApi.sendChatStreaming(currentConvId, userContent, {
+          onContent: (chunk, fullContent) => {
+            // Update assistant message content in real-time
+            setMessages(prev => prev.map(m => 
+              m.id === assistantMsgId 
+                ? { ...m, content: fullContent }
+                : m
+            ));
+          },
+          onStatus: (status) => {
+            console.log('[Chat] Status:', status.message);
+            setStreamingStatus(status.message);
+          },
+        });
+        
+        // Ensure final content is set
+        setMessages(prev => prev.map(m => 
+          m.id === assistantMsgId 
+            ? { ...m, content: finalContent }
+            : m
+        ));
+        
+        setStreamingStatus(null);
+        loadConversations();
+        
+      } catch (streamError: any) {
+        console.error('Streaming error:', streamError);
+        if (streamError instanceof GuestApiError && (streamError.status === 402 || streamError.status === 403)) {
+          setShowSignInModal(true);
+        } else {
+          setError(streamError.message || 'Failed to send message');
+        }
+        // Remove placeholder assistant message on error
+        setMessages(prev => prev.filter(m => m.id !== assistantMsgId));
+      }
 
     } catch (err: any) {
       console.error('Send message error:', err);
@@ -201,6 +199,7 @@ export default function ChatScreen() {
       
       // Remove the optimistic messages on error
       setMessages(prev => prev.slice(0, -2));
+    } finally {
       setIsLoading(false);
       isSendingRef.current = false;
     }
