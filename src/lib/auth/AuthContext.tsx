@@ -77,7 +77,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (method === 'google') {
         // Open web browser for Google OAuth
-        const authUrl = `${BASE_URL}/api/auth/signin/google?callbackUrl=${encodeURIComponent(redirectUri)}`;
+        // Use mobile-callback page that will create mobile session and redirect back
+        const mobileCallbackUrl = `${BASE_URL}/auth/mobile-callback?redirect_uri=${encodeURIComponent(redirectUri)}`;
+        const authUrl = `${BASE_URL}/api/auth/signin/google?callbackUrl=${encodeURIComponent(mobileCallbackUrl)}`;
         
         const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
         
@@ -157,7 +159,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const currentSession = await loadSession();
       if (!currentSession) return;
 
-      const response = await fetch(`${BASE_URL}/api/auth/session`, {
+      // Use mobile auth endpoint for session refresh
+      const response = await fetch(`${BASE_URL}/api/auth/mobile`, {
         headers: {
           'Authorization': `Bearer ${currentSession.accessToken}`,
         },
@@ -217,7 +220,8 @@ export function useAuth(): AuthContextType {
  */
 async function fetchSession(token: string): Promise<Session | null> {
   try {
-    const response = await fetch(`${BASE_URL}/api/auth/session`, {
+    // Use mobile auth endpoint for session validation
+    const response = await fetch(`${BASE_URL}/api/auth/mobile`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
