@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
@@ -6,8 +6,6 @@ import { MessageSquare, Plus, Trash2, Clock, ArrowLeft } from 'lucide-react-nati
 import { guestApi } from '../src/lib/api/guest';
 import { theme } from '../src/lib/theme';
 import type { Conversation } from '../src/lib/types';
-
-const { width } = Dimensions.get('window');
 
 export default function ConversationsScreen() {
   const router = useRouter();

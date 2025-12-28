@@ -56,9 +56,38 @@ export async function clearGuestSession(): Promise<void> {
  */
 class GuestApiClient {
   private baseUrl: string;
+  private _creditsRemaining: number | null = null;
+  private _creditsListeners: ((credits: number | null) => void)[] = [];
 
   constructor(baseUrl: string = 'https://rynk.io/api') {
     this.baseUrl = baseUrl;
+  }
+
+  get creditsRemaining(): number | null {
+    return this._creditsRemaining;
+  }
+
+  onCreditsChange(listener: (credits: number | null) => void): () => void {
+    this._creditsListeners.push(listener);
+    // Return unsubscribe function
+    return () => {
+      this._creditsListeners = this._creditsListeners.filter(l => l !== listener);
+    };
+  }
+
+  private updateCredits(credits: number | null) {
+    this._creditsRemaining = credits;
+    this._creditsListeners.forEach(l => l(credits));
+  }
+
+  private parseCreditsFromHeaders(headers: Headers): void {
+    const creditsHeader = headers.get('x-guest-credits-remaining');
+    if (creditsHeader) {
+      const credits = parseInt(creditsHeader, 10);
+      if (!isNaN(credits)) {
+        this.updateCredits(credits);
+      }
+    }
   }
 
   private async getHeaders(): Promise<Headers> {
@@ -91,15 +120,34 @@ class GuestApiClient {
       headers,
     });
 
+    // Parse credits from response headers
+    this.parseCreditsFromHeaders(response.headers);
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Request failed' }));
+      
+      // Check for credit exhaustion
+      if (response.status === 403 && error.error?.toLowerCase().includes('credit')) {
+        this.updateCredits(0);
+        throw new GuestApiError(403, 'Credits exhausted. Please sign in to continue.');
+      }
+      
       throw new GuestApiError(response.status, error.error || 'Request failed');
     }
 
     const text = await response.text();
     if (!text) return {} as T;
     
-    return JSON.parse(text) as T;
+    // Try to parse credits from response body if not in headers
+    try {
+      const json = JSON.parse(text);
+      if (typeof json.creditsRemaining === 'number') {
+        this.updateCredits(json.creditsRemaining);
+      }
+      return json as T;
+    } catch {
+      return {} as T;
+    }
   }
 
   async get<T>(endpoint: string): Promise<T> {

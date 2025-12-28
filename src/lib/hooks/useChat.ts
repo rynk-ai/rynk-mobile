@@ -1,26 +1,39 @@
 /**
- * Chat API hooks for Rynk Mobile
+ * Guest Chat hooks for Rynk Mobile
+ * Handles conversation creation and message sending for guest users
  */
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { guestApi, getOrCreateGuestId } from '../api/guest';
-import type { Message, Conversation } from '../types';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { guestApi, GuestApiError } from '../api/guest';
+import type { Conversation, Message } from '../types';
 
-export interface SendMessageParams {
+interface CreateConversationResponse {
+  id: string;
+  conversation: Conversation;
+}
+
+interface SendMessageRequest {
   conversationId: string;
   message: string;
 }
 
+interface SendMessageResponse {
+  userMessage: Message;
+  assistantMessage: Message;
+}
+
 /**
- * Hook to create a new conversation
+ * Hook to create a new guest conversation
  */
 export function useCreateConversation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (): Promise<Conversation> => {
-      const response = await guestApi.post<{ conversation: Conversation }>('/guest/conversations');
-      return response.conversation;
+    mutationFn: async (): Promise<{ id: string }> => {
+      const response = await guestApi.post<CreateConversationResponse>('/guest/conversations', {
+        title: 'New Chat',
+      });
+      return { id: response.id || response.conversation?.id };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['guest-conversations'] });
@@ -29,27 +42,22 @@ export function useCreateConversation() {
 }
 
 /**
- * Hook to send a message
+ * Hook to send a message in a guest conversation
  */
 export function useSendMessage() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      conversationId,
-      message,
-    }: SendMessageParams): Promise<{ userMessage: Message; assistantMessage: Message }> => {
-      const userMessageId = `msg_${Date.now()}_user`;
-      const assistantMessageId = `msg_${Date.now()}_assistant`;
-      
-      // Get the full response (React Native doesn't support streaming)
-      const fullContent = await guestApi.sendChat(conversationId, message);
+    mutationFn: async ({ conversationId, message }: SendMessageRequest): Promise<{ assistantMessage: Message }> => {
+      // Send chat and get response content
+      const content = await guestApi.sendChat(conversationId, message);
 
-      const userMessage: Message = {
-        id: userMessageId,
+      // Create assistant message from response
+      const assistantMessage: Message = {
+        id: `msg_${Date.now()}_assistant`,
         conversationId,
-        role: 'user',
-        content: message,
+        role: 'assistant',
+        content,
         attachments: null,
         parentMessageId: null,
         versionOf: null,
@@ -62,24 +70,7 @@ export function useSendMessage() {
         createdAt: new Date().toISOString(),
       };
 
-      const assistantMessage: Message = {
-        id: assistantMessageId,
-        conversationId,
-        role: 'assistant',
-        content: fullContent,
-        attachments: null,
-        parentMessageId: userMessageId,
-        versionOf: null,
-        versionNumber: 1,
-        branchId: null,
-        reasoningContent: null,
-        reasoningMetadata: null,
-        webAnnotations: null,
-        modelUsed: null,
-        createdAt: new Date().toISOString(),
-      };
-
-      return { userMessage, assistantMessage };
+      return { assistantMessage };
     },
     onSuccess: (_, { conversationId }) => {
       queryClient.invalidateQueries({ queryKey: ['guest-messages', conversationId] });
@@ -89,35 +80,51 @@ export function useSendMessage() {
 }
 
 /**
- * Hook to get guest conversations
+ * Hook to fetch guest conversations
  */
 export function useGuestConversations() {
-  const queryClient = useQueryClient();
-  
-  // We use useMutation here because we need to ensure guest ID exists first
-  return useMutation({
-    mutationKey: ['guest-conversations'],
-    mutationFn: async (): Promise<Conversation[]> => {
-      // Ensure guest ID exists
-      await getOrCreateGuestId();
-      
+  return useQuery({
+    queryKey: ['guest-conversations'],
+    queryFn: async (): Promise<Conversation[]> => {
       const response = await guestApi.get<{ conversations: Conversation[] }>('/guest/conversations');
       return response.conversations || [];
     },
+    staleTime: 1000 * 60 * 2, // 2 minutes
   });
 }
 
 /**
- * Hook to get messages for a conversation
+ * Hook to fetch messages for a guest conversation
  */
-export function useGuestMessages(conversationId: string | undefined) {
-  return useMutation({
-    mutationKey: ['guest-messages', conversationId],
-    mutationFn: async (): Promise<Message[]> => {
+export function useGuestMessages(conversationId: string | null) {
+  return useQuery({
+    queryKey: ['guest-messages', conversationId],
+    queryFn: async (): Promise<Message[]> => {
       if (!conversationId) return [];
-      
-      const response = await guestApi.get<{ messages: Message[] }>(`/guest/conversations/${conversationId}/messages`);
+      const response = await guestApi.get<{ messages: Message[] }>(
+        `/guest/conversations/${conversationId}/messages`
+      );
       return response.messages || [];
+    },
+    enabled: !!conversationId,
+    staleTime: 1000 * 60 * 1, // 1 minute
+  });
+}
+
+/**
+ * Hook to delete a guest conversation
+ */
+export function useDeleteGuestConversation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (conversationId: string) => {
+      await guestApi.delete(`/guest/conversations/${conversationId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['guest-conversations'] });
     },
   });
 }
+
+export { GuestApiError };

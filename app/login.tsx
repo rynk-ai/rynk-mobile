@@ -1,11 +1,9 @@
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ArrowLeft, Mail, ArrowRight } from 'lucide-react-native';
 import { theme } from '../src/lib/theme';
-
-const { width } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();

@@ -1,12 +1,15 @@
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Send, ArrowLeft, Sparkles, AlertCircle, RotateCcw } from 'lucide-react-native';
-import { useCreateConversation, useSendMessage } from '../src/lib/hooks/useChat';
-import { guestApi } from '../src/lib/api/guest';
+import { Send, Menu, AlertCircle, RotateCcw } from 'lucide-react-native';
+import { useCreateConversation, useSendMessage, useGuestConversations } from '../src/lib/hooks/useChat';
+import { useGuestCredits } from '../src/lib/hooks/useGuestCredits';
+import { guestApi, GuestApiError } from '../src/lib/api/guest';
 import { theme } from '../src/lib/theme';
-import type { Message } from '../src/lib/types';
+import { GuestDrawer } from '../src/components/GuestDrawer';
+import { SignInModal } from '../src/components/SignInModal';
+import type { Message, Conversation } from '../src/lib/types';
 
 const { width } = Dimensions.get('window');
 
@@ -18,10 +21,32 @@ export default function ChatScreen() {
   const [input, setInput] = useState(params.q || '');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [showSignInModal, setShowSignInModal] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   const createConversation = useCreateConversation();
   const sendMessage = useSendMessage();
+  const { creditsRemaining, isExhausted } = useGuestCredits();
+
+  // Load conversations
+  const loadConversations = useCallback(async () => {
+    try {
+      setIsLoadingConversations(true);
+      const response = await guestApi.get<{ conversations: Conversation[] }>('/guest/conversations');
+      setConversations(response.conversations || []);
+    } catch (err) {
+      console.error('Failed to load conversations:', err);
+    } finally {
+      setIsLoadingConversations(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
 
   // Auto-submit if query parameter is provided
   useEffect(() => {
@@ -34,6 +59,8 @@ export default function ChatScreen() {
   useEffect(() => {
     if (conversationId) {
       loadMessages(conversationId);
+    } else {
+      setMessages([]);
     }
   }, [conversationId]);
 
@@ -48,8 +75,20 @@ export default function ChatScreen() {
     }
   };
 
+  const handleSelectConversation = (id: string | null) => {
+    setConversationId(id);
+    setInput('');
+    setError(null);
+  };
+
   const handleSend = useCallback(async () => {
     if (!input.trim() || isLoading) return;
+
+    // Check if credits exhausted
+    if (isExhausted) {
+      setShowSignInModal(true);
+      return;
+    }
 
     const userContent = input.trim();
     setInput('');
@@ -93,19 +132,28 @@ export default function ChatScreen() {
       // Add the assistant message
       setMessages(prev => [...prev, assistantMessage]);
 
+      // Update conversation title in list
+      loadConversations();
+
     } catch (err: any) {
       console.error('Send message error:', err);
-      setError(err.message || 'Failed to send message');
+      
+      // Check for credit exhaustion
+      if (err instanceof GuestApiError && err.status === 403) {
+        setShowSignInModal(true);
+      } else {
+        setError(err.message || 'Failed to send message');
+      }
+      
       // Remove the optimistic user message on error
       setMessages(prev => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
     }
-  }, [input, isLoading, conversationId, createConversation, sendMessage]);
+  }, [input, isLoading, conversationId, createConversation, sendMessage, isExhausted]);
 
   const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
     const isUser = item.role === 'user';
-    const isLast = index === messages.length - 1;
     
     return (
       <View style={[
@@ -130,7 +178,7 @@ export default function ChatScreen() {
         </View>
       </View>
     );
-  }, [messages.length]);
+  }, []);
 
   const EmptyState = () => (
     <View style={styles.emptyState}>
@@ -143,17 +191,25 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.background.primary} />
+      
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
+          style={styles.menuButton}
+          onPress={() => setDrawerOpen(true)}
           activeOpacity={0.7}
         >
-          <ArrowLeft size={20} color={theme.colors.text.primary} />
+          <Menu size={20} color={theme.colors.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chat</Text>
-        <View style={styles.headerRight} />
+        <Text style={styles.headerTitle}>
+          {conversationId ? 'Chat' : 'rynk.'}
+        </Text>
+        <View style={styles.headerRight}>
+          {creditsRemaining !== null && (
+            <Text style={styles.creditsText}>{creditsRemaining} left</Text>
+          )}
+        </View>
       </View>
 
       <KeyboardAvoidingView 
@@ -230,6 +286,26 @@ export default function ChatScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Drawer */}
+      <GuestDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        conversations={conversations}
+        currentConversationId={conversationId}
+        onSelectConversation={handleSelectConversation}
+        creditsRemaining={creditsRemaining}
+        onRefresh={loadConversations}
+        isLoading={isLoadingConversations}
+      />
+
+      {/* Sign In Modal */}
+      <SignInModal
+        visible={showSignInModal}
+        onClose={() => setShowSignInModal(false)}
+        isBlocking={isExhausted}
+        creditsRemaining={creditsRemaining}
+      />
     </SafeAreaView>
   );
 }
@@ -248,7 +324,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border.subtle,
   },
-  backButton: {
+  menuButton: {
     width: 36,
     height: 36,
     alignItems: 'center',
@@ -257,12 +333,18 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background.secondary,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: theme.colors.text.primary,
+    letterSpacing: -0.5,
   },
   headerRight: {
-    width: 36,
+    minWidth: 60,
+    alignItems: 'flex-end',
+  },
+  creditsText: {
+    fontSize: 12,
+    color: theme.colors.text.tertiary,
   },
   keyboardView: {
     flex: 1,
@@ -277,7 +359,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   brandName: {
-    fontSize: 48,
+    fontSize: 56,
     fontWeight: '700',
     color: theme.colors.text.primary,
     letterSpacing: -2,
