@@ -54,11 +54,13 @@ export default function ChatScreen() {
   // Note: Auto-submit removed - was causing duplicate sends
   // If you want auto-submit, handle it once in a controlled way
 
-  // Load existing messages if conversationId is provided
+  // Load existing messages if conversationId is provided (from navigation, not from creating new)
+  // Skip if we're in the middle of sending (to preserve optimistic updates)
   useEffect(() => {
-    if (conversationId) {
+    // Only load messages if we're opening an existing conversation, not during send
+    if (conversationId && !isLoading && messages.length === 0) {
       loadMessages(conversationId);
-    } else {
+    } else if (!conversationId) {
       setMessages([]);
     }
   }, [conversationId]);
