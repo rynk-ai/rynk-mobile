@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Mail, ArrowRight, Check } from 'lucide-react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { theme } from '../src/lib/theme';
 import { useAuth } from '../src/lib/auth';
 
@@ -12,8 +13,21 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isAppleLoading, setIsAppleLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
+
+  // Check if Apple Sign-In is available
+  useEffect(() => {
+    async function checkAppleAuth() {
+      if (Platform.OS === 'ios') {
+        const isAvailable = await AppleAuthentication.isAvailableAsync();
+        setAppleAuthAvailable(isAvailable);
+      }
+    }
+    checkAppleAuth();
+  }, []);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -55,6 +69,22 @@ export default function LoginScreen() {
       setError(err.message || 'Google sign in failed');
     } finally {
       setIsGoogleLoading(false);
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    setIsAppleLoading(true);
+    setError(null);
+    
+    try {
+      const result = await signIn('apple');
+      if (!result.success) {
+        setError(result.error || 'Apple sign in failed');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Apple sign in failed');
+    } finally {
+      setIsAppleLoading(false);
     }
   };
 
@@ -186,9 +216,25 @@ export default function LoginScreen() {
             {isGoogleLoading ? (
               <ActivityIndicator size="small" color={theme.colors.text.primary} />
             ) : (
-              <Text style={styles.socialButtonText}>Google</Text>
+              <Text style={styles.socialButtonText}>Continue with Google</Text>
             )}
           </TouchableOpacity>
+
+          {/* Apple Button - iOS only */}
+          {appleAuthAvailable && (
+            <TouchableOpacity 
+              style={[styles.appleButton, isAppleLoading && styles.buttonDisabled]}
+              onPress={handleAppleLogin}
+              disabled={isAppleLoading}
+              activeOpacity={0.7}
+            >
+              {isAppleLoading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.appleButtonText}>Continue with Apple</Text>
+              )}
+            </TouchableOpacity>
+          )}
 
           {/* Guest Mode */}
           <View style={styles.guestDivider}>
@@ -340,6 +386,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     color: theme.colors.text.primary,
+  },
+  appleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: 52,
+    backgroundColor: '#000000',
+    borderRadius: theme.borderRadius.lg,
+    marginBottom: 12,
+  },
+  appleButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#FFFFFF',
   },
   guestDivider: {
     flexDirection: 'row',

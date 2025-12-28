@@ -30,7 +30,7 @@ export interface LoginResult {
 }
 
 export interface AuthContextType extends AuthState {
-  signIn: (method: 'google' | 'email', email?: string) => Promise<LoginResult>;
+  signIn: (method: 'google' | 'apple' | 'email', email?: string) => Promise<LoginResult>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
 }
