@@ -1,5 +1,5 @@
 /**
- * API Client for Rynk Mobile
+ * API Client for rynk Mobile
  * Connects to the rynk.io backend
  */
 

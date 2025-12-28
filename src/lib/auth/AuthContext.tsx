@@ -84,25 +84,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
         
+        console.log('[Auth] WebBrowser result:', result.type);
+        
         if (result.type === 'success' && result.url) {
+          console.log('[Auth] Callback URL:', result.url);
+          
           // Parse the callback URL for session token
           const url = new URL(result.url);
           const token = url.searchParams.get('token');
+          const success = url.searchParams.get('success');
+          
+          console.log('[Auth] Token found:', !!token, 'Success:', success);
           
           if (token) {
             // Fetch user session from API
+            console.log('[Auth] Fetching session with token...');
             const session = await fetchSession(token);
+            
             if (session) {
+              console.log('[Auth] Session fetched, user:', session.user.email);
               await saveSession(session);
+              console.log('[Auth] Session saved, updating state...');
+              
               setState({
                 isLoading: false,
                 isAuthenticated: true,
                 session,
                 user: session.user,
               });
+              
+              console.log('[Auth] State updated, returning success');
               return { success: true, session };
+            } else {
+              console.log('[Auth] Failed to fetch session from API');
             }
+          } else {
+            console.log('[Auth] No token in callback URL');
           }
+        } else {
+          console.log('[Auth] WebBrowser not successful or cancelled');
         }
         
         setState(prev => ({ ...prev, isLoading: false }));

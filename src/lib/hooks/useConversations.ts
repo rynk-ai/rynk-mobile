@@ -1,5 +1,5 @@
 /**
- * Conversations hook for Rynk Mobile
+ * Conversations hook for rynk Mobile
  */
 
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';

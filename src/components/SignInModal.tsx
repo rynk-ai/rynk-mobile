@@ -66,7 +66,7 @@ export function SignInModal({
 
           {/* Title */}
           <Text style={styles.title}>
-            {isBlocking ? 'Credits Exhausted' : 'Sign in to Rynk'}
+            {isBlocking ? 'Credits Exhausted' : 'Sign in to rynk'}
           </Text>
 
           {/* Description */}

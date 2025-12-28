@@ -1,5 +1,5 @@
 /**
- * Shared types for Rynk Mobile
+ * Shared types for rynk Mobile
  * Mirrors the types from rynk-web
  */
 

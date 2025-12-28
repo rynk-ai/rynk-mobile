@@ -1,5 +1,5 @@
 /**
- * Authentication hook for Rynk Mobile
+ * Authentication hook for rynk Mobile
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';

@@ -2,10 +2,11 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Keyboard
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Send, Menu, AlertCircle, RotateCcw, Sparkles, Search, BookOpen, Check } from 'lucide-react-native';
+import { Send, Menu, AlertCircle, RotateCcw, Sparkles, Search, BookOpen, Check, User } from 'lucide-react-native';
 import Markdown from 'react-native-markdown-display';
 import { useCreateConversation, useSendMessage, useGuestConversations } from '../src/lib/hooks/useChat';
 import { useGuestCredits } from '../src/lib/hooks/useGuestCredits';
+import { useAuth } from '../src/lib/auth';
 import { guestApi, GuestApiError } from '../src/lib/api/guest';
 import { theme } from '../src/lib/theme';
 import { GuestDrawer } from '../src/components/GuestDrawer';
@@ -17,6 +18,7 @@ const { width } = Dimensions.get('window');
 export default function ChatScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ conversationId?: string; q?: string }>();
+  const { isAuthenticated, user, signOut } = useAuth();
   const [conversationId, setConversationId] = useState<string | null>(params.conversationId || null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState(params.q || '');
@@ -33,6 +35,11 @@ export default function ChatScreen() {
   const createConversation = useCreateConversation();
   const sendMessage = useSendMessage();
   const { creditsRemaining, isExhausted } = useGuestCredits();
+
+  // Log auth state for debugging
+  useEffect(() => {
+    console.log('[Chat] Auth state:', { isAuthenticated, userEmail: user?.email });
+  }, [isAuthenticated, user]);
 
   // Load conversations
   const loadConversations = useCallback(async () => {
@@ -265,7 +272,14 @@ export default function ChatScreen() {
           {conversationId ? 'Chat' : 'rynk.'}
         </Text>
         <View style={styles.headerRight}>
-          {creditsRemaining !== null && (
+          {isAuthenticated && user ? (
+            <View style={styles.userBadge}>
+              <User size={14} color={theme.colors.accent.primary} />
+              <Text style={styles.userEmail} numberOfLines={1}>
+                {user.email?.split('@')[0]}
+              </Text>
+            </View>
+          ) : creditsRemaining !== null && (
             <Text style={styles.creditsText}>{creditsRemaining} left</Text>
           )}
         </View>
@@ -580,6 +594,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: theme.colors.text.secondary,
     fontWeight: '500',
+  },
+  // Auth user badge styles
+  userBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: theme.colors.background.secondary,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: theme.borderRadius.full,
+  },
+  userEmail: {
+    fontSize: 12,
+    color: theme.colors.text.secondary,
+    maxWidth: 100,
   },
 });
 

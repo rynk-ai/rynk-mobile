@@ -1,5 +1,5 @@
 /**
- * Rynk Mobile Design System
+ * rynk Mobile Design System
  * Based on rynk-web "Cognitive Minimalist" design philosophy
  * Inspired by Notion/Perplexity with neutral, clean aesthetics
  */

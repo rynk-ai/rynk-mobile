@@ -1,5 +1,5 @@
 /**
- * Guest Mode Service for Rynk Mobile
+ * Guest Mode Service for rynk Mobile
  * Manages guest sessions without requiring authentication
  */
 

@@ -1,5 +1,5 @@
 /**
- * Guest Chat hooks for Rynk Mobile
+ * Guest Chat hooks for rynk Mobile
  * Handles conversation creation and message sending for guest users
  */
 
