@@ -2,7 +2,8 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Keyboard
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Send, Menu, AlertCircle, RotateCcw } from 'lucide-react-native';
+import { Send, Menu, AlertCircle, RotateCcw, Sparkles, Search, BookOpen, Check } from 'lucide-react-native';
+import Markdown from 'react-native-markdown-display';
 import { useCreateConversation, useSendMessage, useGuestConversations } from '../src/lib/hooks/useChat';
 import { useGuestCredits } from '../src/lib/hooks/useGuestCredits';
 import { guestApi, GuestApiError } from '../src/lib/api/guest';
@@ -25,6 +26,7 @@ export default function ChatScreen() {
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
+  const [streamingStatus, setStreamingStatus] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   const createConversation = useCreateConversation();
@@ -197,6 +199,7 @@ export default function ChatScreen() {
 
   const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
     const isUser = item.role === 'user';
+    const isStreaming = isLoading && index === messages.length - 1 && !isUser;
     
     return (
       <View style={[
@@ -212,16 +215,24 @@ export default function ChatScreen() {
           styles.messageBubble,
           isUser ? styles.userBubble : styles.assistantBubble
         ]}>
-          <Text style={[
-            styles.messageText,
-            isUser ? styles.userText : styles.assistantText
-          ]}>
-            {item.content}
-          </Text>
+          {isUser ? (
+            <Text style={[styles.messageText, styles.userText]}>
+              {item.content}
+            </Text>
+          ) : (
+            <Markdown style={markdownStyles}>
+              {item.content || ' '}
+            </Markdown>
+          )}
+          {isStreaming && !item.content && (
+            <View style={styles.streamingIndicator}>
+              <ActivityIndicator size="small" color={theme.colors.accent.primary} />
+            </View>
+          )}
         </View>
       </View>
     );
-  }, []);
+  }, [isLoading, messages.length]);
 
   const EmptyState = () => (
     <View style={styles.emptyState}>
@@ -544,5 +555,106 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: theme.colors.background.secondary,
+  },
+  streamingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+});
+
+// Markdown styles for assistant messages
+const markdownStyles = StyleSheet.create({
+  body: {
+    color: theme.colors.text.primary,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  heading1: {
+    color: theme.colors.text.primary,
+    fontSize: 22,
+    fontWeight: '700',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  heading2: {
+    color: theme.colors.text.primary,
+    fontSize: 19,
+    fontWeight: '600',
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  heading3: {
+    color: theme.colors.text.primary,
+    fontSize: 17,
+    fontWeight: '600',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  paragraph: {
+    color: theme.colors.text.primary,
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 8,
+  },
+  code_inline: {
+    backgroundColor: theme.colors.background.secondary,
+    color: theme.colors.accent.primary,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    fontSize: 13,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  code_block: {
+    backgroundColor: theme.colors.background.secondary,
+    color: theme.colors.text.primary,
+    padding: 12,
+    borderRadius: 8,
+    fontSize: 13,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    marginVertical: 8,
+  },
+  fence: {
+    backgroundColor: theme.colors.background.secondary,
+    color: theme.colors.text.primary,
+    padding: 12,
+    borderRadius: 8,
+    fontSize: 13,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    marginVertical: 8,
+  },
+  blockquote: {
+    backgroundColor: theme.colors.background.secondary,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.accent.primary,
+    paddingLeft: 12,
+    paddingVertical: 8,
+    marginVertical: 8,
+  },
+  bullet_list: {
+    marginVertical: 4,
+  },
+  ordered_list: {
+    marginVertical: 4,
+  },
+  list_item: {
+    flexDirection: 'row',
+    marginVertical: 2,
+  },
+  strong: {
+    fontWeight: '600',
+  },
+  em: {
+    fontStyle: 'italic',
+  },
+  link: {
+    color: theme.colors.accent.primary,
+    textDecorationLine: 'underline',
+  },
+  hr: {
+    backgroundColor: theme.colors.border.subtle,
+    height: 1,
+    marginVertical: 12,
   },
 });
