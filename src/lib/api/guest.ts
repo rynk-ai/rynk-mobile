@@ -210,18 +210,15 @@ class GuestApiClient {
     console.log('[sendChat] Raw response length:', text.length);
     
     // Server sends: JSON lines (for status) + raw text (for content)
-    // Each line is either a JSON object or raw content text
-    let fullContent = '';
+    // Content is streamed character-by-character, may include newlines
     const lines = text.split('\n');
+    const contentParts: string[] = [];
     
     for (const line of lines) {
-      const trimmedLine = line.trim();
-      if (!trimmedLine) continue;
-      
       // Try to parse as JSON (status updates, search results, errors)
-      if (trimmedLine.startsWith('{')) {
+      if (line.trim().startsWith('{')) {
         try {
-          const parsed = JSON.parse(trimmedLine);
+          const parsed = JSON.parse(line.trim());
           
           // Skip status updates, they're just metadata
           if (parsed.type === 'status') {
@@ -249,14 +246,16 @@ class GuestApiClient {
           console.log('[sendChat] Unknown JSON type:', parsed.type);
         } catch (e) {
           // Not valid JSON starting with {, treat as content
-          fullContent += line;
+          contentParts.push(line);
         }
       } else {
-        // Raw text content
-        fullContent += line;
+        // Raw text content - preserve all lines including empty ones for formatting
+        contentParts.push(line);
       }
     }
     
+    // Join content with newlines to preserve formatting
+    const fullContent = contentParts.join('\n');
     console.log('[sendChat] Parsed content length:', fullContent.length);
 
     return fullContent;
