@@ -1,6 +1,6 @@
 
 import React, { memo, useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, ViewStyle } from 'react-native';
 import { CheckCircle, XCircle, Trophy, ArrowRight, RotateCcw } from 'lucide-react-native';
 import { theme } from '../../lib/theme';
 import type { QuizMetadata, SurfaceState } from '../../lib/types';
@@ -160,7 +160,7 @@ export const QuizLayout = memo(function QuizLayout({
             const isSelected = selectedAnswer === index;
             const isCorrectOption = currentQuestion.correctAnswer === index;
             
-            const optionStyles = [styles.optionButton];
+            const optionStyles: ViewStyle[] = [styles.optionButton];
             if (showFeedback) {
               if (isCorrectOption) optionStyles.push(styles.optionCorrect);
               else if (isSelected) optionStyles.push(styles.optionIncorrect);

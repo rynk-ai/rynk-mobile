@@ -163,7 +163,7 @@ class ApiClient {
     surfaceType: 'wiki' | 'quiz' | 'course' | 'guide',
     conversationId?: string
   ): Promise<any> {
-    const response = await this.post<any>('/surface/generate', {
+    const response = await this.post<any>('/mobile/surface/generate', {
       messageId,
       query,
       surfaceType: surfaceType.toLowerCase(),
