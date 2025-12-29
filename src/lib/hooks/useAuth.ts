@@ -38,7 +38,8 @@ export function useAuth() {
     user: sessionQuery.data?.user ?? null,
     isLoading: sessionQuery.isLoading,
     isAuthenticated: !!sessionQuery.data?.user,
-    logout: logoutMutation.mutate,
+    signOut: logoutMutation.mutateAsync, // Expose as signOut for compatibility
+    logout: logoutMutation.mutate, // Keep logout for existing usages
     isLoggingOut: logoutMutation.isPending,
     refetch: sessionQuery.refetch,
   };

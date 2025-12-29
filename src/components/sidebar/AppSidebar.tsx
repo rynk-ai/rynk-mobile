@@ -19,7 +19,7 @@ import {
   X 
 } from 'lucide-react-native';
 import { theme } from '../../lib/theme';
-import { useAuth } from '../../lib/hooks/useAuth';
+import { useAuth } from '../../lib/auth';
 import { useChatContext } from '../../lib/contexts/ChatContext';
 import { ConversationListItem } from './ConversationListItem';
 import { FolderListItem } from './FolderListItem';
