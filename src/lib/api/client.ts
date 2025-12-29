@@ -156,6 +156,22 @@ class ApiClient {
     // Just pass the full text as a single chunk
     onChunk(text);
   }
+
+  async generateSurface(
+    messageId: string,
+    query: string,
+    surfaceType: 'wiki' | 'quiz' | 'course' | 'guide',
+    conversationId?: string
+  ): Promise<any> {
+    const response = await this.post<any>('/surface/generate', {
+      messageId,
+      query,
+      surfaceType: surfaceType.toLowerCase(),
+      conversationId
+    });
+
+    return response;
+  }
 }
 
 export class ApiError extends Error {

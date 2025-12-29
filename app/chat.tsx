@@ -30,7 +30,7 @@ import {
 } from '../src/components/chat';
 import { AppSidebar } from '../src/components/sidebar/AppSidebar';
 import { useGuestSubChats } from '../src/lib/hooks/useGuestSubChats';
-import type { Message, Conversation } from '../src/lib/types';
+import type { Message, Conversation, SurfaceMode } from '../src/lib/types';
 
 function ChatContent() {
   const router = useRouter();
@@ -71,6 +71,7 @@ function ChatContent() {
   const [quotedMessage, setQuotedMessage] = useState<any | null>(null);
   const [contextPickerOpen, setContextPickerOpen] = useState(false);
   const [selectedContext, setSelectedContext] = useState<ContextItem[]>([]);
+  const [surfaceMode, setSurfaceMode] = useState<any>('chat'); // TODO: import SurfaceMode type
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -81,6 +82,17 @@ function ChatContent() {
 
   // Handle send
   const handleSend = useCallback((content: string) => {
+    // Handle Surface generation (Wiki/Quiz)
+    if (surfaceMode && (surfaceMode === 'wiki' || surfaceMode === 'quiz')) {
+      router.push({
+        pathname: '/surface',
+        params: { type: surfaceMode, query: content, conversationId: currentConversationId }
+      });
+      setQuotedMessage(null);
+      setSelectedContext([]);
+      return;
+    }
+
     let finalContent = content;
     
     // Prepend quote if present
@@ -95,7 +107,7 @@ function ChatContent() {
     sendMessage(finalContent, referencedConversations);
     setQuotedMessage(null);
     setSelectedContext([]);
-  }, [sendMessage, quotedMessage, selectedContext]);
+  }, [sendMessage, quotedMessage, selectedContext, surfaceMode, currentConversationId]);
 
   // Handle deep dive (for sub-chats)
   const handleDeepDive = useCallback((text: string, messageId: string, role: 'user' | 'assistant', fullContent: string) => {
@@ -204,6 +216,8 @@ function ChatContent() {
           onAddContext={() => setContextPickerOpen(true)}
           contextItems={selectedContext}
           onRemoveContext={(id: string) => setSelectedContext(prev => prev.filter(p => p.id !== id))}
+          surfaceMode={surfaceMode}
+          onSurfaceModeChange={setSurfaceMode}
           // onAttach...
         />
       </KeyboardAvoidingView>
