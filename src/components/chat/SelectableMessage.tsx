@@ -214,8 +214,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border.subtle,
   },
   primaryAction: {
-    backgroundColor: theme.colors.text.primary,
-    borderColor: theme.colors.text.primary,
+    backgroundColor: theme.colors.accent.primary,
+    borderColor: theme.colors.accent.primary,
   },
   actionText: {
     fontSize: 12,

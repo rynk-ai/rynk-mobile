@@ -67,7 +67,7 @@ export function EmptyStateChat({ onSelectSuggestion }: EmptyStateChatProps) {
       Animated.sequence([
         Animated.timing(shimmerValue, {
           toValue: 1,
-          duration: 2000,
+          duration: 5000,
           useNativeDriver: true,
         }),
         Animated.timing(shimmerValue, {
@@ -96,22 +96,6 @@ export function EmptyStateChat({ onSelectSuggestion }: EmptyStateChatProps) {
         <Text style={styles.tagline}>What would you like to explore today?</Text>
       </View>
 
-      {/* Suggestions Grid */}
-      <View style={styles.suggestionsContainer}>
-        {SUGGESTIONS.map((suggestion, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.suggestionCard}
-            onPress={() => onSelectSuggestion(suggestion.prompt)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.suggestionIcon}>{suggestion.icon}</View>
-            <Text style={styles.suggestionTitle} numberOfLines={1}>
-              {suggestion.title}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
     </View>
   );
 }
@@ -121,53 +105,55 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 120, // Space for input below
+    paddingHorizontal: 20,
+    paddingBottom: 40, // Reduced bottom padding
   },
   brandSection: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 40,
   },
   brandName: {
-    fontSize: 64,
+    fontSize: 48, // Matches chat.tsx empty state
     fontWeight: '700',
     color: theme.colors.text.primary,
-    letterSpacing: -3,
-    marginBottom: 12,
+    letterSpacing: -2,
+    marginBottom: 8,
   },
   tagline: {
-    fontSize: 16,
+    fontSize: 13,
     color: theme.colors.text.secondary,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 22,
+    maxWidth: 240,
   },
   suggestionsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 12,
-    maxWidth: SCREEN_WIDTH - 48,
+    gap: 8, // Tighter gap
+    maxWidth: SCREEN_WIDTH - 32,
   },
   suggestionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     backgroundColor: theme.colors.background.secondary,
-    borderRadius: 20,
+    borderRadius: 999, // Pill shape
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
   },
   suggestionIcon: {
-    width: 20,
-    height: 20,
+    width: 16,
+    height: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   suggestionTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     color: theme.colors.text.primary,
+    letterSpacing: -0.2, // Tighter tracking
   },
 });

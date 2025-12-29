@@ -20,10 +20,10 @@ interface StatusPillsProps {
 
 const statusConfig: Record<StatusPill['status'], { icon: any; color: string; label: string }> = {
   analyzing: { icon: Brain, color: theme.colors.accent.primary, label: 'Analyzing' },
-  building_context: { icon: BookOpen, color: '#8B5CF6', label: 'Building context' },
-  searching: { icon: Search, color: '#3B82F6', label: 'Searching' },
-  reading_sources: { icon: BookOpen, color: '#F59E0B', label: 'Reading sources' },
-  synthesizing: { icon: Zap, color: '#10B981', label: 'Synthesizing' },
+  building_context: { icon: BookOpen, color: theme.colors.accent.primary, label: 'Building context' },
+  searching: { icon: Search, color: theme.colors.accent.primary, label: 'Searching' },
+  reading_sources: { icon: BookOpen, color: theme.colors.accent.primary, label: 'Reading sources' },
+  synthesizing: { icon: Zap, color: theme.colors.accent.primary, label: 'Synthesizing' },
   complete: { icon: Check, color: theme.colors.accent.success, label: 'Complete' },
 };
 
@@ -114,28 +114,29 @@ const styles = StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    gap: 8, // Reduced gap
+    paddingHorizontal: 10, // Compact padding
+    paddingVertical: 6, // Compact vertical padding
     backgroundColor: theme.colors.background.secondary,
-    borderRadius: 12,
+    borderRadius: 999, // Pill shape
     borderWidth: 1,
     alignSelf: 'flex-start',
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6, // Smaller dot
+    height: 6,
+    borderRadius: 3,
   },
   iconWrapper: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 16, // Smaller icon wrapper
+    height: 16,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   text: {
-    fontSize: 13,
+    fontSize: 12, // Smaller font (xs/sm boundary)
     fontWeight: '500',
+    letterSpacing: -0.2, // Tighter tracking
   },
 });

@@ -185,6 +185,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     try {
       // Create conversation if needed
       let convId = currentConversationId;
+      const isNewConversation = !convId;
       if (!convId) {
         const response = await api.post<{ conversationId: string }>('/mobile/conversations', {});
         convId = response.conversationId;
@@ -318,8 +319,23 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
       updateMessage(tempAssistantMsgId, { content: fullContent });
       finishStreaming(fullContent);
       
-      // Refresh conversations
+      // Refresh conversations list immediately to show the new chat
       loadConversations();
+
+      // For new conversations, generate a title
+      if (isNewConversation) {
+        api.post<{ title: string }>('/mobile/chat/title', { 
+          conversationId: convId, 
+          messageContent: content.trim() 
+        })
+        .then(() => {
+          // Reload conversations to reflect the new title
+          loadConversations();
+        })
+        .catch(err => {
+          console.error('Failed to generate title:', err);
+        });
+      }
       
     } catch (err) {
       console.error('Send message error:', err);

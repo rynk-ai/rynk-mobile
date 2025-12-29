@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)', // Slightly lighter backdrop
   },
   drawer: {
     position: 'absolute',
@@ -296,12 +296,14 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: DRAWER_WIDTH,
     backgroundColor: theme.colors.background.primary,
+    borderRightWidth: 1,
+    borderRightColor: theme.colors.border.subtle,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
         shadowOffset: { width: 2, height: 0 },
-        shadowOpacity: 0.15,
-        shadowRadius: 20,
+        shadowOpacity: 0.1, // Softer shadow
+        shadowRadius: 12,
       },
       android: {
         elevation: 16,
@@ -309,46 +311,46 @@ const styles = StyleSheet.create({
     }),
   },
   header: {
-    padding: 20,
+    padding: 16, // Reduced padding
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border.subtle,
   },
   // Brand header for guests
   brandHeader: {
-    marginBottom: 12,
+    marginBottom: 8,
   },
   brandText: {
-    fontSize: 28,
+    fontSize: 24, // Smaller brand text
     fontWeight: '700',
     color: theme.colors.text.primary,
     letterSpacing: -1,
   },
   // Guest header styles
   creditsSection: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   creditsLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: theme.colors.text.secondary,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   creditsValue: {
-    fontWeight: '700',
+    fontWeight: '600',
     color: theme.colors.text.primary,
-    fontSize: 16,
+    fontSize: 13,
   },
   signInButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 8,
     backgroundColor: theme.colors.text.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 14,
+    paddingVertical: 10, // Compact button
+    paddingHorizontal: 16,
+    borderRadius: 10,
   },
   signInText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: theme.colors.text.inverse,
   },
@@ -356,20 +358,20 @@ const styles = StyleSheet.create({
   userSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   avatarContainer: {
-    marginRight: 14,
+    marginRight: 10,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40, // Smaller avatar
+    height: 40,
+    borderRadius: 20,
   },
   avatarPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: theme.colors.background.secondary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -378,25 +380,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: theme.colors.text.primary,
   },
   userEmail: {
-    fontSize: 13,
+    fontSize: 11,
     color: theme.colors.text.secondary,
-    marginTop: 2,
+    marginTop: 1,
   },
   tierBadge: {
-    marginTop: 6,
+    marginTop: 4,
     alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    backgroundColor: theme.colors.accent.primary + '20',
-    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: theme.colors.accent.primary + '15',
+    borderRadius: 4,
   },
   tierText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     color: theme.colors.accent.primary,
     textTransform: 'uppercase',
@@ -406,74 +408,77 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: theme.colors.background.secondary,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
   },
   signOutText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     color: theme.colors.text.secondary,
   },
   // Rest of styles
   newChatSection: {
-    padding: 16,
+    padding: 12, // Compact padding
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border.subtle,
   },
   newChatButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     backgroundColor: theme.colors.background.secondary,
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
   },
   newChatText: {
-    fontSize: 15,
+    fontSize: 14, // Smaller
     fontWeight: '500',
     color: theme.colors.text.primary,
   },
   listContent: {
-    paddingVertical: 12,
+    paddingVertical: 8,
     flexGrow: 1,
   },
   group: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   groupTitle: {
-    fontSize: 11,
+    fontSize: 10, // Smaller section header
     fontWeight: '600',
     color: theme.colors.text.tertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    opacity: 0.8,
   },
   conversationItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingVertical: 6, // Very compact
+    paddingHorizontal: 16,
+    marginHorizontal: 8, // Inset look
+    borderRadius: 6,
   },
   conversationItemActive: {
     backgroundColor: theme.colors.background.secondary,
   },
   conversationIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: theme.colors.background.secondary,
+    width: 24, // Smaller icon box
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: 'transparent', // Transparent by default
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 8,
   },
   conversationIconActive: {
     backgroundColor: theme.colors.background.primary,
@@ -482,48 +487,49 @@ const styles = StyleSheet.create({
   },
   conversationTitle: {
     flex: 1,
-    fontSize: 14,
-    color: theme.colors.text.primary,
+    fontSize: 13,
+    color: theme.colors.text.secondary, // Default to secondary
   },
   conversationTitleActive: {
     fontWeight: '500',
+    color: theme.colors.text.primary, // Primary when active
   },
   // Empty state
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 32,
+    paddingVertical: 40,
+    paddingHorizontal: 24,
   },
   emptyIconContainer: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     backgroundColor: theme.colors.background.secondary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   emptyText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '500',
     color: theme.colors.text.secondary,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   emptySubtext: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.colors.text.tertiary,
     textAlign: 'center',
   },
   footer: {
-    padding: 20,
+    padding: 16,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border.subtle,
   },
   footerText: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.colors.text.tertiary,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 16,
   },
 });
 

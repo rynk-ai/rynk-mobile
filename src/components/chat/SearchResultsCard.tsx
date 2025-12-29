@@ -51,7 +51,7 @@ export function SearchResultsCard({ searchResults, maxSources = 3 }: SearchResul
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Search size={14} color={theme.colors.accent.primary} />
+        <Search size={12} color={theme.colors.text.tertiary} />
         <Text style={styles.headerText}>
           Sources ({searchResults.totalResults || searchResults.sources.length})
         </Text>
@@ -94,9 +94,9 @@ export function SearchResultsCard({ searchResults, maxSources = 3 }: SearchResul
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: theme.colors.background.secondary,
-    borderRadius: 12,
-    padding: 12,
+    backgroundColor: theme.colors.background.secondary, // Light background block
+    borderRadius: 8, // Tighter radius
+    padding: 10, // Reduced padding
     marginBottom: 12,
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
@@ -105,33 +105,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   headerText: {
-    fontSize: 12,
+    fontSize: 10, // Smaller header
     fontWeight: '600',
-    color: theme.colors.accent.primary,
+    color: theme.colors.text.tertiary, // Softer color
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   sourcesList: {
-    gap: 8,
+    gap: 6, // Tighter gap
   },
   sourceItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 8,
+    gap: 8,
+    paddingVertical: 6, // Compact
     paddingHorizontal: 10,
     backgroundColor: theme.colors.background.primary,
-    borderRadius: 8,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
   },
   sourceIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
+    width: 20, // Smaller icon
+    height: 20,
+    borderRadius: 5,
     backgroundColor: theme.colors.background.secondary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -141,14 +141,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   sourceTitle: {
-    fontSize: 13,
+    fontSize: 12, // Compact text
     fontWeight: '500',
     color: theme.colors.text.primary,
   },
   sourceDomain: {
-    fontSize: 11,
+    fontSize: 10,
     color: theme.colors.text.tertiary,
-    marginTop: 1,
+    marginTop: 0,
   },
   moreText: {
     fontSize: 11,

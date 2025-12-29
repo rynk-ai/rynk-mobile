@@ -49,7 +49,7 @@ interface ChatInputProps {
   showContextPicker?: boolean;
 }
 
-const MIN_INPUT_HEIGHT = 40;
+const MIN_INPUT_HEIGHT = 36;
 const MAX_INPUT_HEIGHT = 160;
 
 export function ChatInput({
@@ -278,44 +278,44 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 10,
+    gap: 8, // Tighter gap
     backgroundColor: theme.colors.background.card,
-    borderRadius: 28,
+    borderRadius: 24, // Matches 48px height fully rounded
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
-    paddingLeft: 18,
-    paddingRight: 8,
-    paddingVertical: 8,
+    paddingLeft: 16,
+    paddingRight: 6, // Reduced right padding
+    paddingVertical: 6, // Reduced vertical padding
     ...Platform.select({
       ios: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
+        shadowOpacity: 0.05, // Softer shadow
         shadowRadius: 8,
       },
       android: {
-        elevation: 3,
+        elevation: 2,
       },
     }),
   },
   input: {
     flex: 1,
-    minHeight: MIN_INPUT_HEIGHT,
-    maxHeight: MAX_INPUT_HEIGHT,
-    fontSize: 16,
-    lineHeight: 22,
+    minHeight: 36, // Smaller min height
+    maxHeight: 120, // Smaller max height
+    fontSize: 15, // Smaller font
+    lineHeight: 20,
     color: theme.colors.text.primary,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
-    paddingTop: Platform.OS === 'ios' ? 10 : 8,
+    paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+    paddingTop: Platform.OS === 'ios' ? 8 : 4,
   },
   sendButton: {
-    width: 40,
-    height: 40,
+    width: 32, // Smaller button
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 20,
+    borderRadius: 16,
     backgroundColor: theme.colors.background.secondary,
-    marginBottom: Platform.OS === 'ios' ? 0 : 2,
+    marginBottom: Platform.OS === 'ios' ? 2 : 2, // Align with input
   },
   sendButtonActive: {
     backgroundColor: theme.colors.text.primary,

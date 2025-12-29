@@ -24,11 +24,11 @@ export const colors = {
   
   // Accent - Interactive Elements
   accent: {
-    primary: '#4D7DFF',      // Blue accent (brighter for dark mode)
-    secondary: '#a855f7',    // Purple for highlights
-    success: '#22c55e',      // Green for success states
-    warning: '#f59e0b',      // Amber for warnings
-    error: '#ef4444',        // Red for errors
+    primary: '#4D7DFF',      // Brighter Blue (Web Match)
+    secondary: '#4D7DFF',    // Use primary blue as secondary instead of purple
+    success: '#10B981',      // Emerald Green (Web Match)
+    warning: '#F59E0B',      // Amber
+    error: '#EF4444',        // Red
   },
   
   // Borders

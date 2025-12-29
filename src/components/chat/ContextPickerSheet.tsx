@@ -108,26 +108,26 @@ export function ContextPickerSheet({
           onPress={() => toggleSelection(conversation)}
           activeOpacity={0.7}
         >
-          <View style={styles.itemIcon}>
-            <MessageSquare 
-              size={18} 
-              color={selected ? theme.colors.accent.primary : theme.colors.text.tertiary} 
-            />
-          </View>
+          {/* Content */}
           <View style={styles.itemContent}>
+            <Text style={styles.itemDate}>
+              {new Date(conversation.createdAt).toLocaleDateString(undefined, { 
+                month: 'short', 
+                day: 'numeric' 
+              })}
+            </Text>
             <Text 
               style={[styles.itemTitle, selected && styles.itemTitleSelected]} 
               numberOfLines={1}
             >
               {conversation.title || 'Untitled'}
             </Text>
-            <Text style={styles.itemDate}>
-              {new Date(conversation.createdAt).toLocaleDateString()}
-            </Text>
           </View>
+          
+          {/* Check */}
           {selected && (
             <View style={styles.checkIcon}>
-              <Check size={18} color={theme.colors.accent.primary} />
+              <Check size={16} color={theme.colors.text.primary} />
             </View>
           )}
         </TouchableOpacity>
@@ -154,23 +154,19 @@ export function ContextPickerSheet({
         <View style={styles.sheet}>
           {/* Header */}
           <View style={styles.header}>
-            <View style={styles.headerRow}>
-              <Text style={styles.title}>Add Context</Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={handleClose}
-              >
-                <X size={20} color={theme.colors.text.secondary} />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.subtitle}>
-              Select conversations to use as context
-            </Text>
+            <Text style={styles.title}>Select chats</Text>
+            <TouchableOpacity
+              style={styles.doneButtonHeader}
+              onPress={handleClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.doneButtonTextHeader}>Done</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Search */}
           <View style={styles.searchContainer}>
-            <Search size={18} color={theme.colors.text.tertiary} />
+            <Search size={16} color={theme.colors.text.tertiary} />
             <TextInput
               style={styles.searchInput}
               value={searchQuery}
@@ -182,19 +178,19 @@ export function ContextPickerSheet({
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <X size={16} color={theme.colors.text.tertiary} />
+                <X size={14} color={theme.colors.text.tertiary} />
               </TouchableOpacity>
             )}
           </View>
 
-          {/* Selected count */}
+          {/* Selected count (Integrated visually) */}
           {selectedItems.length > 0 && (
             <View style={styles.selectionBar}>
               <Text style={styles.selectionCount}>
                 {selectedItems.length} selected
               </Text>
               <TouchableOpacity onPress={clearSelections}>
-                <Text style={styles.clearButton}>Clear all</Text>
+                <Text style={styles.clearButton}>Clear</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -206,26 +202,15 @@ export function ContextPickerSheet({
             keyExtractor={item => item.id}
             style={styles.list}
             contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.emptyState}>
-                <FolderOpen size={40} color={theme.colors.text.tertiary} />
                 <Text style={styles.emptyText}>
-                  {searchQuery ? 'No matching conversations' : 'No conversations available'}
+                  {searchQuery ? 'No results found' : 'No conversations'}
                 </Text>
               </View>
             }
           />
-
-          {/* Done button */}
-          <View style={styles.footer}>
-            <TouchableOpacity
-              style={styles.doneButton}
-              onPress={handleClose}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.doneButtonText}>Done</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -239,54 +224,68 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   sheet: {
     backgroundColor: theme.colors.background.primary,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-    minHeight: 400,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    height: '75%',
     paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   header: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border.subtle,
-  },
-  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.subtle,
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: theme.colors.text.primary,
+    letterSpacing: -0.3,
   },
-  subtitle: {
+  doneButtonHeader: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: theme.colors.text.primary,
+    borderRadius: 6,
+  },
+  doneButtonTextHeader: {
+    color: theme.colors.background.primary,
     fontSize: 13,
-    color: theme.colors.text.tertiary,
-    marginTop: 4,
-  },
-  closeButton: {
-    padding: 4,
+    fontWeight: '600',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.background.secondary,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingHorizontal: 12,
-    margin: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
     marginBottom: 8,
+    height: 40,
     gap: 8,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 12,
-    fontSize: 15,
+    fontSize: 14,
     color: theme.colors.text.primary,
+    height: '100%',
   },
   selectionBar: {
     flexDirection: 'row',
@@ -294,98 +293,74 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: theme.colors.accent.primary + '10',
     marginHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   selectionCount: {
-    fontSize: 13,
-    color: theme.colors.accent.primary,
+    fontSize: 12,
+    color: theme.colors.text.secondary,
     fontWeight: '500',
   },
   clearButton: {
-    fontSize: 13,
-    color: theme.colors.accent.primary,
-    fontWeight: '600',
+    fontSize: 12,
+    color: theme.colors.text.primary,
+    fontWeight: '500',
   },
   list: {
     flex: 1,
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingTop: 8,
+    paddingBottom: 20,
   },
+  // Item Styles matching Web "Cognitive Minimalist"
   itemRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 10,
-    backgroundColor: theme.colors.background.secondary,
-    marginBottom: 8,
-    gap: 12,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
+    marginBottom: 6,
+    backgroundColor: 'transparent',
   },
   itemRowSelected: {
-    backgroundColor: theme.colors.accent.primary + '15',
-    borderWidth: 1,
-    borderColor: theme.colors.accent.primary + '30',
-  },
-  itemIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: theme.colors.background.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: theme.colors.background.secondary, // Light bg for selected
+    borderColor: theme.colors.text.primary, // Dark border for selected (inspired by web's ring)
   },
   itemContent: {
     flex: 1,
-  },
-  itemTitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: theme.colors.text.primary,
-    marginBottom: 2,
-  },
-  itemTitleSelected: {
-    color: theme.colors.accent.primary,
+    marginRight: 12,
   },
   itemDate: {
-    fontSize: 12,
+    fontSize: 11,
     color: theme.colors.text.tertiary,
+    marginBottom: 2,
+  },
+  itemTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+    letterSpacing: -0.2,
+  },
+  itemTitleSelected: {
+    color: theme.colors.text.primary,
   },
   checkIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: theme.colors.accent.primary + '20',
-    justifyContent: 'center',
-    alignItems: 'center',
+    marginTop: 2,
+  },
+  itemIcon: {
+    display: 'none', // Remove big icon box
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 40,
-    gap: 12,
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: 13,
     color: theme.colors.text.tertiary,
-  },
-  footer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border.subtle,
-  },
-  doneButton: {
-    backgroundColor: theme.colors.text.primary,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  doneButtonText: {
-    color: theme.colors.background.primary,
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

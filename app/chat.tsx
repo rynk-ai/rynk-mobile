@@ -91,7 +91,10 @@ function AuthDrawer({
               }}
             >
               <Text 
-                style={drawerStyles.conversationTitle} 
+                style={[
+                  drawerStyles.conversationTitle,
+                  item.id === currentConversationId && { color: theme.colors.text.primary, fontWeight: '500' }
+                ]} 
                 numberOfLines={1}
               >
                 {item.title || 'New Chat'}
@@ -358,34 +361,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10, // Reduced vertical padding
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border.subtle,
   },
   menuButton: {
-    width: 36,
-    height: 36,
+    width: 32, // Smaller button
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: theme.borderRadius.md, // Matches Web radius
     backgroundColor: theme.colors.background.secondary,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16, // Smaller title
     fontWeight: '600',
     color: theme.colors.text.primary,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   newChatButton: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: theme.borderRadius.md,
     backgroundColor: theme.colors.background.secondary,
   },
   keyboardView: {
@@ -401,17 +404,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   brandName: {
-    fontSize: 56,
+    fontSize: 48, // Slightly smaller
     fontWeight: '700',
     color: theme.colors.text.primary,
     letterSpacing: -2,
     marginBottom: 8,
   },
   brandTagline: {
-    fontSize: 15,
+    fontSize: 14,
     color: theme.colors.text.secondary,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 20,
   },
   messagesList: {
     paddingHorizontal: 16,
@@ -421,16 +424,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
     marginHorizontal: 16,
     marginBottom: 8,
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: theme.borderRadius.md,
   },
   errorText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: theme.colors.accent.error,
   },
   retryButton: {
@@ -452,8 +455,8 @@ const drawerStyles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    width: width * 0.8,
-    maxWidth: 320,
+    width: width * 0.75, // Slightly narrower drawer
+    maxWidth: 300,
     backgroundColor: theme.colors.background.primary,
     borderRightWidth: 1,
     borderRightColor: theme.colors.border.subtle,
@@ -463,22 +466,22 @@ const drawerStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border.subtle,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40, // Adjusted for safe area
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '600',
     color: theme.colors.text.primary,
   },
   newButton: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: theme.borderRadius.md,
     backgroundColor: theme.colors.background.secondary,
   },
   list: {
@@ -486,23 +489,24 @@ const drawerStyles = StyleSheet.create({
   },
   conversationItem: {
     paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderRadius: theme.borderRadius.lg,
-    marginBottom: 4,
+    paddingVertical: 10, // More compact
+    borderRadius: theme.borderRadius.md,
+    marginBottom: 2, // Minimal spacing
   },
   conversationItemActive: {
     backgroundColor: theme.colors.background.secondary,
   },
   conversationTitle: {
-    fontSize: 14,
+    fontSize: 13, // Smaller text
     color: theme.colors.text.primary,
+    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border.subtle,
   },
@@ -513,7 +517,7 @@ const drawerStyles = StyleSheet.create({
     flex: 1,
   },
   userEmail: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.colors.text.secondary,
     flex: 1,
   },

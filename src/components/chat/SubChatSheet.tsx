@@ -139,7 +139,7 @@ export function SubChatSheet({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
-              <MessageSquare size={18} color={theme.colors.accent.primary} />
+              <MessageSquare size={18} color={theme.colors.text.secondary} />
               <Text style={styles.headerTitle}>Deep Dive</Text>
             </View>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
@@ -231,8 +231,8 @@ const styles = StyleSheet.create({
     right: 0,
     height: SHEET_HEIGHT,
     backgroundColor: theme.colors.background.primary,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 16, // Matches sheet radius
+    borderTopRightRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.15,
@@ -246,8 +246,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border.subtle,
   },
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: theme.colors.text.primary,
   },
@@ -267,9 +267,9 @@ const styles = StyleSheet.create({
   quoteSection: {
     marginHorizontal: 16,
     marginVertical: 12,
-    padding: 12,
+    padding: 10,
     backgroundColor: theme.colors.background.secondary,
-    borderRadius: 12,
+    borderRadius: 8,
     borderLeftWidth: 3,
     borderLeftColor: theme.colors.accent.primary,
   },
@@ -277,20 +277,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   quoteLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     color: theme.colors.accent.primary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   quoteText: {
-    fontSize: 14,
+    fontSize: 13,
     color: theme.colors.text.secondary,
     fontStyle: 'italic',
-    lineHeight: 20,
+    lineHeight: 18,
   },
   messagesList: {
     paddingHorizontal: 16,
@@ -298,10 +298,10 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   messageBubble: {
-    marginBottom: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 16,
+    marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
     maxWidth: '90%',
   },
   userBubble: {
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background.secondary,
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
-    borderBottomRightRadius: 6,
+    borderBottomRightRadius: 4,
   },
   assistantBubble: {
     alignSelf: 'flex-start',
@@ -330,30 +330,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     paddingBottom: Platform.OS === 'ios' ? 24 : 12,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border.subtle,
     backgroundColor: theme.colors.background.primary,
-    gap: 10,
+    gap: 8,
   },
   input: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 36,
     maxHeight: 100,
     backgroundColor: theme.colors.background.secondary,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     fontSize: 14,
     color: theme.colors.text.primary,
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.background.secondary,
