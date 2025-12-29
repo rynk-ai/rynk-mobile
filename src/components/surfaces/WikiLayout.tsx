@@ -1,8 +1,7 @@
-
 import React, { memo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Linking, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Linking, FlatList, Platform } from 'react-native';
 import Markdown from 'react-native-markdown-display';
-import { BookOpen, ExternalLink, Info, ArrowUp } from 'lucide-react-native';
+import { BookOpen, ExternalLink, Info, Lightbulb } from 'lucide-react-native';
 import { theme } from '../../lib/theme';
 import type { WikiMetadata, SurfaceState } from '../../lib/types';
 
@@ -19,11 +18,21 @@ export const WikiLayout = memo(function WikiLayout({
 }: WikiLayoutProps) {
   const { title, summary, infobox, sections, relatedTopics, references, categories } = metadata;
   const availableImages = surfaceState?.availableImages || [];
+  const citations = surfaceState?.citations || [];
 
-  // Hero Image
-  const heroImage = 
-    (sections[0]?.images && sections[0].images[0]) || 
-    (availableImages && availableImages[0]);
+  // Collect images from citations and availableImages
+  const sourceImages = [
+    ...citations.filter(c => c.image).map(c => ({
+      url: c.image!,
+      sourceUrl: c.url,
+      title: c.title || 'Source',
+    })),
+    ...availableImages.map(img => ({
+        url: img.url,
+        sourceUrl: img.sourceUrl || '',
+        title: img.title || '',
+    })),
+  ].slice(0, 6);
 
   return (
     <ScrollView 
@@ -31,19 +40,23 @@ export const WikiLayout = memo(function WikiLayout({
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
     >
-      {/* Hero Image */}
-      {heroImage && (
-        <View style={styles.heroImageContainer}>
-          <Image 
-            source={{ uri: heroImage.url }} 
-            style={styles.heroImage} 
-            resizeMode="cover"
-          />
-          <View style={styles.heroOverlay} />
-          {heroImage.title && (
-            <Text style={styles.imageCaption}>{heroImage.title}</Text>
+      {/* Source Images Strip */}
+      {sourceImages.length > 0 && (
+        <FlatList
+          data={sourceImages}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item, index) => `${item.url}-${index}`}
+          contentContainerStyle={styles.imagesStrip}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.imageCard}
+              onPress={() => item.sourceUrl && Linking.openURL(item.sourceUrl).catch(() => {})}
+            >
+              <Image source={{ uri: item.url }} style={styles.sourceImage} resizeMode="cover" />
+            </TouchableOpacity>
           )}
-        </View>
+        />
       )}
 
       {/* Header */}
@@ -153,6 +166,21 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingBottom: 40,
+  },
+  imagesStrip: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 10,
+  },
+  imageCard: {
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
+  },
+  sourceImage: {
+    width: 140,
+    height: 95,
   },
   heroImageContainer: {
     height: 200,

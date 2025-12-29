@@ -82,8 +82,8 @@ function ChatContent() {
 
   // Handle send
   const handleSend = useCallback((content: string) => {
-    // Handle Surface generation (Wiki/Quiz)
-    if (surfaceMode && (surfaceMode === 'wiki' || surfaceMode === 'quiz')) {
+    // Handle Surface generation (all non-chat surfaces)
+    if (surfaceMode && surfaceMode !== 'chat') {
       router.push({
         pathname: '/surface',
         params: { type: surfaceMode, query: content, conversationId: currentConversationId }

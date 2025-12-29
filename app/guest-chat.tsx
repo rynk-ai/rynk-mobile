@@ -113,8 +113,8 @@ function GuestChatContent() {
       ? selectedContext.map(item => ({ id: item.id, title: item.title })) 
       : undefined;
     
-    // Handle Surface generation (Wiki/Quiz)
-    if (surfaceMode && (surfaceMode === 'wiki' || surfaceMode === 'quiz')) {
+    // Handle Surface generation (all non-chat surfaces)
+    if (surfaceMode && surfaceMode !== 'chat') {
       router.push({
         pathname: '/guest-surface',
         params: { type: surfaceMode, query: content }

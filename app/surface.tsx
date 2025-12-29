@@ -10,6 +10,20 @@ import { theme } from '../src/lib/theme';
 import { api, ApiError } from '../src/lib/api/client';
 import { WikiLayout } from '../src/components/surfaces/WikiLayout';
 import { QuizLayout } from '../src/components/surfaces/QuizLayout';
+import { GuideLayout } from '../src/components/surfaces/GuideLayout';
+import { FlashcardLayout } from '../src/components/surfaces/FlashcardLayout';
+import { TimelineLayout } from '../src/components/surfaces/TimelineLayout';
+import { ComparisonLayout } from '../src/components/surfaces/ComparisonLayout';
+import { ResearchLayout } from '../src/components/surfaces/ResearchLayout';
+import { LearningLayout } from '../src/components/surfaces/LearningLayout';
+import { WikiSkeleton } from '../src/components/skeletons/WikiSkeleton';
+import { QuizSkeleton } from '../src/components/skeletons/QuizSkeleton';
+import { GuideSkeleton } from '../src/components/skeletons/GuideSkeleton';
+import { FlashcardSkeleton } from '../src/components/skeletons/FlashcardSkeleton';
+import { TimelineSkeleton } from '../src/components/skeletons/TimelineSkeleton';
+import { ComparisonSkeleton } from '../src/components/skeletons/ComparisonSkeleton';
+import { ResearchSkeleton } from '../src/components/skeletons/ResearchSkeleton';
+import { LearningSkeleton } from '../src/components/skeletons/LearningSkeleton';
 import type { SurfaceState, SurfaceType } from '../src/lib/types';
 
 export default function SurfaceScreen() {
@@ -120,6 +134,16 @@ export default function SurfaceScreen() {
 
   const renderContent = () => {
     if (isLoading) {
+      // Show type-specific skeletons
+      if (params.type === 'wiki') return <WikiSkeleton />;
+      if (params.type === 'quiz') return <QuizSkeleton />;
+      if (params.type === 'guide') return <GuideSkeleton />;
+      if (params.type === 'flashcard') return <FlashcardSkeleton />;
+      if (params.type === 'timeline') return <TimelineSkeleton />;
+      if (params.type === 'comparison') return <ComparisonSkeleton />;
+      if (params.type === 'research') return <ResearchSkeleton />;
+      if (params.type === 'learning') return <LearningSkeleton />;
+      // Default fallback
       return (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={theme.colors.accent.primary} />
@@ -166,9 +190,48 @@ export default function SurfaceScreen() {
       );
     }
 
+    if (surfaceState.surfaceType === 'guide') {
+      return (
+        <GuideLayout
+          metadata={surfaceState.metadata}
+          surfaceState={surfaceState}
+        />
+      );
+    }
+
+    if (surfaceState.surfaceType === 'flashcard') {
+      return (
+        <FlashcardLayout
+          metadata={surfaceState.metadata}
+          surfaceState={surfaceState}
+        />
+      );
+    }
+
+    if (surfaceState.surfaceType === 'timeline') {
+      return <TimelineLayout metadata={surfaceState.metadata} />;
+    }
+
+    if (surfaceState.surfaceType === 'comparison') {
+      return <ComparisonLayout metadata={surfaceState.metadata} />;
+    }
+
+    if (surfaceState.surfaceType === 'research') {
+      return <ResearchLayout metadata={surfaceState.metadata} surfaceState={surfaceState} />;
+    }
+
+    if (surfaceState.surfaceType === 'learning') {
+      return (
+        <LearningLayout
+          metadata={surfaceState.metadata}
+          surfaceState={surfaceState}
+        />
+      );
+    }
+
     return (
       <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>Unsupported surface type</Text>
+        <Text style={styles.errorText}>Unsupported surface type: {surfaceState.surfaceType}</Text>
       </View>
     );
   };

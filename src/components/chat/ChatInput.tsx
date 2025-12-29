@@ -57,7 +57,7 @@ export interface QuotedMessage {
   authorRole: 'user' | 'assistant';
 }
 
-interface ChatInputProps {
+export interface ChatInputProps {
   onSend: (text: string) => void;
   isLoading: boolean;
   disabled?: boolean;

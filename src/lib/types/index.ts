@@ -142,6 +142,22 @@ export interface SurfaceState {
     startedAt: number;
     completedAt?: number;
   };
+  guide?: {
+    currentCheckpoint: number;
+    completedCheckpoints: number[];
+    checkpointContent: Record<number, string>;
+  };
+  flashcard?: {
+    currentCard: number;
+    knownCards: number[];
+    unknownCards: number[];
+    completed: boolean;
+  };
+  learning?: {
+    currentChapter: number;
+    completedChapters: number[];
+    chapterContent: Record<number, string>;
+  };
 }
 
 export interface WikiMetadata {
@@ -180,3 +196,103 @@ export interface QuizMetadata {
     explanation: string;
   }[];
 }
+
+export interface GuideMetadata {
+  type: 'guide';
+  title: string;
+  description: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  estimatedTime: number;
+  checkpoints: {
+    id: string;
+    title: string;
+    description?: string;
+    substeps: string[];
+    estimatedTime: number;
+  }[];
+}
+
+export interface FlashcardMetadata {
+  type: 'flashcard';
+  topic: string;
+  description: string;
+  cards: {
+    id: string;
+    front: string;
+    back: string;
+    difficulty?: 'easy' | 'medium' | 'hard';
+    hints?: string[];
+  }[];
+}
+
+export interface TimelineMetadata {
+  type: 'timeline';
+  title: string;
+  description: string;
+  startDate?: string;
+  endDate?: string;
+  events: {
+    id: string;
+    title: string;
+    date: string;
+    description?: string;
+    category?: string;
+    importance?: 'major' | 'minor';
+    location?: string;
+  }[];
+}
+
+export interface ComparisonMetadata {
+  type: 'comparison';
+  title: string;
+  summary: string;
+  items: {
+    id: string;
+    name: string;
+    description?: string;
+    pros?: string[];
+    cons?: string[];
+  }[];
+  verdict?: {
+    winnerId: string;
+    bottomLine?: string;
+    confidence?: number;
+  };
+  criteria: {
+    name: string;
+    category?: string;
+    scores?: { itemId: string; rating: number }[];
+  }[];
+  scenarios?: {
+    scenario: string;
+    recommendedItemId: string;
+    reason?: string;
+  }[];
+  sources?: { title: string; url: string; snippet?: string }[];
+}
+
+export interface ResearchMetadata {
+  type: 'research';
+  title: string;
+  summary?: string;
+  keyFindings?: string[];
+  keywords?: string[];
+  sections: {
+    id: string;
+    title: string;
+    content?: string;
+  }[];
+  sources?: { title: string; url: string }[];
+}
+
+export interface LearningMetadata {
+  type: 'learning';
+  title: string;
+  description: string;
+  chapters: {
+    id: string;
+    title: string;
+    estimatedTime?: number;
+  }[];
+}
+

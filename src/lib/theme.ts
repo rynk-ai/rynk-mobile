@@ -12,6 +12,7 @@ export const colors = {
     card: '#1F1F1F',         // Card/surface background
     secondary: '#262626',    // Secondary surfaces
     elevated: '#2E2E2E',     // Hover states, elevated surfaces
+    tertiary: '#333333',     // Third level surfaces
   },
   
   // Foreground - Text Colors
