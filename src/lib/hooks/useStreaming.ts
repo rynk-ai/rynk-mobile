@@ -19,6 +19,7 @@ export interface SearchResult {
     url: string;
     title: string;
     snippet: string;
+    image?: string;
   }>;
   strategy?: string[];
   totalResults?: number;

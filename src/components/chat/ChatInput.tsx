@@ -17,9 +17,39 @@ import {
   Easing,
   Platform,
 } from 'react-native';
-import { Send, Loader2, X, Quote, Plus } from 'lucide-react-native';
+import { SurfacePickerSheet } from './SurfacePickerSheet';
+import { MessageCircle, BookOpen, CheckSquare, Layers, FileText, TrendingUp, Search } from 'lucide-react-native';
+import { Send, Loader2, X, Quote, Plus, Paperclip } from 'lucide-react-native';
 import { theme } from '../../lib/theme';
 import type { ContextItem } from './ContextPickerSheet';
+import { SurfaceModeSelector } from './SurfaceModeSelector'; 
+import type { SurfaceMode } from '../../lib/types';
+
+const SURFACE_ICONS: Record<string, any> = {
+  chat: MessageCircle,
+  learning: BookOpen,
+  guide: Layers,
+  quiz: CheckSquare,
+  comparison: Layers,
+  flashcard: Layers,
+  timeline: Layers,
+  wiki: FileText,
+  finance: TrendingUp,
+  research: Search,
+};
+
+const SURFACE_COLORS: Record<string, string> = {
+  chat: theme.colors.text.primary,
+  learning: '#3b82f6',
+  guide: '#22c55e',
+  quiz: '#ec4899',
+  comparison: '#6366f1',
+  flashcard: '#14b8a6',
+  timeline: '#f59e0b',
+  wiki: '#f97316',
+  finance: '#10b981',
+  research: '#a855f7',
+};
 
 export interface QuotedMessage {
   messageId: string;
@@ -47,6 +77,14 @@ interface ChatInputProps {
   onRemoveContext?: (id: string) => void;
   /** Show the + button */
   showContextPicker?: boolean;
+  /** Current Surface Mode */
+  surfaceMode?: SurfaceMode;
+  /** Callback to change surface mode */
+  onSurfaceModeChange?: (mode: SurfaceMode) => void;
+  /** Whether the user is a guest */
+  isGuest?: boolean;
+  /** Callback to show sign in modal */
+  onShowSignIn?: () => void;
 }
 
 const MIN_INPUT_HEIGHT = 36;
@@ -66,8 +104,15 @@ export function ChatInput({
   onAddContext,
   onRemoveContext,
   showContextPicker = false,
-}: ChatInputProps) {
-  const [input, setInput] = useState(initialValue);
+  surfaceMode = 'chat',
+  onSurfaceModeChange,
+  isGuest = false,
+  onShowSignIn,
+  onAttach,
+}: ChatInputProps & { onAttach?: () => void }) {
+  const [text, setText] = useState(initialValue);
+  const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
+  const [surfacePickerOpen, setSurfacePickerOpen] = useState(false);
   const inputRef = useRef<TextInput>(null);
   
   // Loading animation
@@ -118,94 +163,143 @@ export function ChatInput({
     outputRange: ['0deg', '360deg'],
   });
 
-  const handleSend = useCallback(() => {
-    const text = input.trim();
-    if (!text || isLoading || disabled) return;
-    
-    onSend(text);
-    setInput('');
+  // Update internal state when initialValue changes
+  useEffect(() => {
+    setText(initialValue);
+  }, [initialValue]);
+
+  // Handle text change
+  const handleChangeText = (value: string) => {
+    setText(value);
+    onValueChange?.(value);
+  };
+
+  // Handle send
+  const handleSend = () => {
+    if (!text.trim() || isLoading || disabled) return;
+    onSend(text.trim());
+    setText('');
+    setInputHeight(MIN_INPUT_HEIGHT);
     onClearQuote?.();
-  }, [input, isLoading, disabled, onSend, onClearQuote]);
+  };
 
-  const handleChangeText = useCallback((text: string) => {
-    setInput(text);
-    onValueChange?.(text);
-  }, [onValueChange]);
+  const SurfaceIcon = SURFACE_ICONS[surfaceMode] || MessageCircle;
+  const surfaceColor = SURFACE_COLORS[surfaceMode] || theme.colors.text.primary;
 
-  const canSend = input.trim().length > 0 && !isLoading && !disabled;
+  const canSend = text.trim().length > 0 && !isLoading && !disabled;
 
   return (
     <View style={styles.container}>
-      {/* Quote Preview */}
+      {/* Surface Picker Sheet */}
+      {onSurfaceModeChange && (
+        <SurfacePickerSheet
+          open={surfacePickerOpen}
+          onOpenChange={setSurfacePickerOpen}
+          selectedMode={surfaceMode}
+          onSelectMode={onSurfaceModeChange}
+          isGuest={isGuest}
+          onShowSignIn={onShowSignIn}
+        />
+      )}
+
+      {/* Quoted Message */}
       {quotedMessage && (
         <View style={styles.quoteContainer}>
+          <View style={styles.quoteBar} />
           <View style={styles.quoteContent}>
-            <Quote size={14} color={theme.colors.accent.primary} />
-            <View style={styles.quoteTextWrapper}>
-              <Text style={styles.quoteLabel}>
-                Replying to {quotedMessage.authorRole === 'assistant' ? 'AI' : 'you'}
-              </Text>
-              <Text style={styles.quoteText} numberOfLines={2}>
-                {quotedMessage.quotedText}
-              </Text>
-            </View>
+            <Text style={styles.quoteAuthor}>
+              Replying to {quotedMessage.authorRole === 'assistant' ? 'Assistant' : 'You'}
+            </Text>
+            <Text style={styles.quoteText} numberOfLines={2}>
+              {quotedMessage.quotedText}
+            </Text>
           </View>
           <TouchableOpacity 
-            style={styles.quoteClearButton}
+            style={styles.closeQuoteButton}
             onPress={onClearQuote}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <X size={16} color={theme.colors.text.tertiary} />
+            <X size={14} color={theme.colors.text.tertiary} />
           </TouchableOpacity>
         </View>
       )}
 
       {/* Context Pills */}
-      {contextItems.length > 0 && (
+      {contextItems && contextItems.length > 0 && (
         <View style={styles.contextPillsContainer}>
-          {contextItems.map(item => (
+          {contextItems.map((item) => (
             <View key={item.id} style={styles.contextPill}>
               <Text style={styles.contextPillText} numberOfLines={1}>
                 {item.title}
               </Text>
-              {onRemoveContext && (
-                <TouchableOpacity
-                  onPress={() => onRemoveContext(item.id)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <X size={12} color={theme.colors.text.tertiary} />
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                onPress={() => onRemoveContext?.(item.id)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <X size={12} color={theme.colors.text.secondary} />
+              </TouchableOpacity>
             </View>
           ))}
         </View>
       )}
-      {/* Input Area */}
-      <View style={styles.inputWrapper}>
-        {/* + Button */}
+
+      <View style={styles.inputRow}>
+        {/* Surface Mode Button */}
+        {onSurfaceModeChange && (
+          <TouchableOpacity
+            style={[styles.surfaceButton, surfaceMode !== 'chat' && { backgroundColor: surfaceColor + '15' }]}
+            onPress={() => setSurfacePickerOpen(true)}
+            disabled={disabled || isLoading}
+          >
+            <SurfaceIcon 
+              size={20} 
+              color={surfaceMode !== 'chat' ? surfaceColor : theme.colors.text.secondary} 
+            />
+          </TouchableOpacity>
+        )}
+
+        {/* Context Button */}
         {showContextPicker && onAddContext && (
           <TouchableOpacity
-            style={styles.addContextButton}
+            style={styles.attachButton}
             onPress={onAddContext}
-            activeOpacity={0.7}
+            disabled={disabled || isLoading}
           >
             <Plus size={20} color={theme.colors.text.secondary} />
           </TouchableOpacity>
         )}
+
+        {/* Attach Button */}
+        {onAttach && (
+          <TouchableOpacity
+            style={styles.attachButton}
+            onPress={onAttach}
+            disabled={disabled || isLoading}
+          >
+            <Paperclip size={18} color={theme.colors.text.secondary} />
+          </TouchableOpacity>
+        )}
+
+        {/* Input Field */}
         <TextInput
           ref={inputRef}
-          style={styles.input}
+          style={[
+            styles.input,
+            { height: Math.max(MIN_INPUT_HEIGHT, Math.min(MAX_INPUT_HEIGHT, inputHeight)) }
+          ]}
+          value={text}
+          onChangeText={handleChangeText}
           placeholder={quotedMessage ? 'Add your reply...' : placeholder}
           placeholderTextColor={theme.colors.text.tertiary}
-          value={input}
-          onChangeText={handleChangeText}
           multiline
-          maxLength={4000}
-          editable={!disabled}
-          autoFocus={autoFocus}
-          blurOnSubmit={false}
           textAlignVertical="center"
+          autoFocus={autoFocus}
+          onContentSizeChange={(e) => {
+            setInputHeight(e.nativeEvent.contentSize.height);
+          }}
+          editable={!disabled && !isLoading}
         />
+
+        {/* Send Button */}
         <TouchableOpacity
           style={[
             styles.sendButton,
@@ -221,9 +315,9 @@ export function ChatInput({
               <Loader2 size={18} color={theme.colors.text.inverse} />
             </Animated.View>
           ) : (
-            <Send
-              size={18}
-              color={canSend ? theme.colors.text.inverse : theme.colors.text.tertiary}
+            <Send 
+              size={18} 
+              color={canSend ? theme.colors.text.inverse : theme.colors.text.tertiary} 
             />
           )}
         </TouchableOpacity>
@@ -235,78 +329,58 @@ export function ChatInput({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingBottom: Platform.OS === 'ios' ? 0 : 16,
+    paddingTop: 8,
     backgroundColor: theme.colors.background.primary,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border.subtle,
   },
-  // Quote styles
-  quoteContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: theme.colors.background.secondary,
-    borderRadius: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: theme.colors.accent.primary,
-    padding: 10,
-    marginBottom: 10,
-  },
-  quoteContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  quoteTextWrapper: {
-    flex: 1,
-  },
-  quoteLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: theme.colors.accent.primary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  quoteText: {
-    fontSize: 13,
-    color: theme.colors.text.secondary,
-    lineHeight: 18,
-  },
-  quoteClearButton: {
-    padding: 4,
-  },
-  // Input styles
-  inputWrapper: {
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 8, // Tighter gap
-    backgroundColor: theme.colors.background.card,
-    borderRadius: 24, // Matches 48px height fully rounded
-    borderWidth: 1,
-    borderColor: theme.colors.border.subtle,
-    paddingLeft: 16,
-    paddingRight: 6, // Reduced right padding
-    paddingVertical: 6, // Reduced vertical padding
+    gap: 8,
+  },
+  surfaceButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 0,
+    backgroundColor: theme.colors.background.secondary,
+  },
+  attachButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 0, 
+    backgroundColor: theme.colors.background.secondary,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: theme.colors.background.secondary,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+    paddingTop: Platform.OS === 'ios' ? 8 : 4,
+    fontSize: 15,
+    color: theme.colors.text.primary,
+    minHeight: 36,
+    maxHeight: MAX_INPUT_HEIGHT,
+    lineHeight: 20,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05, // Softer shadow
+        shadowOpacity: 0.05,
         shadowRadius: 8,
       },
       android: {
         elevation: 2,
       },
     }),
-  },
-  input: {
-    flex: 1,
-    minHeight: 36, // Smaller min height
-    maxHeight: 120, // Smaller max height
-    fontSize: 15, // Smaller font
-    lineHeight: 20,
-    color: theme.colors.text.primary,
-    paddingVertical: Platform.OS === 'ios' ? 8 : 4,
-    paddingTop: Platform.OS === 'ios' ? 8 : 4,
   },
   sendButton: {
     width: 32, // Smaller button
@@ -323,6 +397,41 @@ const styles = StyleSheet.create({
   sendButtonLoading: {
     backgroundColor: theme.colors.accent.primary || theme.colors.text.primary,
   },
+  // Quote styles
+  quoteContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: theme.colors.background.secondary,
+    borderRadius: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.accent.primary,
+    padding: 10,
+    marginBottom: 10,
+  },
+  quoteBar: {
+    display: 'none', 
+  },
+  quoteContent: {
+    flex: 1,
+    flexDirection: 'column', 
+    gap: 4,
+  },
+  quoteAuthor: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.accent.primary,
+    textTransform: 'uppercase', 
+    marginBottom: 0,
+  },
+  quoteText: {
+    fontSize: 13,
+    color: theme.colors.text.secondary,
+    lineHeight: 18,
+  },
+  closeQuoteButton: {
+    padding: 4,
+  },
+
   // Context picker styles
   contextPillsContainer: {
     flexDirection: 'row',
@@ -356,8 +465,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 8,
   },
+
   inputWithContext: {
     // No additional styles needed, just for differentiation
+  },
+  surfaceSelectorContainer: {
+    marginBottom: 8,
   },
 });
 

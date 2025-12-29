@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   Linking,
   Platform,
+  Image,
 } from 'react-native';
 import { ExternalLink, Search, Globe } from 'lucide-react-native';
 import { theme } from '../../lib/theme';
@@ -67,7 +68,11 @@ export function SearchResultsCard({ searchResults, maxSources = 3 }: SearchResul
             activeOpacity={0.7}
           >
             <View style={styles.sourceIcon}>
-              <Globe size={12} color={theme.colors.text.tertiary} />
+              {source.image ? (
+                <Image source={{ uri: source.image }} style={styles.sourceImage} />
+              ) : (
+                <Globe size={12} color={theme.colors.text.tertiary} />
+              )}
             </View>
             <View style={styles.sourceContent}>
               <Text style={styles.sourceTitle} numberOfLines={1}>
@@ -135,6 +140,12 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background.secondary,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden', // Mask image
+  },
+  sourceImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   sourceContent: {
     flex: 1,

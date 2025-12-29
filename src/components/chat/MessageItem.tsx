@@ -25,7 +25,7 @@ import { theme } from '../../lib/theme';
 import type { Message } from '../../lib/types';
 import type { StatusPill, SearchResult } from '../../lib/hooks/useStreaming';
 import type { SubChat } from '../../lib/hooks/useGuestSubChats';
-import { StatusPills } from './StatusPills';
+import { ReasoningDisplay } from './ReasoningDisplay';
 import { SearchResultsCard } from './SearchResultsCard';
 import { SelectableMessage } from './SelectableMessage';
 import { MermaidDiagram } from './MermaidDiagram';
@@ -34,7 +34,7 @@ interface MessageItemProps {
   message: Message;
   isStreaming: boolean;
   streamingContent: string;
-  statusPills: StatusPill[];
+  statusPills?: StatusPill[];
   searchResults?: SearchResult | null;
   isLastMessage: boolean;
   /** Callback when user selects "Quote" from context menu */
@@ -95,7 +95,7 @@ function MessageItemBase({
   }, [isStreaming, streamingContent, dotsAnim]);
 
   const displayContent = isAssistant && isStreaming ? streamingContent : message.content;
-  const showStatusPills = isAssistant && isStreaming && isLastMessage && statusPills.length > 0;
+  const showStatusPills = isAssistant && isStreaming && isLastMessage && (statusPills?.length ?? 0) > 0;
   const showActions = displayContent && !isStreaming;
   const hasSubChats = messageSubChats.length > 0;
 
@@ -154,9 +154,13 @@ function MessageItemBase({
           <SearchResultsCard searchResults={searchResults} />
         )}
 
-        {/* Status Pills for streaming */}
-        {showStatusPills && (
-          <StatusPills pills={statusPills} />
+        {/* Reasoning Display */}
+        {(message.reasoningContent || showStatusPills) && (
+          <ReasoningDisplay 
+            content={message.reasoningContent}
+            statusPills={isLastMessage ? statusPills : []}
+            isStreaming={isStreaming && isLastMessage}
+          />
         )}
 
         {/* Message Content */}
@@ -226,7 +230,7 @@ function MessageItemBase({
 export const MessageItem = memo(MessageItemBase, (prev, next) => {
   if (prev.isStreaming !== next.isStreaming) return false;
   if (prev.isStreaming && prev.streamingContent !== next.streamingContent) return false;
-  if (prev.statusPills.length !== next.statusPills.length) return false;
+  if (prev.statusPills?.length !== next.statusPills?.length) return false;
   if (prev.message.content !== next.message.content) return false;
   if (prev.message.id !== next.message.id) return false;
   if (prev.searchResults !== next.searchResults) return false;

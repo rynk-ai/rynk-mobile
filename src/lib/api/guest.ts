@@ -277,6 +277,46 @@ class GuestApiClient {
     return fullContent;
   }
 
+  async generateSurface(
+    messageId: string,
+    query: string,
+    surfaceType: 'wiki' | 'quiz' | 'course' | 'guide',
+    conversationId?: string
+  ): Promise<any> {
+    const headers = await this.getHeaders();
+    
+    // Check credits before sending
+    if (this._creditsRemaining !== null && this._creditsRemaining <= 0) {
+      throw new GuestApiError(402, 'Credits exhausted');
+    }
+
+    const response = await fetch(`${this.baseUrl}/guest/surface/generate`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        messageId,
+        query,
+        surfaceType: surfaceType.toLowerCase(),
+        conversationId
+      }),
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[generateSurface] Error:', errorText);
+        throw new GuestApiError(response.status, `Failed to generate surface: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // Update credits locally if returned
+    if (data.creditsRemaining !== undefined) {
+      this.updateCredits(data.creditsRemaining);
+    }
+
+    return data;
+  }
+
   /**
    * Send a chat message with streaming callbacks
    * React Native doesn't support ReadableStream, so we fetch full response
@@ -290,7 +330,9 @@ class GuestApiClient {
       onStatus?: (status: { status: string; message: string }) => void;
       onSearchResults?: (results: any) => void;
     },
-    referencedConversations?: { id: string; title: string }[]
+
+    referencedConversations?: { id: string; title: string }[],
+    surfaceMode?: string
   ): Promise<string> {
     const headers = await this.getHeaders();
     
@@ -310,6 +352,7 @@ class GuestApiClient {
         message,
         useReasoning: 'auto',
         referencedConversations: referencedConversations || [],
+        mode: surfaceMode,
         referencedFolders: [],
       }),
     });

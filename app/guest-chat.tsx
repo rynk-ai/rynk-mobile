@@ -15,7 +15,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Menu, Plus, AlertCircle, RotateCcw } from 'lucide-react-native';
 
 import { GuestChatProvider, useGuestChatContext } from '../src/lib/contexts/GuestChatContext';
@@ -24,9 +24,10 @@ import { useGuestSubChats } from '../src/lib/hooks/useGuestSubChats';
 import { GuestDrawer } from '../src/components/GuestDrawer';
 import { SignInModal } from '../src/components/SignInModal';
 import { theme } from '../src/lib/theme';
-import type { Message } from '../src/lib/types';
+import type { Message, SurfaceMode } from '../src/lib/types';
 
 function GuestChatContent() {
+  const router = useRouter(); // Initialize router
   const {
     conversations,
     currentConversationId,
@@ -46,10 +47,15 @@ function GuestChatContent() {
     loadConversations,
     clearError,
     isLoadingConversations,
+
+    folders,
+    togglePinConversation,
+    createFolder,
   } = useGuestChatContext();
 
   // UI State
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [surfaceMode, setSurfaceMode] = useState<SurfaceMode>('chat');
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [pendingPrompt, setPendingPrompt] = useState('');
   const [quotedMessage, setQuotedMessage] = useState<QuotedMessage | null>(null);
@@ -107,12 +113,23 @@ function GuestChatContent() {
       ? selectedContext.map(item => ({ id: item.id, title: item.title })) 
       : undefined;
     
+    // Handle Surface generation (Wiki/Quiz)
+    if (surfaceMode && (surfaceMode === 'wiki' || surfaceMode === 'quiz')) {
+      router.push({
+        pathname: '/guest-surface',
+        params: { type: surfaceMode, query: content }
+      });
+      setPendingPrompt('');
+      setSelectedContext([]);
+      return;
+    }
+
     console.log('[handleSend] Calling sendMessage with referencedConversations:', referencedConversations?.length || 0);
-    sendMessage(finalContent, referencedConversations);
+    sendMessage(finalContent, referencedConversations, surfaceMode);
     setPendingPrompt('');
     setQuotedMessage(null);
     setSelectedContext([]); // Clear context after sending
-  }, [sendMessage, isCreditsExhausted, quotedMessage, selectedContext]);
+  }, [sendMessage, isCreditsExhausted, quotedMessage, selectedContext, surfaceMode]);
 
   // Handle quote from message
   const handleQuote = useCallback((messageId: string, text: string, role: 'user' | 'assistant') => {
@@ -237,7 +254,11 @@ function GuestChatContent() {
                 showContextPicker={conversations.length > 0}
                 onAddContext={() => setContextPickerOpen(true)}
                 contextItems={selectedContext}
-                onRemoveContext={(id) => setSelectedContext(prev => prev.filter(item => item.id !== id))}
+                onRemoveContext={(id: string) => setSelectedContext(prev => prev.filter(item => item.id !== id))}
+                surfaceMode={surfaceMode}
+                onSurfaceModeChange={setSurfaceMode}
+                isGuest={true}
+                onShowSignIn={() => setShowSignInModal(true)}
               />
             </View>
           </View>
@@ -282,8 +303,13 @@ function GuestChatContent() {
               onClearQuote={handleClearQuote}
               showContextPicker={conversations.length > 1}
               onAddContext={() => setContextPickerOpen(true)}
+
               contextItems={selectedContext}
-              onRemoveContext={(id) => setSelectedContext(prev => prev.filter(item => item.id !== id))}
+              onRemoveContext={(id: string) => setSelectedContext(prev => prev.filter(item => item.id !== id))}
+              surfaceMode={surfaceMode}
+              onSurfaceModeChange={setSurfaceMode}
+              isGuest={true}
+              onShowSignIn={() => setShowSignInModal(true)}
             />
           </>
         )}
@@ -299,6 +325,9 @@ function GuestChatContent() {
         creditsRemaining={creditsRemaining}
         onRefresh={loadConversations}
         isLoading={isLoadingConversations}
+        folders={folders}
+        onTogglePin={togglePinConversation}
+        onCreateFolder={() => createFolder("New Folder")} // TODO: Add dialog
         isAuthenticated={false}
         user={null}
         onSignOut={() => {}}

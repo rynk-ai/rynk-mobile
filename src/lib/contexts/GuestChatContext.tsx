@@ -7,11 +7,15 @@ import React, { createContext, useContext, useCallback, useEffect, useState, use
 import { guestApi, GuestApiError } from '../api/guest';
 import { useMessages } from '../hooks/useMessages';
 import { useStreaming, type StatusPill, type SearchResult } from '../hooks/useStreaming';
-import type { Message, Conversation } from '../types';
+import type { Message, Conversation, Folder, SurfaceMode } from '../types';
+
+// Initial Folders (Mock data for guest)
+const INITIAL_FOLDERS: Folder[] = [];
 
 interface GuestChatContextValue {
   // Conversations
   conversations: Conversation[];
+  folders: Folder[];
   currentConversationId: string | null;
   currentConversation: Conversation | null;
   isLoadingConversations: boolean;
@@ -36,10 +40,13 @@ interface GuestChatContextValue {
   
   // Actions
   selectConversation: (id: string | null) => void;
-  sendMessage: (content: string, referencedConversations?: { id: string; title: string }[]) => Promise<void>;
+  sendMessage: (content: string, referencedConversations?: { id: string; title: string }[], surfaceMode?: SurfaceMode) => Promise<void>;
   createNewChat: () => void;
   loadConversations: () => Promise<void>;
   deleteConversation: (id: string) => Promise<void>;
+  togglePinConversation: (id: string) => Promise<void>;
+  createFolder: (name: string) => Promise<void>;
+  deleteFolder: (id: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -61,6 +68,7 @@ interface GuestChatProviderProps {
 export function GuestChatProvider({ children, initialConversationId }: GuestChatProviderProps) {
   // State
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [folders, setFolders] = useState<Folder[]>(INITIAL_FOLDERS);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(initialConversationId ?? null);
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -188,7 +196,7 @@ export function GuestChatProvider({ children, initialConversationId }: GuestChat
   }, [currentConversationId, createNewChat]);
   
   // Send message with streaming
-  const sendMessage = useCallback(async (content: string, referencedConversations?: { id: string; title: string }[]) => {
+  const sendMessage = useCallback(async (content: string, referencedConversations?: { id: string; title: string }[], surfaceMode?: SurfaceMode) => {
     console.log('[sendMessage] Entry - isSendingRef:', isSendingRef.current, 'isSending:', isSending, 'content:', content.substring(0, 30), 'referencedConversations:', referencedConversations?.length || 0);
     
     // Immediate check and lock - must be synchronous
@@ -295,7 +303,9 @@ export function GuestChatProvider({ children, initialConversationId }: GuestChat
             updateSearchResults(results);
           },
         },
-        referencedConversations
+
+        referencedConversations,
+        surfaceMode
       );
       
       // Update assistant message with final content
@@ -360,9 +370,28 @@ export function GuestChatProvider({ children, initialConversationId }: GuestChat
     createNewChat,
     loadConversations,
     deleteConversation,
+
+    togglePinConversation: async (id: string) => {
+      setConversations(prev => prev.map(c => c.id === id ? { ...c, isPinned: !c.isPinned } : c));
+    },
+    folders,
+    createFolder: async (name: string) => {
+      const newFolder: Folder = {
+        id: `folder_${Date.now()}`,
+        name,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        conversationIds: [],
+      };
+      setFolders(prev => [newFolder, ...prev]);
+    },
+    deleteFolder: async (id: string) => { 
+      setFolders(prev => prev.filter(f => f.id !== id));
+    },
     clearError,
   }), [
     conversations,
+    // Add new dependencies if state added
     currentConversationId,
     currentConversation,
     isLoadingConversations,
@@ -381,6 +410,7 @@ export function GuestChatProvider({ children, initialConversationId }: GuestChat
     createNewChat,
     loadConversations,
     deleteConversation,
+    folders,
     clearError,
   ]);
   

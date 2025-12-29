@@ -112,3 +112,71 @@ export interface MessagesResponse {
 export interface CreateConversationResponse {
   conversationId: string;
 }
+
+export interface Folder {
+  id: string;
+  name: string;
+  conversationIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Surfaces
+export type SurfaceType = 'chat' | 'learning' | 'guide' | 'quiz' | 'comparison' | 'flashcard' | 'timeline' | 'wiki' | 'finance' | 'research';
+export type SurfaceMode = SurfaceType; // Alias for backward compatibility
+
+
+export interface SurfaceState {
+  surfaceType: SurfaceType;
+  metadata: any;
+  createdAt: number;
+  updatedAt: number;
+  availableImages?: { url: string; title: string; sourceUrl: string }[];
+  citations?: any[];
+  quiz?: {
+    currentQuestion: number;
+    answers: Record<number, string | number>;
+    correctCount: number;
+    incorrectCount: number;
+    completed: boolean;
+    startedAt: number;
+    completedAt?: number;
+  };
+}
+
+export interface WikiMetadata {
+  type: 'wiki';
+  title: string;
+  summary: string;
+  infobox: {
+    facts: { label: string; value: string }[];
+  };
+  sections: {
+    id: string;
+    heading: string;
+    content: string;
+    subsections?: { id: string; heading: string; content: string }[];
+    images?: { url: string; title: string; sourceUrl: string }[];
+    citations?: any[];
+  }[];
+  relatedTopics: string[];
+  references: { id: string; title: string; url: string }[];
+  categories: string[];
+  lastUpdated: string;
+}
+
+export interface QuizMetadata {
+  type: 'quiz';
+  topic: string;
+  description: string;
+  questionCount: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  format: 'multiple-choice' | 'mixed';
+  questions: {
+    id: string;
+    question: string;
+    options: string[];
+    correctAnswer: number | string;
+    explanation: string;
+  }[];
+}

@@ -3,128 +3,38 @@
  * Full chat experience for logged-in users
  */
 
-import React, { useCallback, useRef, useMemo, useEffect, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  FlatList,
+  StatusBar,
+  TouchableOpacity,
+  Text,
   KeyboardAvoidingView,
   Platform,
-  TouchableOpacity,
-  StatusBar,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Menu, Plus, AlertCircle, RotateCcw, User, LogOut } from 'lucide-react-native';
+import { Menu, Plus, AlertCircle, RotateCcw } from 'lucide-react-native';
 
 import { ChatProvider, useChatContext } from '../src/lib/contexts/ChatContext';
-import { 
-  MessageItem, 
-  ChatInput, 
-  EmptyStateChat, 
-  ContextPickerSheet, 
-  type StatusPill, 
-  type QuotedMessage,
-  type ContextItem 
-} from '../src/components/chat';
 import { useAuth } from '../src/lib/auth';
 import { theme } from '../src/lib/theme';
+import { 
+  AuthenticatedChatInput,
+  MessageList,
+  ContextPickerSheet,
+  SubChatSheet,
+  MessageItem,
+  type ContextItem 
+} from '../src/components/chat';
+import { AppSidebar } from '../src/components/sidebar/AppSidebar';
+import { useGuestSubChats } from '../src/lib/hooks/useGuestSubChats';
 import type { Message, Conversation } from '../src/lib/types';
-
-const { width } = Dimensions.get('window');
-
-// Drawer component for authenticated users
-function AuthDrawer({
-  isOpen,
-  onClose,
-  conversations,
-  currentConversationId,
-  onSelectConversation,
-  onNewChat,
-  isLoading,
-  user,
-  onSignOut,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  conversations: Conversation[];
-  currentConversationId: string | null;
-  onSelectConversation: (id: string | null) => void;
-  onNewChat: () => void;
-  isLoading: boolean;
-  user: any;
-  onSignOut: () => void;
-}) {
-  if (!isOpen) return null;
-
-  return (
-    <View style={drawerStyles.overlay}>
-      <TouchableOpacity 
-        style={drawerStyles.backdrop} 
-        onPress={onClose}
-        activeOpacity={1}
-      />
-      <View style={drawerStyles.drawer}>
-        {/* Header */}
-        <View style={drawerStyles.header}>
-          <Text style={drawerStyles.headerTitle}>Chats</Text>
-          <TouchableOpacity onPress={onNewChat} style={drawerStyles.newButton}>
-            <Plus size={20} color={theme.colors.text.primary} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Conversation List */}
-        <FlatList
-          data={conversations}
-          keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[
-                drawerStyles.conversationItem,
-                item.id === currentConversationId && drawerStyles.conversationItemActive
-              ]}
-              onPress={() => {
-                onSelectConversation(item.id);
-                onClose();
-              }}
-            >
-              <Text 
-                style={[
-                  drawerStyles.conversationTitle,
-                  item.id === currentConversationId && { color: theme.colors.text.primary, fontWeight: '500' }
-                ]} 
-                numberOfLines={1}
-              >
-                {item.title || 'New Chat'}
-              </Text>
-            </TouchableOpacity>
-          )}
-          contentContainerStyle={drawerStyles.list}
-          showsVerticalScrollIndicator={false}
-        />
-
-        {/* User Footer */}
-        <View style={drawerStyles.footer}>
-          <View style={drawerStyles.userInfo}>
-            <User size={16} color={theme.colors.accent.primary} />
-            <Text style={drawerStyles.userEmail} numberOfLines={1}>
-              {user?.email}
-            </Text>
-          </View>
-          <TouchableOpacity onPress={onSignOut} style={drawerStyles.signOutButton}>
-            <LogOut size={16} color={theme.colors.text.tertiary} />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
-}
 
 function ChatContent() {
   const router = useRouter();
-  const { user, signOut, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   
   const {
     conversations,
@@ -137,75 +47,71 @@ function ChatContent() {
     isStreaming,
     isSending,
     error,
-    userCredits,
-    selectConversation,
     sendMessage,
     createNewChat,
-    loadConversations,
     clearError,
-    isLoadingConversations,
   } = useChatContext();
+
+  // Sub-chats (reuse guest hook for now as logic is similar)
+  const {
+    activeSubChat,
+    subChats,
+    handleOpenSubChat,
+    setSubChatSheetOpen,
+    handleOpenExistingSubChat,
+    subChatSheetOpen,
+    subChatLoading,
+    subChatStreamingContent,
+    handleSubChatSendMessage,
+    handleDeleteSubChat,
+  } = useGuestSubChats(currentConversationId);
 
   // UI State
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [quotedMessage, setQuotedMessage] = useState<QuotedMessage | null>(null);
+  const [quotedMessage, setQuotedMessage] = useState<any | null>(null);
   const [contextPickerOpen, setContextPickerOpen] = useState(false);
   const [selectedContext, setSelectedContext] = useState<ContextItem[]>([]);
-  const flatListRef = useRef<FlatList>(null);
 
-  // Redirect to guest-chat if not authenticated
+  // Redirect if not authenticated
   useEffect(() => {
     if (!isAuthenticated) {
-      router.replace('/guest-chat' as any);
+      router.replace('/guest-chat');
     }
   }, [isAuthenticated, router]);
 
-  // Handle send with quote and context support
+  // Handle send
   const handleSend = useCallback((content: string) => {
     let finalContent = content;
     
     // Prepend quote if present
     if (quotedMessage) {
-      const quoteLines = quotedMessage.quotedText.split('\n').map(line => `> ${line}`).join('\n');
+      const quoteLines = quotedMessage.quotedText.split('\n').map((line: string) => `> ${line}`).join('\n');
       finalContent = `${quoteLines}\n\n${content}`;
     }
     
-    // Build referencedConversations with id and title
-    const referencedConversations = selectedContext.length > 0 
-      ? selectedContext.map(item => ({ id: item.id, title: item.title })) 
-      : undefined;
-    
+    // Referenced conversations
+    const referencedConversations = selectedContext.map(item => ({ id: item.id, title: item.title }));
+
     sendMessage(finalContent, referencedConversations);
     setQuotedMessage(null);
     setSelectedContext([]);
   }, [sendMessage, quotedMessage, selectedContext]);
+
+  // Handle deep dive (for sub-chats)
+  const handleDeepDive = useCallback((text: string, messageId: string, role: 'user' | 'assistant', fullContent: string) => {
+    handleOpenSubChat(text, messageId, role, fullContent);
+  }, [handleOpenSubChat]);
 
   // Handle quote from message
   const handleQuote = useCallback((messageId: string, text: string, role: 'user' | 'assistant') => {
     setQuotedMessage({ messageId, quotedText: text, authorRole: role });
   }, []);
 
-  // Handle clear quote
-  const handleClearQuote = useCallback(() => {
-    setQuotedMessage(null);
-  }, []);
-
-  // Handle new chat
-  const handleNewChat = useCallback(() => {
-    createNewChat();
-    setDrawerOpen(false);
-  }, [createNewChat]);
-
-  // Handle sign out
-  const handleSignOut = useCallback(async () => {
-    await signOut();
-    router.replace('/guest-chat' as any);
-  }, [signOut, router]);
-
   // Render message
   const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
     const isLastMessage = index === messages.length - 1;
     const isThisStreaming = item.id === streamingMessageId;
+    const messageSubChats = subChats.filter(sc => sc.sourceMessageId === item.id);
 
     return (
       <MessageItem
@@ -216,23 +122,21 @@ function ChatContent() {
         searchResults={isThisStreaming ? searchResults : null}
         isLastMessage={isLastMessage}
         onQuote={handleQuote}
+        onDeepDive={handleDeepDive}
+        messageSubChats={messageSubChats}
+        onOpenExistingSubChat={(sc) => {
+           handleOpenExistingSubChat(sc);
+        }}
       />
     );
-  }, [messages.length, streamingMessageId, streamingContent, statusPills, searchResults, handleQuote]);
+  }, [messages.length, streamingMessageId, streamingContent, statusPills, searchResults, handleQuote, handleDeepDive, subChats, handleOpenExistingSubChat]);
 
-  // Empty state
-  const EmptyState = useMemo(() => () => (
-    <View style={styles.emptyState}>
-      <View style={styles.brandContainer}>
-        <Text style={styles.brandName}>rynk.</Text>
-        <Text style={styles.brandTagline}>What would you like to explore today?</Text>
-      </View>
-    </View>
-  ), []);
+  // Handle new chat
+  const handleNewChat = useCallback(() => {
+    createNewChat();
+  }, [createNewChat]);
 
-  if (!isAuthenticated) {
-    return null;
-  }
+  if (!isAuthenticated) return null;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -247,11 +151,11 @@ function ChatContent() {
         >
           <Menu size={20} color={theme.colors.text.primary} />
         </TouchableOpacity>
-        
+
         <Text style={styles.headerTitle}>
           {currentConversationId ? 'Chat' : 'rynk.'}
         </Text>
-        
+
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.newChatButton}
@@ -266,28 +170,20 @@ function ChatContent() {
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         {/* Messages */}
-        {messages.length === 0 && !isSending ? (
-          <EmptyState />
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            renderItem={renderMessage}
-            keyExtractor={item => item.id}
-            contentContainerStyle={styles.messagesList}
-            showsVerticalScrollIndicator={false}
-            onContentSizeChange={() => {
-              if (isStreaming || isSending) {
-                flatListRef.current?.scrollToEnd({ animated: true });
-              }
-            }}
-          />
-        )}
+        <MessageList
+          messages={messages}
+          isLoading={isSending}
+          streamingMessageId={streamingMessageId}
+          streamingContent={streamingContent}
+          statusPills={statusPills}
+          searchResults={searchResults}
+          renderMessage={renderMessage}
+          // onRetry...
+        />
 
-        {/* Error */}
+        {/* Error State */}
         {error && (
           <View style={styles.errorContainer}>
             <AlertCircle size={16} color={theme.colors.accent.error} />
@@ -299,32 +195,26 @@ function ChatContent() {
         )}
 
         {/* Input */}
-        <ChatInput 
-          onSend={handleSend} 
+        <AuthenticatedChatInput
+          onSend={handleSend}
           isLoading={isSending}
           quotedMessage={quotedMessage}
-          onClearQuote={handleClearQuote}
-          showContextPicker={conversations.length > 1}
+          onClearQuote={() => setQuotedMessage(null)}
+          showContextPicker={conversations.length > 0}
           onAddContext={() => setContextPickerOpen(true)}
           contextItems={selectedContext}
-          onRemoveContext={(id) => setSelectedContext(prev => prev.filter(item => item.id !== id))}
+          onRemoveContext={(id: string) => setSelectedContext(prev => prev.filter(p => p.id !== id))}
+          // onAttach...
         />
       </KeyboardAvoidingView>
 
-      {/* Drawer */}
-      <AuthDrawer
+      {/* Sidebar */}
+      <AppSidebar
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        conversations={conversations}
-        currentConversationId={currentConversationId}
-        onSelectConversation={selectConversation}
-        onNewChat={handleNewChat}
-        isLoading={isLoadingConversations}
-        user={user}
-        onSignOut={handleSignOut}
       />
 
-      {/* Context Picker Sheet */}
+      {/* Context Picker */}
       <ContextPickerSheet
         open={contextPickerOpen}
         onOpenChange={setContextPickerOpen}
@@ -337,6 +227,19 @@ function ChatContent() {
         onSelectionChange={setSelectedContext}
         currentConversationId={currentConversationId}
       />
+      
+
+
+      {/* Sub-Chat Sheet */}
+      <SubChatSheet 
+         open={subChatSheetOpen}
+         onOpenChange={setSubChatSheetOpen}
+         subChat={activeSubChat}
+         onSendMessage={handleSubChatSendMessage}
+         isLoading={subChatLoading}
+         streamingContent={subChatStreamingContent}
+      />
+      
     </SafeAreaView>
   );
 }
@@ -361,23 +264,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 10, // Reduced vertical padding
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border.subtle,
   },
   menuButton: {
-    width: 32, // Smaller button
+    width: 32,
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: theme.borderRadius.md, // Matches Web radius
+    borderRadius: theme.borderRadius.md,
     backgroundColor: theme.colors.background.secondary,
   },
   headerTitle: {
-    fontSize: 16, // Smaller title
+    fontSize: 16,
     fontWeight: '600',
     color: theme.colors.text.primary,
-    letterSpacing: -0.3,
   },
   headerRight: {
     flexDirection: 'row',
@@ -393,32 +295,6 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
-  },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 48,
-  },
-  brandContainer: {
-    alignItems: 'center',
-  },
-  brandName: {
-    fontSize: 48, // Slightly smaller
-    fontWeight: '700',
-    color: theme.colors.text.primary,
-    letterSpacing: -2,
-    marginBottom: 8,
-  },
-  brandTagline: {
-    fontSize: 14,
-    color: theme.colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  messagesList: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
   },
   errorContainer: {
     flexDirection: 'row',
@@ -441,87 +317,3 @@ const styles = StyleSheet.create({
   },
 });
 
-const drawerStyles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 100,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  drawer: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: width * 0.75, // Slightly narrower drawer
-    maxWidth: 300,
-    backgroundColor: theme.colors.background.primary,
-    borderRightWidth: 1,
-    borderRightColor: theme.colors.border.subtle,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border.subtle,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40, // Adjusted for safe area
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.text.primary,
-  },
-  newButton: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.background.secondary,
-  },
-  list: {
-    padding: 8,
-  },
-  conversationItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 10, // More compact
-    borderRadius: theme.borderRadius.md,
-    marginBottom: 2, // Minimal spacing
-  },
-  conversationItemActive: {
-    backgroundColor: theme.colors.background.secondary,
-  },
-  conversationTitle: {
-    fontSize: 13, // Smaller text
-    color: theme.colors.text.primary,
-    fontWeight: '500',
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border.subtle,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  userEmail: {
-    fontSize: 12,
-    color: theme.colors.text.secondary,
-    flex: 1,
-  },
-  signOutButton: {
-    padding: 8,
-  },
-});

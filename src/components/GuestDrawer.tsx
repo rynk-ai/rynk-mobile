@@ -19,7 +19,9 @@ import {
   User,
 } from 'lucide-react-native';
 import { theme } from '../lib/theme';
-import type { Conversation } from '../lib/types';
+import type { Conversation, Folder } from '../lib/types';
+import { ChevronDown, ChevronRight, Folder as FolderIcon, Pin, MoreVertical, Pencil, Trash2, FolderInput } from 'lucide-react-native';
+import { InputDialog } from './InputDialog';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.85, 320);
@@ -28,6 +30,10 @@ interface GuestDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   conversations: Conversation[];
+  folders?: Folder[];
+  onTogglePin?: (id: string) => void;
+
+  onCreateFolder?: (name: string) => void;
   currentConversationId: string | null;
   onSelectConversation: (id: string | null) => void;
   creditsRemaining: number | null;
@@ -49,6 +55,7 @@ export function GuestDrawer({
   isOpen,
   onClose,
   conversations,
+  folders = [],
   currentConversationId,
   onSelectConversation,
   creditsRemaining,
@@ -57,8 +64,18 @@ export function GuestDrawer({
   isAuthenticated = false,
   user = null,
   onSignOut,
+  onTogglePin,
+  onCreateFolder,
 }: GuestDrawerProps) {
   const router = useRouter();
+  const [foldersExpanded, setFoldersExpanded] = React.useState(true);
+  const [isFolderDialogOpen, setIsFolderDialogOpen] = React.useState(false);
+
+  // Handlers
+  const handleCreateFolder = (name: string) => {
+    onCreateFolder?.(name);
+    setIsFolderDialogOpen(false);
+  };
 
   const handleNewChat = () => {
     onSelectConversation(null);
@@ -209,6 +226,84 @@ export function GuestDrawer({
           </TouchableOpacity>
         </View>
 
+
+        {/* Pinned Conversations */}
+        {conversations.some(c => c.isPinned) && (
+          <View style={styles.pinnedSection}>
+             <Text style={styles.sectionHeader}>Pinned</Text>
+             {conversations.filter(c => c.isPinned).map(conv => (
+                <TouchableOpacity
+                  key={conv.id}
+                  style={[
+                    styles.conversationItem,
+                    currentConversationId === conv.id && styles.conversationItemActive,
+                  ]}
+                  onPress={() => handleSelectConversation(conv.id)}
+                >
+                  <View style={[
+                    styles.conversationIcon,
+                    currentConversationId === conv.id && styles.conversationIconActive,
+                  ]}>
+                    <Pin size={12} color={theme.colors.accent.primary} fill={theme.colors.accent.primary} />
+                  </View>
+                  <Text
+                    style={[
+                      styles.conversationTitle,
+                      currentConversationId === conv.id && styles.conversationTitleActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {conv.title || 'Untitled Chat'}
+                  </Text>
+                </TouchableOpacity>
+             ))}
+          </View>
+        )}
+
+        {/* Folders Section */}
+        <View style={styles.foldersSection}>
+          <TouchableOpacity 
+            style={styles.foldersHeader} 
+            onPress={() => setFoldersExpanded(!foldersExpanded)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.foldersTitleRow}>
+              {foldersExpanded ? (
+                <ChevronDown size={14} color={theme.colors.text.tertiary} />
+              ) : (
+                <ChevronRight size={14} color={theme.colors.text.tertiary} />
+              )}
+              <Text style={styles.sectionHeader}>Folders</Text>
+            </View>
+            <TouchableOpacity 
+              onPress={() => setIsFolderDialogOpen(true)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Plus size={14} color={theme.colors.text.tertiary} />
+            </TouchableOpacity>
+          </TouchableOpacity>
+          
+          {foldersExpanded && (
+            <View style={styles.foldersList}>
+              {folders.length === 0 ? (
+                 <Text style={styles.emptyFoldersText}>No folders yet</Text>
+              ) : (
+                folders.map(folder => (
+                  <TouchableOpacity
+                    key={folder.id}
+                    style={styles.folderItem}
+                    // onPress={() => handleSelectFolder(folder.id)} // TODO: Implement folder selection/view
+                  >
+                    <FolderIcon size={14} color={theme.colors.text.tertiary} />
+                    <Text style={styles.folderName} numberOfLines={1}>{folder.name}</Text>
+                    <Text style={styles.folderCount}>{folder.conversationIds.length}</Text>
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+          )}
+        </View>
+
         {/* Conversation List */}
         <FlatList
           data={groupedConversations}
@@ -220,7 +315,7 @@ export function GuestDrawer({
           renderItem={({ item: group }) => (
             <View style={styles.group}>
               <Text style={styles.groupTitle}>{group.title}</Text>
-              {group.data.map((conv) => (
+              {group.data.filter(c => !c.isPinned).map((conv) => (
                 <TouchableOpacity
                   key={conv.id}
                   style={[
@@ -275,6 +370,16 @@ export function GuestDrawer({
           </View>
         )}
       </SafeAreaView>
+
+      {/* Dialogs */}
+      <InputDialog
+        visible={isFolderDialogOpen}
+        onClose={() => setIsFolderDialogOpen(false)}
+        onSubmit={handleCreateFolder}
+        title="New Folder"
+        placeholder="Folder name"
+        submitLabel="Create"
+      />
     </View>
   );
 }
@@ -530,6 +635,64 @@ const styles = StyleSheet.create({
     color: theme.colors.text.tertiary,
     textAlign: 'center',
     lineHeight: 16,
+  },
+  // New Styles
+  pinnedSection: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.subtle,
+  },
+  sectionHeader: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  foldersSection: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.subtle,
+  },
+  foldersHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  foldersTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  foldersList: {
+    paddingTop: 4,
+  },
+  folderItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 28, // Indented
+    gap: 8,
+  },
+  folderName: {
+    flex: 1,
+    fontSize: 13,
+    color: theme.colors.text.secondary,
+  },
+  folderCount: {
+    fontSize: 11,
+    color: theme.colors.text.tertiary,
+  },
+  emptyFoldersText: {
+    fontSize: 12,
+    color: theme.colors.text.tertiary,
+    fontStyle: 'italic',
+    paddingLeft: 28,
+    paddingVertical: 4,
   },
 });
 

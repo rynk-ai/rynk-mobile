@@ -8,11 +8,13 @@ import { api, ApiError } from '../api/client';
 import { useMessages } from '../hooks/useMessages';
 import { useStreaming, type StatusPill, type SearchResult } from '../hooks/useStreaming';
 import { useAuth } from '../auth';
-import type { Message, Conversation } from '../types';
+import type { Message, Conversation, Folder, Project } from '../types';
 
 interface ChatContextValue {
   // Conversations
   conversations: Conversation[];
+  folders: Folder[];
+  projects: Project[];
   currentConversationId: string | null;
   currentConversation: Conversation | null;
   isLoadingConversations: boolean;
@@ -63,6 +65,8 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
   
   // State
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(initialConversationId ?? null);
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -102,22 +106,30 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     [conversations, currentConversationId]
   );
   
-  // Load conversations
-  const loadConversations = useCallback(async () => {
+  // Load data
+  const loadData = useCallback(async () => {
     try {
       setIsLoadingConversations(true);
-      const response = await api.get<{ conversations: Conversation[] }>('/mobile/conversations');
-      setConversations(response.conversations || []);
+      const [convRes, foldRes, projRes] = await Promise.all([
+        api.get<{ conversations: Conversation[] }>('/mobile/conversations'),
+        // Assuming these endpoints exist, wrap in try/catch if uncertain or handle gracefully
+        api.get<{ folders: Folder[] }>('/mobile/folders').catch(() => ({ folders: [] })),
+        api.get<{ projects: Project[] }>('/mobile/projects').catch(() => ({ projects: [] })),
+      ]);
+      
+      setConversations(convRes.conversations || []);
+      setFolders(foldRes.folders || []);
+      setProjects(projRes.projects || []);
     } catch (err) {
-      console.error('Failed to load conversations:', err);
+      console.error('Failed to load chat data:', err);
     } finally {
       setIsLoadingConversations(false);
     }
   }, []);
   
   useEffect(() => {
-    loadConversations();
-  }, [loadConversations]);
+    loadData();
+  }, [loadData]);
   
   // Load messages when conversation changes
   useEffect(() => {
@@ -320,7 +332,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
       finishStreaming(fullContent);
       
       // Refresh conversations list immediately to show the new chat
-      loadConversations();
+      loadData();
 
       // For new conversations, generate a title
       if (isNewConversation) {
@@ -330,7 +342,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
         })
         .then(() => {
           // Reload conversations to reflect the new title
-          loadConversations();
+          loadData();
         })
         .catch(err => {
           console.error('Failed to generate title:', err);
@@ -354,8 +366,9 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     updateStreamContent,
     updateSearchResults,
     updateMessage,
+    updateMessage,
     finishStreaming,
-    loadConversations,
+    loadData,
     setMessages,
   ]);
   
@@ -364,6 +377,8 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
   // Memoize value
   const value = useMemo<ChatContextValue>(() => ({
     conversations,
+    folders,
+    projects,
     currentConversationId,
     currentConversation,
     isLoadingConversations,
@@ -379,11 +394,13 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     selectConversation,
     sendMessage,
     createNewChat,
-    loadConversations,
+    loadConversations: loadData,
     deleteConversation,
     clearError,
   }), [
     conversations,
+    folders,
+    projects,
     currentConversationId,
     currentConversation,
     isLoadingConversations,
@@ -399,7 +416,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     selectConversation,
     sendMessage,
     createNewChat,
-    loadConversations,
+    loadData,
     deleteConversation,
     clearError,
   ]);
