@@ -1,0 +1,396 @@
+/**
+ * ChatContext - Context provider for authenticated chat
+ * Uses the same hooks as guest chat but with authenticated API
+ */
+
+import React, { createContext, useContext, useCallback, useEffect, useState, useRef, useMemo } from 'react';
+import { api, ApiError } from '../api/client';
+import { useMessages } from '../hooks/useMessages';
+import { useStreaming, type StatusPill, type SearchResult } from '../hooks/useStreaming';
+import { useAuth } from '../auth';
+import type { Message, Conversation } from '../types';
+
+interface ChatContextValue {
+  // Conversations
+  conversations: Conversation[];
+  currentConversationId: string | null;
+  currentConversation: Conversation | null;
+  isLoadingConversations: boolean;
+  
+  // Messages
+  messages: Message[];
+  
+  // Streaming
+  streamingMessageId: string | null;
+  streamingContent: string;
+  statusPills: StatusPill[];
+  searchResults: SearchResult | null;
+  isStreaming: boolean;
+  
+  // Loading states
+  isSending: boolean;
+  error: string | null;
+  
+  // User
+  userCredits: number | null;
+  
+  // Actions
+  selectConversation: (id: string | null) => void;
+  sendMessage: (content: string, referencedConversations?: { id: string; title: string }[]) => Promise<void>;
+  createNewChat: () => void;
+  loadConversations: () => Promise<void>;
+  deleteConversation: (id: string) => Promise<void>;
+  clearError: () => void;
+}
+
+const ChatContext = createContext<ChatContextValue | null>(null);
+
+export function useChatContext() {
+  const context = useContext(ChatContext);
+  if (!context) {
+    throw new Error('useChatContext must be used within a ChatProvider');
+  }
+  return context;
+}
+
+interface ChatProviderProps {
+  children: React.ReactNode;
+  initialConversationId?: string | null;
+}
+
+export function ChatProvider({ children, initialConversationId }: ChatProviderProps) {
+  const { user } = useAuth();
+  
+  // State
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(initialConversationId ?? null);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userCredits, setUserCredits] = useState<number | null>(user?.credits ?? null);
+  
+  // Hooks
+  const {
+    messages,
+    setMessages,
+    addMessages,
+    updateMessage,
+    replaceMessage,
+    clearMessages,
+  } = useMessages();
+  
+  const {
+    streamingMessageId,
+    streamingContent,
+    statusPills,
+    searchResults,
+    isStreaming,
+    startStreaming,
+    updateStreamContent,
+    addStatusPill,
+    updateSearchResults,
+    finishStreaming,
+    clearStatus,
+  } = useStreaming();
+  
+  // Refs
+  const isSendingRef = useRef(false);
+  
+  // Computed
+  const currentConversation = useMemo(
+    () => conversations.find(c => c.id === currentConversationId) ?? null,
+    [conversations, currentConversationId]
+  );
+  
+  // Load conversations
+  const loadConversations = useCallback(async () => {
+    try {
+      setIsLoadingConversations(true);
+      const response = await api.get<{ conversations: Conversation[] }>('/mobile/conversations');
+      setConversations(response.conversations || []);
+    } catch (err) {
+      console.error('Failed to load conversations:', err);
+    } finally {
+      setIsLoadingConversations(false);
+    }
+  }, []);
+  
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+  
+  // Load messages when conversation changes
+  useEffect(() => {
+    if (!currentConversationId) {
+      clearMessages();
+      clearStatus();
+      return;
+    }
+    
+    if (isSendingRef.current) return;
+    
+    const loadMessages = async () => {
+      try {
+        const response = await api.get<{ messages: Message[] }>(
+          `/mobile/conversations/${currentConversationId}/messages`
+        );
+        if (response.messages) {
+          setMessages(response.messages);
+        }
+      } catch (err) {
+        console.error('Failed to load messages:', err);
+      }
+    };
+    
+    loadMessages();
+  }, [currentConversationId, clearMessages, clearStatus, setMessages]);
+  
+  // Select conversation
+  const selectConversation = useCallback((id: string | null) => {
+    setCurrentConversationId(id);
+    setError(null);
+    clearStatus();
+  }, [clearStatus]);
+  
+  // Create new chat
+  const createNewChat = useCallback(() => {
+    setCurrentConversationId(null);
+    clearMessages();
+    clearStatus();
+    setError(null);
+  }, [clearMessages, clearStatus]);
+  
+  // Delete conversation
+  const deleteConversation = useCallback(async (id: string) => {
+    try {
+      await api.delete(`/mobile/conversations/${id}`);
+      setConversations(prev => prev.filter(c => c.id !== id));
+      if (currentConversationId === id) {
+        createNewChat();
+      }
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+      throw err;
+    }
+  }, [currentConversationId, createNewChat]);
+  
+  // Send message with streaming
+  const sendMessage = useCallback(async (content: string, referencedConversations?: { id: string; title: string }[]) => {
+    if (!content.trim() || isSendingRef.current) return;
+    
+    isSendingRef.current = true;
+    setIsSending(true);
+    setError(null);
+    
+    try {
+      // Create conversation if needed
+      let convId = currentConversationId;
+      if (!convId) {
+        const response = await api.post<{ conversationId: string }>('/mobile/conversations', {});
+        convId = response.conversationId;
+        setCurrentConversationId(convId);
+      }
+      
+      // Generate temp IDs
+      const tempUserMsgId = `temp_user_${Date.now()}`;
+      const tempAssistantMsgId = `temp_assistant_${Date.now()}`;
+      
+      // Optimistic user message
+      const userMessage: Message = {
+        id: tempUserMsgId,
+        conversationId: convId,
+        role: 'user',
+        content: content.trim(),
+        attachments: null,
+        parentMessageId: null,
+        versionOf: null,
+        versionNumber: 1,
+        branchId: null,
+        reasoningContent: null,
+        reasoningMetadata: null,
+        webAnnotations: null,
+        modelUsed: null,
+        createdAt: new Date().toISOString(),
+      };
+      
+      // Optimistic assistant placeholder
+      const assistantMessage: Message = {
+        id: tempAssistantMsgId,
+        conversationId: convId,
+        role: 'assistant',
+        content: '',
+        attachments: null,
+        parentMessageId: null,
+        versionOf: null,
+        versionNumber: 1,
+        branchId: null,
+        reasoningContent: null,
+        reasoningMetadata: null,
+        webAnnotations: null,
+        modelUsed: null,
+        createdAt: new Date().toISOString(),
+      };
+      
+      addMessages([userMessage, assistantMessage]);
+      startStreaming(tempAssistantMsgId);
+      
+      addStatusPill({
+        status: 'analyzing',
+        message: 'Thinking...',
+        timestamp: Date.now(),
+      });
+      
+      // Stream response
+      let fullContent = '';
+      
+      await api.stream(
+        '/mobile/chat',
+        {
+          conversationId: convId,
+          message: content.trim(),
+          useReasoning: 'auto',
+          referencedConversations: referencedConversations || [],
+          referencedFolders: [],
+        },
+        (rawText: string) => {
+          // The streaming format is:
+          // - Status events: {"type":"status",...}\n
+          // - Search results: {"type":"search_results",...}\n
+          // - Content: raw text (may contain newlines)
+          
+          // Strategy: Find and extract JSON events at start of lines,
+          // everything else is content
+          
+          const lines = rawText.split('\n');
+          let contentBuffer = '';
+          
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            
+            // Try to parse as JSON event
+            if (line.startsWith('{')) {
+              try {
+                const parsed = JSON.parse(line);
+                
+                // Handle status events
+                if (parsed.type === 'status') {
+                  addStatusPill({
+                    status: parsed.status,
+                    message: parsed.message,
+                    timestamp: Date.now(),
+                  });
+                  continue; // Don't add to content
+                }
+                
+                // Handle search results
+                if (parsed.type === 'search_results') {
+                  updateSearchResults(parsed);
+                  continue; // Don't add to content
+                }
+                
+                // Handle context cards (skip)
+                if (parsed.type === 'context_cards') {
+                  continue;
+                }
+                
+                // Unknown JSON - add as content
+                contentBuffer += line;
+                if (i < lines.length - 1) contentBuffer += '\n';
+              } catch {
+                // Not valid JSON - add as content
+                contentBuffer += line;
+                if (i < lines.length - 1) contentBuffer += '\n';
+              }
+            } else {
+              // Plain text line - add to content
+              contentBuffer += line;
+              if (i < lines.length - 1) contentBuffer += '\n';
+            }
+          }
+          
+          // Set the full content (not append - rawText contains full response)
+          fullContent = contentBuffer;
+          updateStreamContent(fullContent);
+        }
+      );
+      
+      // Update message with final content
+      updateMessage(tempAssistantMsgId, { content: fullContent });
+      finishStreaming(fullContent);
+      
+      // Refresh conversations
+      loadConversations();
+      
+    } catch (err) {
+      console.error('Send message error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to send message');
+      setMessages(prev => prev.filter(m => !m.id.startsWith('temp_')));
+      finishStreaming();
+    } finally {
+      setIsSending(false);
+      isSendingRef.current = false;
+    }
+  }, [
+    currentConversationId,
+    addMessages,
+    startStreaming,
+    addStatusPill,
+    updateStreamContent,
+    updateSearchResults,
+    updateMessage,
+    finishStreaming,
+    loadConversations,
+    setMessages,
+  ]);
+  
+  const clearError = useCallback(() => setError(null), []);
+  
+  // Memoize value
+  const value = useMemo<ChatContextValue>(() => ({
+    conversations,
+    currentConversationId,
+    currentConversation,
+    isLoadingConversations,
+    messages,
+    streamingMessageId,
+    streamingContent,
+    statusPills,
+    searchResults,
+    isStreaming,
+    isSending,
+    error,
+    userCredits,
+    selectConversation,
+    sendMessage,
+    createNewChat,
+    loadConversations,
+    deleteConversation,
+    clearError,
+  }), [
+    conversations,
+    currentConversationId,
+    currentConversation,
+    isLoadingConversations,
+    messages,
+    streamingMessageId,
+    streamingContent,
+    statusPills,
+    searchResults,
+    isStreaming,
+    isSending,
+    error,
+    userCredits,
+    selectConversation,
+    sendMessage,
+    createNewChat,
+    loadConversations,
+    deleteConversation,
+    clearError,
+  ]);
+  
+  return (
+    <ChatContext.Provider value={value}>
+      {children}
+    </ChatContext.Provider>
+  );
+}

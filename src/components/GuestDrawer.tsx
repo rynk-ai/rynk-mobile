@@ -7,10 +7,17 @@ import {
   FlatList,
   Dimensions,
   Image,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Plus, LogIn, LogOut, MessageSquare, User } from 'lucide-react-native';
+import { 
+  Plus, 
+  LogIn, 
+  LogOut, 
+  MessageSquare, 
+  User,
+} from 'lucide-react-native';
 import { theme } from '../lib/theme';
 import type { Conversation } from '../lib/types';
 
@@ -73,19 +80,6 @@ export function GuestDrawer({
       await onSignOut();
     }
     onClose();
-  };
-
-  const formatDate = (dateString: string | number) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    
-    if (diff < 60000) return 'Just now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-    if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
-    
-    return date.toLocaleDateString();
   };
 
   // Group conversations by time
@@ -176,6 +170,9 @@ export function GuestDrawer({
           ) : (
             // Guest Header
             <>
+              <View style={styles.brandHeader}>
+                <Text style={styles.brandText}>rynk.</Text>
+              </View>
               <View style={styles.creditsSection}>
                 <Text style={styles.creditsLabel}>
                   {creditsRemaining !== null ? (
@@ -207,7 +204,7 @@ export function GuestDrawer({
             onPress={handleNewChat}
             activeOpacity={0.7}
           >
-            <Plus size={18} color={theme.colors.text.secondary} />
+            <Plus size={18} color={theme.colors.text.primary} />
             <Text style={styles.newChatText}>New Chat</Text>
           </TouchableOpacity>
         </View>
@@ -233,11 +230,23 @@ export function GuestDrawer({
                   onPress={() => handleSelectConversation(conv.id)}
                   activeOpacity={0.6}
                 >
-                  <Text 
+                  <View style={[
+                    styles.conversationIcon,
+                    currentConversationId === conv.id && styles.conversationIconActive,
+                  ]}>
+                    <MessageSquare 
+                      size={14} 
+                      color={currentConversationId === conv.id 
+                        ? theme.colors.text.primary 
+                        : theme.colors.text.tertiary
+                      } 
+                    />
+                  </View>
+                  <Text
                     style={[
                       styles.conversationTitle,
                       currentConversationId === conv.id && styles.conversationTitleActive,
-                    ]} 
+                    ]}
                     numberOfLines={1}
                   >
                     {conv.title || 'Untitled Chat'}
@@ -248,7 +257,9 @@ export function GuestDrawer({
           )}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <MessageSquare size={32} color={theme.colors.text.tertiary} />
+              <View style={styles.emptyIconContainer}>
+                <MessageSquare size={24} color={theme.colors.text.tertiary} />
+              </View>
               <Text style={styles.emptyText}>No conversations yet</Text>
               <Text style={styles.emptySubtext}>Start a new chat to begin</Text>
             </View>
@@ -284,39 +295,60 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: DRAWER_WIDTH,
-    backgroundColor: theme.colors.background.card,
-    borderRightWidth: 1,
-    borderRightColor: theme.colors.border.subtle,
+    backgroundColor: theme.colors.background.primary,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 2, height: 0 },
+        shadowOpacity: 0.15,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 16,
+      },
+    }),
   },
   header: {
-    padding: 16,
+    padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border.subtle,
   },
-  // Guest header styles
-  creditsSection: {
+  // Brand header for guests
+  brandHeader: {
     marginBottom: 12,
   },
+  brandText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: theme.colors.text.primary,
+    letterSpacing: -1,
+  },
+  // Guest header styles
+  creditsSection: {
+    marginBottom: 16,
+  },
   creditsLabel: {
-    fontSize: 13,
+    fontSize: 14,
     color: theme.colors.text.secondary,
+    lineHeight: 20,
   },
   creditsValue: {
-    fontWeight: '600',
+    fontWeight: '700',
     color: theme.colors.text.primary,
+    fontSize: 16,
   },
   signInButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
     backgroundColor: theme.colors.text.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: theme.borderRadius.lg,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 14,
   },
   signInText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: theme.colors.text.inverse,
   },
@@ -324,20 +356,20 @@ const styles = StyleSheet.create({
   userSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   avatarContainer: {
-    marginRight: 12,
+    marginRight: 14,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   avatarPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: theme.colors.background.secondary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -346,28 +378,29 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
     color: theme.colors.text.primary,
   },
   userEmail: {
-    fontSize: 12,
+    fontSize: 13,
     color: theme.colors.text.secondary,
     marginTop: 2,
   },
   tierBadge: {
-    marginTop: 4,
+    marginTop: 6,
     alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
     backgroundColor: theme.colors.accent.primary + '20',
-    borderRadius: theme.borderRadius.sm,
+    borderRadius: 6,
   },
   tierText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '600',
     color: theme.colors.accent.primary,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   signOutButton: {
     flexDirection: 'row',
@@ -375,11 +408,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     backgroundColor: theme.colors.background.secondary,
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: theme.colors.border.default,
+    borderColor: theme.colors.border.subtle,
   },
   signOutText: {
     fontSize: 14,
@@ -388,80 +421,109 @@ const styles = StyleSheet.create({
   },
   // Rest of styles
   newChatSection: {
-    padding: 12,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border.subtle,
   },
   newChatButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     backgroundColor: theme.colors.background.secondary,
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
   },
   newChatText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '500',
     color: theme.colors.text.primary,
   },
   listContent: {
-    paddingVertical: 8,
+    paddingVertical: 12,
+    flexGrow: 1,
   },
   group: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   groupTitle: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '600',
     color: theme.colors.text.tertiary,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
+    letterSpacing: 0.8,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
   },
   conversationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   conversationItemActive: {
     backgroundColor: theme.colors.background.secondary,
   },
+  conversationIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: theme.colors.background.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  conversationIconActive: {
+    backgroundColor: theme.colors.background.primary,
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
+  },
   conversationTitle: {
+    flex: 1,
     fontSize: 14,
     color: theme.colors.text.primary,
   },
   conversationTitleActive: {
     fontWeight: '500',
   },
+  // Empty state
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 48,
-    paddingHorizontal: 24,
+    paddingVertical: 60,
+    paddingHorizontal: 32,
+  },
+  emptyIconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: theme.colors.background.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   emptyText: {
     fontSize: 15,
     fontWeight: '500',
     color: theme.colors.text.secondary,
-    marginTop: 12,
+    marginBottom: 4,
   },
   emptySubtext: {
     fontSize: 13,
     color: theme.colors.text.tertiary,
-    marginTop: 4,
+    textAlign: 'center',
   },
   footer: {
-    padding: 16,
+    padding: 20,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border.subtle,
   },
   footerText: {
-    fontSize: 12,
+    fontSize: 13,
     color: theme.colors.text.tertiary,
     textAlign: 'center',
+    lineHeight: 18,
   },
 });
 

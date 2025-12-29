@@ -20,7 +20,18 @@ class ApiClient {
 
   private async getAuthToken(): Promise<string | null> {
     try {
-      return await SecureStore.getItemAsync('auth_token');
+      // Read from session storage (same as AuthContext uses)
+      const sessionStr = await SecureStore.getItemAsync('rynk_session');
+      if (!sessionStr) return null;
+      
+      const session = JSON.parse(sessionStr);
+      
+      // Check if expired
+      if (session.expiresAt && Date.now() > session.expiresAt) {
+        return null;
+      }
+      
+      return session.accessToken || null;
     } catch {
       return null;
     }
@@ -96,16 +107,17 @@ class ApiClient {
   }
 
   // Streaming request for chat responses
-  async stream(
+  // Returns the full response text for parsing by caller
+  async streamRaw(
     endpoint: string,
     data: unknown,
-    onChunk: (chunk: string) => void,
     options?: RequestOptions
-  ): Promise<void> {
+  ): Promise<string> {
     const { skipAuth = false, headers: customHeaders } = options || {};
 
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
+      'Accept': 'text/event-stream',
       ...customHeaders,
     };
 
@@ -125,23 +137,24 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      throw new ApiError(response.status, 'Stream request failed');
+      const errorText = await response.text().catch(() => 'Stream request failed');
+      throw new ApiError(response.status, errorText);
     }
 
-    if (!response.body) {
-      throw new ApiError(500, 'No response body');
-    }
+    // Return raw text for parsing by caller
+    return await response.text();
+  }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      
-      const chunk = decoder.decode(value, { stream: true });
-      onChunk(chunk);
-    }
+  // Legacy stream method for backwards compatibility
+  async stream(
+    endpoint: string,
+    data: unknown,
+    onChunk: (chunk: string) => void,
+    options?: RequestOptions
+  ): Promise<void> {
+    const text = await this.streamRaw(endpoint, data, options);
+    // Just pass the full text as a single chunk
+    onChunk(text);
   }
 }
 

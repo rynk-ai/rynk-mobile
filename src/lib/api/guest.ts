@@ -58,9 +58,25 @@ class GuestApiClient {
   private baseUrl: string;
   private _creditsRemaining: number | null = null;
   private _creditsListeners: ((credits: number | null) => void)[] = [];
+  private _activeEventSource: any = null; // Track active SSE connection
 
   constructor(baseUrl: string = 'https://rynk.io/api') {
     this.baseUrl = baseUrl;
+  }
+
+  /**
+   * Close any active SSE connection
+   */
+  closeActiveConnection(): void {
+    if (this._activeEventSource) {
+      console.log('[SSE] Closing previous connection');
+      try {
+        this._activeEventSource.close();
+      } catch (e) {
+        console.warn('[SSE] Error closing connection:', e);
+      }
+      this._activeEventSource = null;
+    }
   }
 
   get creditsRemaining(): number | null {
@@ -262,152 +278,133 @@ class GuestApiClient {
   }
 
   /**
-   * Send a chat message with SSE streaming
-   * Returns a Promise that resolves when streaming completes
+   * Send a chat message with streaming callbacks
+   * React Native doesn't support ReadableStream, so we fetch full response
+   * then parse and call callbacks to simulate streaming experience
    */
-  sendChatStreaming(
+  async sendChatStreaming(
     conversationId: string,
     message: string,
     callbacks: {
       onContent?: (content: string, fullContent: string) => void;
       onStatus?: (status: { status: string; message: string }) => void;
       onSearchResults?: (results: any) => void;
-    }
+    },
+    referencedConversations?: { id: string; title: string }[]
   ): Promise<string> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const guestId = await getOrCreateGuestId();
-        
-        // Check credits before sending
-        if (this._creditsRemaining !== null && this._creditsRemaining <= 0) {
-          reject(new GuestApiError(402, 'Credits exhausted'));
-          return;
-        }
+    const headers = await this.getHeaders();
+    
+    // Check credits before sending
+    if (this._creditsRemaining !== null && this._creditsRemaining <= 0) {
+      throw new GuestApiError(402, 'Credits exhausted');
+    }
 
-        let fullContent = '';
-        let hasResolved = false;
-        
-        // Use react-native-sse for streaming
-        const EventSource = require('react-native-sse').default;
-        
-        const es = new EventSource(`${this.baseUrl}/guest/chat`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${guestId}`,
-          },
-          body: JSON.stringify({
-            conversationId,
-            message,
-            useReasoning: 'auto',
-          }),
-        });
-
-        // Timeout to prevent hanging
-        const timeoutId = setTimeout(() => {
-          if (!hasResolved) {
-            hasResolved = true;
-            es.close();
-            if (fullContent) {
-              resolve(fullContent);
-            } else {
-              reject(new GuestApiError(408, 'Request timeout'));
-            }
-          }
-        }, 60000); // 60 second timeout
-
-        es.addEventListener('open', () => {
-          console.log('[SSE] Connection opened');
-          callbacks.onStatus?.({ status: 'analyzing', message: 'Thinking...' });
-        });
-
-        es.addEventListener('message', (event: any) => {
-          const data = event.data;
-          
-          if (!data) return;
-          
-          // Handle completion signal
-          if (data === '[DONE]') {
-            if (!hasResolved) {
-              hasResolved = true;
-              clearTimeout(timeoutId);
-              callbacks.onStatus?.({ status: 'complete', message: 'Complete' });
-              
-              // Decrement credits locally
-              if (this._creditsRemaining !== null && this._creditsRemaining > 0) {
-                this.updateCredits(this._creditsRemaining - 1);
-              }
-              
-              es.close();
-              resolve(fullContent);
-            }
-            return;
-          }
-
-          try {
-            // Try parsing as JSON (status updates, search results)
-            const parsed = JSON.parse(data);
-            
-            if (parsed.type === 'status') {
-              callbacks.onStatus?.({
-                status: parsed.status,
-                message: parsed.message,
-              });
-            } else if (parsed.type === 'search_results') {
-              callbacks.onSearchResults?.(parsed);
-            } else if (parsed.type === 'error') {
-              if (!hasResolved) {
-                hasResolved = true;
-                clearTimeout(timeoutId);
-                es.close();
-                reject(new GuestApiError(500, parsed.error || 'Chat error'));
-              }
-            }
-          } catch {
-            // Not JSON - it's content
-            fullContent += data;
-            callbacks.onContent?.(data, fullContent);
-          }
-        });
-
-        es.addEventListener('error', (event: any) => {
-          console.error('[SSE] Error:', event);
-          
-          if (!hasResolved) {
-            hasResolved = true;
-            clearTimeout(timeoutId);
-            
-            if (event.status === 402 || event.message?.includes('credit')) {
-              this.updateCredits(0);
-              reject(new GuestApiError(402, 'Credits exhausted'));
-            } else {
-              // If we have content, still resolve with it
-              if (fullContent) {
-                resolve(fullContent);
-              } else {
-                reject(new GuestApiError(event.status || 500, event.message || 'Stream error'));
-              }
-            }
-          }
-          
-          es.close();
-        });
-
-        es.addEventListener('close', () => {
-          console.log('[SSE] Connection closed');
-          
-          if (!hasResolved) {
-            hasResolved = true;
-            clearTimeout(timeoutId);
-            resolve(fullContent);
-          }
-        });
-
-      } catch (error: any) {
-        console.error('[SSE] Setup error:', error);
-        reject(error);
-      }
+    console.log('[sendChatStreaming] Starting request with referencedConversations:', referencedConversations?.length || 0);
+    callbacks.onStatus?.({ status: 'analyzing', message: 'Thinking...' });
+    
+    const response = await fetch(`${this.baseUrl}/guest/chat`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        conversationId,
+        message,
+        useReasoning: 'auto',
+        referencedConversations: referencedConversations || [],
+        referencedFolders: [],
+      }),
     });
+
+    console.log('[sendChatStreaming] Response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Chat request failed');
+      console.error('[sendChatStreaming] Error response:', errorText);
+      
+      if (response.status === 403 || response.status === 402 || errorText.toLowerCase().includes('credit')) {
+        this.updateCredits(0);
+        throw new GuestApiError(402, 'Credits exhausted. Please sign in to continue.');
+      }
+      
+      throw new GuestApiError(response.status, errorText);
+    }
+
+    // Parse credits from headers
+    this.parseCreditsFromHeaders(response.headers);
+
+    // Get the full response text
+    const text = await response.text();
+    console.log('[sendChatStreaming] Raw response length:', text.length);
+    
+    // Parse the response and call callbacks
+    // The server sends SSE format: "data: content\n" lines mixed with JSON metadata
+    const lines = text.split('\n');
+    const contentLines: string[] = [];
+    
+    for (const line of lines) {
+      // Handle SSE data: prefix
+      let data = line;
+      if (line.startsWith('data: ')) {
+        data = line.slice(6);
+      }
+      
+      // Skip completely empty SSE lines (not content empty lines)
+      if (line.startsWith('data: ') && !data) continue;
+      
+      // Handle completion signal
+      if (data.trim() === '[DONE]') {
+        callbacks.onStatus?.({ status: 'complete', message: 'Complete' });
+        
+        // Decrement credits locally
+        if (this._creditsRemaining !== null && this._creditsRemaining > 0) {
+          this.updateCredits(this._creditsRemaining - 1);
+        }
+        continue;
+      }
+      
+      // Try to parse as JSON (status updates, search results, errors)
+      if (data.trim().startsWith('{')) {
+        try {
+          const parsed = JSON.parse(data.trim());
+          
+          if (parsed.type === 'status') {
+            callbacks.onStatus?.({
+              status: parsed.status,
+              message: parsed.message,
+            });
+            continue;
+          }
+          
+          if (parsed.type === 'search_results') {
+            callbacks.onSearchResults?.(parsed);
+            continue;
+          }
+          
+          if (parsed.type === 'error') {
+            throw new GuestApiError(500, parsed.error || 'Chat error');
+          }
+          
+          if (parsed.type === 'context_cards') {
+            continue;
+          }
+          
+          // Unknown JSON type
+          console.log('[sendChatStreaming] Unknown JSON type:', parsed.type);
+          continue;
+        } catch (e) {
+          // Not valid JSON starting with {, treat as content
+        }
+      }
+      
+      // It's content - preserve the line (including empty lines for paragraphs)
+      contentLines.push(data);
+    }
+    
+    // Join content lines preserving original newlines
+    const fullContent = contentLines.join('\n').trim();
+    callbacks.onContent?.(fullContent, fullContent);
+    
+    console.log('[sendChatStreaming] Complete, content length:', fullContent.length);
+    return fullContent;
   }
 }
 
