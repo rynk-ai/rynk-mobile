@@ -157,6 +157,40 @@ class ApiClient {
     onChunk(text);
   }
 
+  private async pollForJobCompletion(
+    jobId: string,
+    maxAttempts = 90,
+    intervalMs = 1500
+  ): Promise<any> {
+    for (let i = 0; i < maxAttempts; i++) {
+        await new Promise(r => setTimeout(r, intervalMs));
+        try {
+            const data = await this.get<{
+                status: 'queued' | 'processing' | 'complete' | 'error';
+                result?: { surfaceState: any };
+                error?: string;
+            }>(`/jobs/${jobId}`);
+
+            console.log(`[ApiClient] Poll job ${jobId}: ${data.status}`);
+
+            if (data.status === 'complete' && data.result?.surfaceState) {
+                return { surfaceState: data.result.surfaceState };
+            }
+
+            if (data.status === 'error') {
+                throw new Error(data.error || 'Job failed');
+            }
+        } catch (error) {
+            console.log(`[ApiClient] Polling error (attempt ${i + 1}):`, error);
+             if (error instanceof ApiError && error.status === 401) {
+                 throw error;
+             }
+             // Continue polling on other errors (e.g. network glitch)
+        }
+    }
+    throw new Error('Job timed out');
+  }
+
   async generateSurface(
     messageId: string,
     query: string,
@@ -169,6 +203,11 @@ class ApiClient {
       surfaceType: surfaceType.toLowerCase(),
       conversationId
     });
+
+    if (response.async && response.jobId) {
+        console.log(`[ApiClient] Surface generation is async, polling job: ${response.jobId}`);
+        return this.pollForJobCompletion(response.jobId);
+    }
 
     return response;
   }
