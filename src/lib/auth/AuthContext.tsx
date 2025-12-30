@@ -7,13 +7,27 @@ import type { AuthContextType, AuthState, Session, LoginResult, User } from '../
 
 const BASE_URL = 'https://rynk.io';
 
-// Configure Google Sign In
-GoogleSignin.configure({
-  // You'll need to add your web client ID for ID token
-  webClientId: '401382357558-s9fq3lsl2sog3lndd8v4l92mqek3sbbr.apps.googleusercontent.com',
-  iosClientId: '401382357558-g2615f5a98vegfeks9ugjsoi36an3qls.apps.googleusercontent.com',
-  offlineAccess: true,
-});
+// Flag to ensure we only configure Google Sign-In once
+let isGoogleSignInConfigured = false;
+
+/**
+ * Configure Google Sign-In lazily (must be called after React Native is initialized)
+ * This avoids crashes when the module is imported before the native bridge is ready
+ */
+function configureGoogleSignIn() {
+  if (isGoogleSignInConfigured) return;
+  try {
+    GoogleSignin.configure({
+      webClientId: '401382357558-s9fq3lsl2sog3lndd8v4l92mqek3sbbr.apps.googleusercontent.com',
+      iosClientId: '401382357558-g2615f5a98vegfeks9ugjsoi36an3qls.apps.googleusercontent.com',
+      offlineAccess: true,
+    });
+    isGoogleSignInConfigured = true;
+    console.log('[Auth] Google Sign-In configured');
+  } catch (error) {
+    console.error('[Auth] Failed to configure Google Sign-In:', error);
+  }
+}
 
 // Initial auth state
 const initialState: AuthState = {
@@ -32,8 +46,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>(initialState);
 
-  // Load session on mount
+  // Configure Google Sign-In and load session on mount
   useEffect(() => {
+    configureGoogleSignIn();
     loadStoredSession();
   }, []);
 
