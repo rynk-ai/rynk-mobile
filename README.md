@@ -21,12 +21,24 @@
 
 ## Overview
 
-Rynk Mobile brings the power of the Rynk AI platform to your pocket. It features a native-feeling experience optimized for touch, with full support for:
+## Key Features
 
-- **Multimedia Chat**: Text, voice, and image interactions.
-- **Adaptive Surfaces**: Mobile-optimized views for Learning, Finance, and Research.
-- **Haptic Feedback**: Meaningful tactile responses.
-- **Secure Authentication**: Biometric and OAuth support.
+### 📱 **Native Experience**
+- **Smooth Animations** — Built with Reanimated for fluid gestures and transitions.
+- **Haptic Feedback** — Tactile responses for interactions.
+- **Biometric Auth** — Secure login with FaceID/TouchID (via Apple/Google).
+
+### 🃏 **Mobile Surfaces**
+Optimized interactive views for on-the-go knowledge:
+- **Learning** — Take courses, flip flashcards, and solve quizzes.
+- **Analysis** — View comparison tables, timelines, and wikis.
+- **Research** — Read deep-dive reports formatted for mobile.
+*(Note: Finance surface available on Web)*
+
+### 💬 **Core Capabilities**
+- **Guest Mode** — Try the app instantly without an account.
+- **Multimedia Chat** — Text and Image inputs.
+- **History Sync** — Access all your web conversations on mobile.
 
 ---
 
