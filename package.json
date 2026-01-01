@@ -2,6 +2,18 @@
   "name": "rynk-mobile",
   "version": "1.0.0",
   "main": "index.ts",
+  "private": false,
+  "description": "Official Rynk mobile application built with Expo and React Native.",
+  "author": "Rynk Team",
+  "license": "MIT",
+  "homepage": "https://rynk.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rynk-ai/rynk-mobile.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rynk-ai/rynk-mobile/issues"
+  },
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
