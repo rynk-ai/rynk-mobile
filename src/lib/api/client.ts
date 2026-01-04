@@ -98,8 +98,18 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Request failed' }));
-      throw new ApiError(response.status, error.message || 'Request failed');
+      const errorText = await response.text();
+      let errorMessage = 'Request failed';
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.message || errorJson.error || errorMessage;
+      } catch {
+        // Use raw text if not JSON
+        if (errorText.length > 0) errorMessage = errorText.substring(0, 100);
+      }
+      
+      console.log(`[ApiClient] Request failed: ${fetchOptions.method || 'GET'} ${url} -> ${response.status} ${errorMessage}`);
+      throw new ApiError(response.status, errorMessage);
     }
 
     // Handle empty responses

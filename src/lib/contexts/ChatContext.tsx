@@ -42,6 +42,12 @@ interface ChatContextValue {
   createNewChat: () => void;
   loadConversations: () => Promise<void>;
   deleteConversation: (id: string) => Promise<void>;
+  togglePin: (id: string) => Promise<void>;
+  branchConversation: (messageId: string) => Promise<string>;
+  deleteMessage: (messageId: string) => Promise<void>;
+  getMessageVersions: (messageId: string) => Promise<Message[]>;
+  switchToMessageVersion: (versionId: string) => Promise<void>;
+  reloadMessages: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -185,7 +191,117 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
       throw err;
     }
   }, [currentConversationId, createNewChat]);
+
+  // Toggle pin
+  const togglePin = useCallback(async (id: string) => {
+    try {
+      setConversations(prev => {
+        return prev.map(c => {
+           if (c.id === id) {
+             return { ...c, isPinned: !c.isPinned };
+           }
+           return c;
+        });
+      });
+      
+      const conversation = conversations.find(c => c.id === id);
+      const newIsPinned = !conversation?.isPinned;
+      
+      await api.put(`/mobile/conversations/${id}/pin`, { isPinned: newIsPinned });
+    } catch (err) {
+       console.error('Failed to toggle pin:', err);
+       // Revert on error
+       setConversations(prev => {
+        return prev.map(c => {
+           if (c.id === id) {
+             return { ...c, isPinned: !c.isPinned };
+           }
+           return c;
+        });
+      });
+    }
+  }, [conversations]);
   
+  // Branch conversation
+  const branchConversation = useCallback(async (messageId: string) => {
+    try {
+      if (!currentConversationId) throw new Error("No active conversation");
+
+      const response = await api.post<{ conversationId: string }>('/mobile/conversations/branch', {
+        conversationId: currentConversationId,
+        messageId
+      });
+
+      return response.conversationId;
+    } catch (err) {
+      console.error('Failed to branch conversation:', err);
+      throw err;
+    }
+  }, [currentConversationId]);
+
+  // Delete message
+  const deleteMessage = useCallback(async (messageId: string) => {
+    try {
+      if (!currentConversationId) throw new Error("No active conversation");
+
+      await api.delete(`/mobile/conversations/${currentConversationId}/messages/${messageId}`);
+      
+      // Remove from local state
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+    } catch (err) {
+      console.error('Failed to delete message:', err);
+      throw err;
+    }
+  }, [currentConversationId, setMessages]);
+
+  // Get message versions
+  const getMessageVersions = useCallback(async (messageId: string): Promise<Message[]> => {
+    try {
+      const response = await api.get<{ versions: Message[] }>(`/mobile/messages/${messageId}/versions`);
+      return response.versions || [];
+    } catch (err) {
+      console.error('Failed to get message versions:', err);
+      return [];
+    }
+  }, []);
+
+  // Switch to message version
+  const switchToMessageVersion = useCallback(async (versionId: string) => {
+    try {
+      if (!currentConversationId) throw new Error("No active conversation");
+
+      await api.post(`/mobile/messages/${versionId}/versions`, {
+        conversationId: currentConversationId
+      });
+      
+      // Reload messages to show the switched version
+      const response = await api.get<{ messages: Message[] }>(
+        `/mobile/conversations/${currentConversationId}/messages`
+      );
+      if (response.messages) {
+        setMessages(response.messages);
+      }
+    } catch (err) {
+      console.error('Failed to switch message version:', err);
+      throw err;
+    }
+  }, [currentConversationId, setMessages]);
+
+  // Reload messages
+  const reloadMessages = useCallback(async () => {
+    if (!currentConversationId) return;
+    try {
+      const response = await api.get<{ messages: Message[] }>(
+        `/mobile/conversations/${currentConversationId}/messages`
+      );
+      if (response.messages) {
+        setMessages(response.messages);
+      }
+    } catch (err) {
+      console.error('Failed to reload messages:', err);
+    }
+  }, [currentConversationId, setMessages]);
+
   // Send message with streaming
   const sendMessage = useCallback(async (content: string, referencedConversations?: { id: string; title: string }[]) => {
     if (!content.trim() || isSendingRef.current) return;
@@ -396,6 +512,12 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     createNewChat,
     loadConversations: loadData,
     deleteConversation,
+    togglePin,
+    branchConversation,
+    deleteMessage,
+    getMessageVersions,
+    switchToMessageVersion,
+    reloadMessages,
     clearError,
   }), [
     conversations,
@@ -418,6 +540,12 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     createNewChat,
     loadData,
     deleteConversation,
+    togglePin,
+    branchConversation,
+    deleteMessage,
+    getMessageVersions,
+    switchToMessageVersion,
+    reloadMessages,
     clearError,
   ]);
   

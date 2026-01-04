@@ -6,9 +6,11 @@
  * - Sub-chat text highlighting
  * - Action buttons at bottom (Copy)
  * - Status pills for AI processing
+ * - Source Images & Citations Footer
+ * - Swiss Modern Design (Sharp corners)
  */
 
-import React, { memo, useCallback, useRef, useEffect, useState } from 'react';
+import React, { memo, useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,10 +19,11 @@ import {
   TouchableOpacity,
   Animated,
   Easing,
+  Pressable,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import Markdown from 'react-native-markdown-display';
-import { Copy, Check, MessageSquare } from 'lucide-react-native';
+import { Copy, Check, Info, ChevronRight, Play, BookOpen, GitBranch, MessageSquare, Pencil, Trash2 } from 'lucide-react-native';
 import { theme } from '../../lib/theme';
 import type { Message } from '../../lib/types';
 import type { StatusPill, SearchResult } from '../../lib/hooks/useStreaming';
@@ -29,6 +32,14 @@ import { ReasoningDisplay } from './ReasoningDisplay';
 import { SearchResultsCard } from './SearchResultsCard';
 import { SelectableMessage } from './SelectableMessage';
 import { MermaidDiagram } from './MermaidDiagram';
+import { SourceImages, type SourceImage } from './SourceImages';
+import { SourcesFooter, type Citation } from './SourcesFooter';
+import { CodeBlock } from './markdown/CodeBlock';
+import { SurfaceTrigger } from './SurfaceTrigger';
+import { useChatContext } from '../../lib/contexts/ChatContext';
+import { useRouter } from 'expo-router';
+import { VersionIndicator } from './VersionIndicator';
+import { Alert } from 'react-native';
 
 interface MessageItemProps {
   message: Message;
@@ -37,20 +48,59 @@ interface MessageItemProps {
   statusPills?: StatusPill[];
   searchResults?: SearchResult | null;
   isLastMessage: boolean;
-  /** Callback when user selects "Quote" from context menu */
   onQuote?: (messageId: string, text: string, role: 'user' | 'assistant') => void;
-  /** Callback when user selects "Deep Dive" from context menu */
   onDeepDive?: (
     text: string,
     messageId: string,
     role: 'user' | 'assistant',
     fullContent: string
   ) => void;
-  /** Sub-chats for this message (for highlighting) */
   messageSubChats?: SubChat[];
-  /** Callback when user taps a highlighted sub-chat */
   onOpenExistingSubChat?: (subChat: SubChat) => void;
+  // Surface props
+  conversationId?: string | null;
+  userQuery?: string;
+  // User message actions
+  onStartEdit?: (message: Message) => void;
+  versions?: Message[];
+  isEditing?: boolean;
 }
+
+// Helper: Format citations from search results (mimicking web Logic)
+function formatCitationsFromSearchResults(
+  results: SearchResult | null | undefined
+): Citation[] {
+  if (!results || !results.sources) return [];
+  // Assuming SearchResult structure matches what's needed or adapting
+  // If SearchResult.sources is already { title, url, ... }
+  return results.sources.map(s => ({
+    title: s.title,
+    url: s.url,
+    snippet: s.snippet,
+    images: s.images // Assuming source might have images if expanded, or we check top level
+  }));
+}
+
+// Helper: Extract images from citations
+function extractImagesFromCitations(citations: Citation[]): SourceImage[] {
+    const images: SourceImage[] = [];
+    for (const citation of citations) {
+      // If citation has explicit image field (depends on backend)
+      // For now, let's assume `citation` object might have `image` or `images` prop if passed from SearchResult
+      // We cast to any to safely check
+      const c = citation as any;
+      if (c.image) {
+        images.push({ url: c.image, sourceUrl: c.url, sourceTitle: c.title });
+      }
+      if (c.images && Array.isArray(c.images)) {
+        for (const imgUrl of c.images) {
+           images.push({ url: imgUrl, sourceUrl: c.url, sourceTitle: c.title });
+        }
+      }
+    }
+    return images;
+}
+
 
 function MessageItemBase({
   message,
@@ -63,30 +113,27 @@ function MessageItemBase({
   onDeepDive,
   messageSubChats = [],
   onOpenExistingSubChat,
+  conversationId,
+  userQuery,
+  onStartEdit,
+  versions = [],
+  isEditing = false,
 }: MessageItemProps) {
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
   const [showCopied, setShowCopied] = useState(false);
   
   // Streaming dots animation
+  const { branchConversation, loadConversations, deleteMessage, switchToMessageVersion } = useChatContext();
+  const router = useRouter();
   const dotsAnim = useRef(new Animated.Value(0)).current;
   
   useEffect(() => {
     if (isStreaming && !streamingContent) {
       const animation = Animated.loop(
         Animated.sequence([
-          Animated.timing(dotsAnim, {
-            toValue: 1,
-            duration: 400,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(dotsAnim, {
-            toValue: 0,
-            duration: 400,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
+          Animated.timing(dotsAnim, { toValue: 1, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(dotsAnim, { toValue: 0, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
         ])
       );
       animation.start();
@@ -94,50 +141,107 @@ function MessageItemBase({
     }
   }, [isStreaming, streamingContent, dotsAnim]);
 
+  // Parse reasoning metadata
+  const parsedMetadata = useMemo(() => {
+      const raw = message.reasoningMetadata;
+      if (!raw) return undefined;
+      // If it's stored as JSON object already in mobile types (Message interface)
+      return raw; 
+  }, [message.reasoningMetadata]);
+
+  // Determine effective data
+  const effectiveStatusPills = isStreaming ? statusPills : (parsedMetadata as any)?.statusPills;
+  const effectiveSearchResults = isStreaming ? searchResults : (parsedMetadata as any)?.searchResults;
+
   const displayContent = isAssistant && isStreaming ? streamingContent : message.content;
-  const showStatusPills = isAssistant && isStreaming && isLastMessage && (statusPills?.length ?? 0) > 0;
   const showActions = displayContent && !isStreaming;
   const hasSubChats = messageSubChats.length > 0;
+
+  // Prepare Citations & Images
+  const citations = useMemo(() => {
+      if (!isAssistant) return [];
+      return formatCitationsFromSearchResults(effectiveSearchResults);
+  }, [effectiveSearchResults, isAssistant]);
+
+  const sourceImages = useMemo(() => extractImagesFromCitations(citations), [citations]);
+
 
   // Copy handler
   const handleCopy = useCallback(async () => {
     const textToCopy = displayContent || message.content;
     if (!textToCopy) return;
-    
     await Clipboard.setStringAsync(textToCopy);
     setShowCopied(true);
     setTimeout(() => setShowCopied(false), 2000);
   }, [displayContent, message.content]);
 
-  // Quote handler for SelectableMessage
+  // Branch handler
+  const handleBranch = useCallback(async () => {
+    if (!conversationId || !message.id) return;
+    const newConversationId = await branchConversation(message.id);
+    if (newConversationId) {
+      await loadConversations(); // Refresh conversation list
+      router.push({ pathname: '/chat', params: { id: newConversationId } });
+    }
+  }, [conversationId, message.id, branchConversation, loadConversations, router]);
+
+  // Edit handler (pass to parent to populate ChatInput)
+  const handleEdit = useCallback(() => {
+    if (onStartEdit) {
+      onStartEdit(message);
+    }
+  }, [message, onStartEdit]);
+
+  // Delete handler with confirmation
+  const handleDelete = useCallback(() => {
+    Alert.alert(
+      'Delete Message',
+      'Are you sure you want to delete this message? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteMessage(message.id);
+            } catch (err) {
+              console.error('Failed to delete message:', err);
+            }
+          },
+        },
+      ]
+    );
+  }, [message.id, deleteMessage]);
+
+  // Version switch handler
+  const handleSwitchVersion = useCallback(async (versionId: string) => {
+    await switchToMessageVersion(versionId);
+  }, [switchToMessageVersion]);
+
+  // Selection handlers
   const handleQuoteSelection = useCallback(
     (selectedText: string, _start: number, _end: number) => {
       if (!onQuote) return;
-      const role = message.role === 'user' ? 'user' : 'assistant';
-      onQuote(message.id, selectedText, role);
+      onQuote(message.id, selectedText, message.role === 'user' ? 'user' : 'assistant');
     },
     [message.id, message.role, onQuote]
   );
 
-  // Deep Dive handler for SelectableMessage
   const handleDeepDiveSelection = useCallback(
     (selectedText: string, _start: number, _end: number) => {
       if (!onDeepDive) return;
-      const role = message.role === 'user' ? 'user' : 'assistant';
       const fullContent = displayContent || message.content || '';
-      onDeepDive(selectedText, message.id, role, fullContent);
+      onDeepDive(selectedText, message.id, message.role === 'user' ? 'user' : 'assistant', fullContent);
     },
     [message.id, message.role, message.content, displayContent, onDeepDive]
   );
-
-
 
   const dotsOpacity = dotsAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0.3, 1],
   });
 
-  // Use SelectableMessage for completed messages with text selection
   const canSelect = !isStreaming && displayContent;
 
   return (
@@ -149,23 +253,28 @@ function MessageItemBase({
         styles.bubble,
         isUser ? styles.userBubble : styles.assistantBubble
       ]}>
-        {/* Search Results - show above assistant messages */}
-        {isAssistant && searchResults && searchResults.sources?.length > 0 && (
-          <SearchResultsCard searchResults={searchResults} />
-        )}
+        
+        {/* Assistant-only Header Components */}
+        {isAssistant && (
+            <>
+                {/* 1. Reasoning Display */}
+                {(message.reasoningContent || (effectiveStatusPills && effectiveStatusPills.length > 0)) && (
+                <ReasoningDisplay 
+                    content={message.reasoningContent}
+                    statusPills={isLastMessage && isStreaming ? statusPills : effectiveStatusPills}
+                    isStreaming={isStreaming && isLastMessage}
+                />
+                )}
 
-        {/* Reasoning Display */}
-        {(message.reasoningContent || showStatusPills) && (
-          <ReasoningDisplay 
-            content={message.reasoningContent}
-            statusPills={isLastMessage ? statusPills : []}
-            isStreaming={isStreaming && isLastMessage}
-          />
+                {/* 2. Source Images (Hero) */}
+                {sourceImages.length > 0 && (
+                    <SourceImages images={sourceImages} />
+                )}
+            </>
         )}
 
         {/* Message Content */}
         {isUser ? (
-          // User messages - use SelectableMessage for quote/deep dive selection
           canSelect ? (
             <SelectableMessage
               content={message.content}
@@ -177,7 +286,6 @@ function MessageItemBase({
             <Text style={styles.userText}>{message.content}</Text>
           )
         ) : displayContent ? (
-          // Assistant messages - always use Markdown for proper rendering
           <Markdown style={markdownStyles} rules={markdownRules}>{displayContent}</Markdown>
         ) : isStreaming ? (
           <Animated.View style={[styles.loadingDots, { opacity: dotsOpacity }]}>
@@ -189,6 +297,25 @@ function MessageItemBase({
           </Animated.View>
         ) : null}
 
+        {/* Assistant-only Footer Components */}
+        {isAssistant && (
+            <>
+                {/* 3. Surface Trigger */}
+                {(parsedMetadata as any)?.detectedSurfaces && (parsedMetadata as any).detectedSurfaces.length > 0 && (
+                  <SurfaceTrigger 
+                    surfaces={(parsedMetadata as any).detectedSurfaces}
+                    conversationId={conversationId || undefined}
+                    userQuery={userQuery}
+                  />
+                )}
+
+                {/* 4. Sources Footer */}
+                {citations.length > 0 && (
+                    <SourcesFooter citations={citations} />
+                )}
+            </>
+        )}
+
         {/* Sub-chat indicator */}
         {hasSubChats && !isStreaming && (
           <View style={styles.subChatIndicator}>
@@ -199,48 +326,104 @@ function MessageItemBase({
           </View>
         )}
 
-        {/* Action Buttons - shown at bottom for completed messages */}
-        {showActions && (
-          <View style={styles.actionsRow}>
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={handleCopy}
-              activeOpacity={0.6}
-            >
-              {showCopied ? (
-                <Check size={14} color={theme.colors.accent.success} />
-              ) : (
-                <Copy size={14} color={theme.colors.text.tertiary} />
-              )}
-              <Text style={[
-                styles.actionLabel,
-                showCopied && styles.actionLabelSuccess
-              ]}>
-                {showCopied ? 'Copied' : 'Copy'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </View>
+
+      {/* Action Buttons (Outside bubble for User, Inside for Assistant) */}
+      {showActions && (
+        <View style={[
+          styles.actionsRow,
+          isUser ? styles.userActionsRow : styles.assistantActionsRow
+        ]}>
+          {/* Branch Button (Assistant Only) */}
+          {isAssistant && (
+            <Pressable
+              onPress={handleBranch}
+              style={styles.actionButton}
+              hitSlop={8}
+            >
+              <GitBranch size={14} color={theme.colors.text.tertiary} />
+            </Pressable>
+          )}
+
+          {/* Version Indicator (User Only, when multiple versions) */}
+          {isUser && versions.length > 1 && (
+            <VersionIndicator
+              message={message}
+              versions={versions}
+              onSwitchVersion={handleSwitchVersion}
+            />
+          )}
+
+          {/* Edit Button (User Only) */}
+          {isUser && onStartEdit && (
+            <Pressable
+              onPress={handleEdit}
+              style={styles.actionButton}
+              hitSlop={8}
+            >
+              <Pencil size={14} color={theme.colors.text.tertiary} />
+            </Pressable>
+          )}
+
+          {/* Delete Button (User Only) */}
+          {isUser && (
+            <Pressable
+              onPress={handleDelete}
+              style={styles.actionButton}
+              hitSlop={8}
+            >
+              <Trash2 size={14} color={theme.colors.text.tertiary} />
+            </Pressable>
+          )}
+
+          {/* Copy Button */}
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={handleCopy}
+            activeOpacity={0.6}
+            hitSlop={8}
+          >
+            {showCopied ? (
+              <Check size={14} color={theme.colors.accent.success} />
+            ) : (
+              <Copy size={14} color={theme.colors.text.tertiary} />
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
 
-// Memoize with custom comparison for performance
+// Memoize
 export const MessageItem = memo(MessageItemBase, (prev, next) => {
   if (prev.isStreaming !== next.isStreaming) return false;
   if (prev.isStreaming && prev.streamingContent !== next.streamingContent) return false;
-  if (prev.statusPills?.length !== next.statusPills?.length) return false;
+  
+  // Deep check statusPills length
+  if ((prev.statusPills?.length ?? 0) !== (next.statusPills?.length ?? 0)) return false;
+  // Check last status message
+  if (prev.statusPills?.length && next.statusPills?.length) {
+      if (prev.statusPills[prev.statusPills.length-1].message !== next.statusPills[next.statusPills.length-1].message) return false;
+  }
+
   if (prev.message.content !== next.message.content) return false;
   if (prev.message.id !== next.message.id) return false;
+  
+  // Check search results change
   if (prev.searchResults !== next.searchResults) return false;
+  // Deep check search results count
+  if (prev.searchResults?.sources?.length !== next.searchResults?.sources?.length) return false;
+
   if (prev.messageSubChats?.length !== next.messageSubChats?.length) return false;
+  
   return true;
 });
 
+
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: 6, // Very compact
     maxWidth: '100%',
   },
   userContainer: {
@@ -252,29 +435,26 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   bubble: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 18,
+    paddingHorizontal: 0, 
+    paddingVertical: 2,    
+    // borderRadius: 0, // Swiss Sharp
   },
   userBubble: {
     backgroundColor: theme.colors.background.secondary,
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
-    borderBottomRightRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 0, // Ensure sharp for user too
   },
   assistantBubble: {
     backgroundColor: 'transparent',
-    paddingHorizontal: 0,
+    paddingHorizontal: 4, // Slight indent
     paddingVertical: 4,
   },
   userText: {
     fontSize: 15,
     lineHeight: 22,
-    color: theme.colors.text.primary,
-  },
-  assistantText: {
-    fontSize: 15,
-    lineHeight: 24,
     color: theme.colors.text.primary,
   },
   loadingDots: {
@@ -285,9 +465,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3, 
     backgroundColor: theme.colors.text.tertiary,
   },
   subChatIndicator: {
@@ -302,30 +482,28 @@ const styles = StyleSheet.create({
     color: theme.colors.accent.primary,
     fontWeight: '500',
   },
-  // Action buttons at bottom
   actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    marginTop: 10,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border.subtle,
+    gap: 12, // slightly increased gap since padding is removed
+    marginTop: 8, // bit more margin on top
+  },
+
+  assistantActionsRow: {
+    // Inside bubble, so no extra horizontal adjustment needed usually, 
+    // but maybe some top margin
+    paddingTop: 4,
+    marginLeft: 4, // Align with text
+  },
+  userActionsRow: {
+    // Outside bubble, align to right
+    alignSelf: 'flex-end',
+    marginRight: 4,
   },
   actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 2,
-  },
-  actionLabel: {
-    fontSize: 12,
-    color: theme.colors.text.tertiary,
-    fontWeight: '500',
-  },
-  actionLabelSuccess: {
-    color: theme.colors.accent.success,
+    // No padding as requested
+    padding: 0,
+    opacity: 0.8,
   },
 });
 
@@ -370,7 +548,7 @@ const markdownStyles = StyleSheet.create({
     color: theme.colors.accent.primary,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 0, // Sharp
     fontSize: 13,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
@@ -378,21 +556,25 @@ const markdownStyles = StyleSheet.create({
     backgroundColor: theme.colors.background.secondary,
     color: theme.colors.text.primary,
     padding: 14,
-    borderRadius: 10,
+    borderRadius: 0, // Sharp
     fontSize: 13,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     marginVertical: 12,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
   },
   fence: {
     backgroundColor: theme.colors.background.secondary,
     color: theme.colors.text.primary,
     padding: 14,
-    borderRadius: 10,
+    borderRadius: 0, // Sharp
     fontSize: 13,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     marginVertical: 12,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
   },
   blockquote: {
     backgroundColor: theme.colors.background.secondary,
@@ -401,7 +583,7 @@ const markdownStyles = StyleSheet.create({
     paddingLeft: 14,
     paddingVertical: 10,
     marginVertical: 12,
-    borderRadius: 6,
+    borderRadius: 0, // Sharp
   },
   bullet_list: {
     marginVertical: 8,
@@ -430,10 +612,9 @@ const markdownStyles = StyleSheet.create({
   },
 });
 
-// Custom render rules for markdown
+// Custom render rules for markdown (unchanged logic)
 const markdownRules = {
   fence: (node: any, children: any, parent: any, styles: any) => {
-    // Check if this is a mermaid code block
     const info = node.sourceInfo || '';
     if (info.toLowerCase() === 'mermaid') {
       const content = node.content || '';
@@ -441,12 +622,10 @@ const markdownRules = {
         <MermaidDiagram key={node.key} code={content} />
       );
     }
-    
-    // Default code block rendering
+    // Use custom CodeBlock
     return (
-      <View key={node.key} style={styles.fence}>
-        <Text style={styles.fence}>{node.content}</Text>
-      </View>
+      <CodeBlock key={node.key} code={node.content} language={info} />
     );
   },
 };
+

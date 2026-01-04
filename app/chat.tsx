@@ -10,9 +10,10 @@ import {
   StatusBar,
   TouchableOpacity,
   Text,
-  KeyboardAvoidingView,
+  KeyboardAvoidingView as RNKeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Menu, Plus, AlertCircle, RotateCcw } from 'lucide-react-native';
@@ -26,6 +27,7 @@ import {
   ContextPickerSheet,
   SubChatSheet,
   MessageItem,
+  EmptyStateChat,
   type ContextItem 
 } from '../src/components/chat';
 import { AppSidebar } from '../src/components/sidebar/AppSidebar';
@@ -71,7 +73,12 @@ function ChatContent() {
   const [quotedMessage, setQuotedMessage] = useState<any | null>(null);
   const [contextPickerOpen, setContextPickerOpen] = useState(false);
   const [selectedContext, setSelectedContext] = useState<ContextItem[]>([]);
-  const [surfaceMode, setSurfaceMode] = useState<any>('chat'); // TODO: import SurfaceMode type
+  const [surfaceMode, setSurfaceMode] = useState<any>('chat');
+  const [pendingPrompt, setPendingPrompt] = useState('');
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+
+  // Determine if we're in empty state
+  const isEmptyState = messages.length === 0 && !isSending;
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -79,6 +86,13 @@ function ChatContent() {
       router.replace('/guest-chat');
     }
   }, [isAuthenticated, router]);
+
+  // Handle suggestion selection from empty state
+  const handleSelectSuggestion = useCallback((prompt: string) => {
+    setPendingPrompt(prompt);
+    sendMessage(prompt);
+    setPendingPrompt('');
+  }, [sendMessage]);
 
   // Handle send
   const handleSend = useCallback((content: string) => {
@@ -107,6 +121,7 @@ function ChatContent() {
     sendMessage(finalContent, referencedConversations);
     setQuotedMessage(null);
     setSelectedContext([]);
+    setPendingPrompt('');
   }, [sendMessage, quotedMessage, selectedContext, surfaceMode, currentConversationId]);
 
   // Handle deep dive (for sub-chats)
@@ -117,6 +132,12 @@ function ChatContent() {
   // Handle quote from message
   const handleQuote = useCallback((messageId: string, text: string, role: 'user' | 'assistant') => {
     setQuotedMessage({ messageId, quotedText: text, authorRole: role });
+  }, []);
+
+  // Handle edit start - populate input with message content
+  const handleStartEdit = useCallback((message: Message) => {
+    setEditingMessage(message);
+    setPendingPrompt(message.content);
   }, []);
 
   // Render message
@@ -139,9 +160,11 @@ function ChatContent() {
         onOpenExistingSubChat={(sc) => {
            handleOpenExistingSubChat(sc);
         }}
+        conversationId={currentConversationId}
+        onStartEdit={handleStartEdit}
       />
     );
-  }, [messages.length, streamingMessageId, streamingContent, statusPills, searchResults, handleQuote, handleDeepDive, subChats, handleOpenExistingSubChat]);
+  }, [messages.length, streamingMessageId, streamingContent, statusPills, searchResults, handleQuote, handleDeepDive, subChats, handleOpenExistingSubChat, currentConversationId, handleStartEdit]);
 
   // Handle new chat
   const handleNewChat = useCallback(() => {
@@ -156,7 +179,8 @@ function ChatContent() {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
+        {/* ... header content ... */}
+         <TouchableOpacity
           style={styles.menuButton}
           onPress={() => setDrawerOpen(true)}
           activeOpacity={0.7}
@@ -181,48 +205,72 @@ function ChatContent() {
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0} 
       >
-        {/* Messages */}
-        <MessageList
-          messages={messages}
-          isLoading={isSending}
-          streamingMessageId={streamingMessageId}
-          streamingContent={streamingContent}
-          statusPills={statusPills}
-          searchResults={searchResults}
-          renderMessage={renderMessage}
-          // onRetry...
-        />
 
-        {/* Error State */}
-        {error && (
-          <View style={styles.errorContainer}>
-            <AlertCircle size={16} color={theme.colors.accent.error} />
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={clearError}>
-              <RotateCcw size={14} color={theme.colors.accent.error} />
-            </TouchableOpacity>
+        {isEmptyState ? (
+          <View style={styles.emptyStateContainer}>
+            <View style={styles.emptyStateContent}>
+              <EmptyStateChat onSelectSuggestion={handleSelectSuggestion} />
+            </View>
+            <View style={styles.centeredInputWrapper}>
+              <AuthenticatedChatInput
+                onSend={handleSend}
+                isLoading={isSending}
+                quotedMessage={quotedMessage}
+                onClearQuote={() => setQuotedMessage(null)}
+                showContextPicker={conversations.length > 0}
+                onAddContext={() => setContextPickerOpen(true)}
+                contextItems={selectedContext}
+                onRemoveContext={(id: string) => setSelectedContext(prev => prev.filter(p => p.id !== id))}
+                surfaceMode={surfaceMode}
+                onSurfaceModeChange={setSurfaceMode}
+                initialValue={pendingPrompt}
+              />
+            </View>
           </View>
-        )}
+        ) : (
+          <>
+            <MessageList
+              messages={messages}
+              isLoading={isSending}
+              streamingMessageId={streamingMessageId}
+              streamingContent={streamingContent}
+              statusPills={statusPills}
+              searchResults={searchResults}
+              renderMessage={renderMessage}
+            />
 
-        {/* Input */}
-        <AuthenticatedChatInput
-          onSend={handleSend}
-          isLoading={isSending}
-          quotedMessage={quotedMessage}
-          onClearQuote={() => setQuotedMessage(null)}
-          showContextPicker={conversations.length > 0}
-          onAddContext={() => setContextPickerOpen(true)}
-          contextItems={selectedContext}
-          onRemoveContext={(id: string) => setSelectedContext(prev => prev.filter(p => p.id !== id))}
-          surfaceMode={surfaceMode}
-          onSurfaceModeChange={setSurfaceMode}
-          // onAttach...
-        />
+            {/* Error State */}
+            {error && (
+              <View style={styles.errorContainer}>
+                <AlertCircle size={16} color={theme.colors.accent.error} />
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={clearError}>
+                  <RotateCcw size={14} color={theme.colors.accent.error} />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <AuthenticatedChatInput
+              onSend={handleSend}
+              isLoading={isSending}
+              quotedMessage={quotedMessage}
+              onClearQuote={() => setQuotedMessage(null)}
+              showContextPicker={conversations.length > 0}
+              onAddContext={() => setContextPickerOpen(true)}
+              contextItems={selectedContext}
+              onRemoveContext={(id: string) => setSelectedContext(prev => prev.filter(p => p.id !== id))}
+              surfaceMode={surfaceMode}
+              onSurfaceModeChange={setSurfaceMode}
+              initialValue={pendingPrompt}
+            />
+          </>
+        )}
       </KeyboardAvoidingView>
 
-      {/* Sidebar */}
+      {/* Sidebar, Context Picker, Sub-chat Sheet ... */}
       <AppSidebar
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -242,8 +290,6 @@ function ChatContent() {
         currentConversationId={currentConversationId}
       />
       
-
-
       {/* Sub-Chat Sheet */}
       <SubChatSheet 
          open={subChatSheetOpen}
@@ -257,6 +303,7 @@ function ChatContent() {
     </SafeAreaView>
   );
 }
+
 
 export default function ChatScreen() {
   const params = useLocalSearchParams<{ conversationId?: string }>();
@@ -328,6 +375,18 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     padding: 4,
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  emptyStateContent: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingBottom: 20,
+  },
+  centeredInputWrapper: {
+    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
   },
 });
 

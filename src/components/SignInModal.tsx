@@ -29,8 +29,8 @@ export function SignInModal({
   const router = useRouter();
 
   const handleSignIn = () => {
-    onClose?.();
-    router.push('/login');
+    if (onClose) onClose();
+    router.replace('/login');
   };
 
   const handleClose = () => {

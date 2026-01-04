@@ -272,43 +272,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const signOut = useCallback(async () => {
     try {
-      // Get current session for backend signout
+      // 1. Get current session info before clearing (for backend invalidation)
       const currentSession = await loadSession();
       
-      // Sign out from Google if previously signed in
-      const hasPreviousGoogleSignIn = GoogleSignin.hasPreviousSignIn();
-      if (hasPreviousGoogleSignIn) {
-        await GoogleSignin.signOut();
-      }
-      
-      // Invalidate session on backend
-      if (currentSession?.accessToken) {
-        try {
-          await fetch(`${BASE_URL}/api/auth/mobile`, {
-            method: 'DELETE',
-            headers: {
-              'Authorization': `Bearer ${currentSession.accessToken}`,
-            },
-          });
-          console.log('[Auth] Server session invalidated');
-        } catch (e) {
-          console.warn('[Auth] Failed to invalidate server session:', e);
-        }
-      }
-      
-      // Clear local session
+      // 2. Clear local storage and state IMMEDIATELY (Optimistic UI)
       await clearSession();
-      
       setState({
         isLoading: false,
         isAuthenticated: false,
         session: null,
         user: null,
       });
+      console.log('[Auth] Local session cleared, signed out UI');
+
+      // 3. Perform cleanup in background (non-blocking)
+      (async () => {
+        try {
+          // Sign out from Google if needed
+          const hasPreviousGoogleSignIn = await GoogleSignin.hasPreviousSignIn();
+          if (hasPreviousGoogleSignIn) {
+            await GoogleSignin.signOut();
+          }
+        } catch (e) {
+          console.warn('[Auth] Google sign out error:', e);
+        }
+
+        // Invalidate session on backend
+        if (currentSession?.accessToken) {
+          try {
+             // Use short timeout to not hang background tasks indefinitely
+             const controller = new AbortController();
+             const timeoutId = setTimeout(() => controller.abort(), 5000);
+             
+             await fetch(`${BASE_URL}/api/auth/mobile`, {
+              method: 'DELETE',
+              headers: {
+                'Authorization': `Bearer ${currentSession.accessToken}`,
+              },
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            console.log('[Auth] Server session invalidated');
+          } catch (e) {
+            console.warn('[Auth] Failed to invalidate server session (background):', e);
+          }
+        }
+      })();
       
-      console.log('[Auth] Signed out successfully');
     } catch (error) {
       console.error('[Auth] Sign out error:', error);
+      // Ensure we are signed out locally even if something failed
+      await clearSession();
+      setState({
+         isLoading: false,
+         isAuthenticated: false,
+         session: null,
+         user: null, 
+      });
     }
   }, []);
 

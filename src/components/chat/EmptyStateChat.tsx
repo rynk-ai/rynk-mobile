@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     backgroundColor: theme.colors.background.secondary,
-    borderRadius: 999, // Pill shape
+    borderRadius: theme.borderRadius.lg, // Sharp shape
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
   },

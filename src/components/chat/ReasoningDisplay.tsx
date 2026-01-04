@@ -83,17 +83,16 @@ export function ReasoningDisplay({ content, statusPills = [], isStreaming = fals
 const styles = StyleSheet.create({
   container: {
     marginBottom: 12,
-    backgroundColor: theme.colors.background.secondary,
-    borderRadius: 12,
-    overflow: 'hidden',
+    backgroundColor: theme.colors.background.secondary, // Surface
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
+    // borderRadius: 0, // Sharp
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
+    padding: 10, // slightly more compact
   },
   headerLeft: {
     flexDirection: 'row',
@@ -101,47 +100,48 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   iconContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
+    width: 20,
+    height: 20,
     backgroundColor: theme.colors.background.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
+    // borderRadius: 0, // Sharp
   },
   statusText: {
-    fontSize: 13,
+    fontSize: 12, // Compact
     fontWeight: '500',
     color: theme.colors.text.secondary,
+    letterSpacing: -0.1,
   },
   contentContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border.subtle,
-    backgroundColor: theme.colors.background.primary + '40', // Slight transparency
+    backgroundColor: theme.colors.background.secondary, // Keep same bg
   },
   pillsContainer: {
-    marginVertical: 12,
+    marginVertical: 10,
   },
   reasoningTextContainer: {
-    padding: 12, // Inner card look
+    padding: 10,
     backgroundColor: theme.colors.background.primary,
-    borderRadius: 8,
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
+    // borderRadius: 0, // Sharp
   },
   reasoningText: {
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: 18,
     color: theme.colors.text.secondary,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', // Monospace for technical look
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   placeholderText: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.colors.text.tertiary,
     fontStyle: 'italic',
-    padding: 8,
+    padding: 4,
   },
 });

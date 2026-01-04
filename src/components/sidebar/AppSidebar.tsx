@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,16 @@ import {
   Image,
   FlatList,
   Platform,
+  Alert,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
+
+if (Platform.OS === 'android') {
+  if (UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
+}
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { 
@@ -16,14 +25,19 @@ import {
   LogOut, 
   User,
   Settings,
-  X 
+  X,
+  Search,
+  FolderPlus
 } from 'lucide-react-native';
 import { theme } from '../../lib/theme';
 import { useAuth } from '../../lib/auth';
 import { useChatContext } from '../../lib/contexts/ChatContext';
+import type { Conversation } from '../../lib/types';
 import { ConversationListItem } from './ConversationListItem';
 import { FolderListItem } from './FolderListItem';
 import { ProjectListItem } from './ProjectListItem';
+import { UserMenu } from './UserMenu';
+import { ConversationMenu } from './ConversationMenu';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.85, 320);
@@ -43,10 +57,56 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
     currentConversationId, 
     selectConversation, 
     createNewChat,
+    togglePin,
+    deleteConversation,
     // isLoadingConversations,
   } = useChatContext();
 
   const [foldersExpanded, setFoldersExpanded] = useState(true);
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const [menuConversation, setMenuConversation] = useState<Conversation | null>(null);
+
+  const handleShowMenu = useCallback((c: Conversation) => {
+    setMenuConversation(c);
+  }, []);
+
+  // Handlers for menu actions
+  const handleTogglePin = useCallback((id: string) => {
+    // Already implemented as togglePin
+    togglePin(id);
+  }, [togglePin]);
+
+  const handleDeleteConversation = useCallback((id: string) => {
+     Alert.alert(
+      "Delete Conversation",
+      "Are you sure you want to delete this conversation?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive", 
+          onPress: () => {
+             deleteConversation(id);
+             if (currentConversationId === id) {
+                // Navigate away or clear? user navigates usually
+             }
+          }
+        }
+      ]
+    );
+  }, [deleteConversation, currentConversationId]);
+
+  const handleRename = (id: string) => {
+      Alert.alert("Coming Soon", "Rename feature is under development.");
+  };
+
+  const handleAddToFolder = (id: string) => {
+      Alert.alert("Coming Soon", "Add to Folder feature is under development.");
+  };
+
+  const handleEditTags = (id: string) => {
+      Alert.alert("Coming Soon", "Edit Tags feature is under development.");
+  };
 
   // Filter conversations
   const pinnedConversations = useMemo(() => 
@@ -77,7 +137,6 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
   };
 
   const handleSelectConversation = (id: string) => {
-    // If selecting current conversation, just close drawer
     if (id === currentConversationId) {
       onClose();
       return;
@@ -85,6 +144,18 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
     selectConversation(id);
     onClose();
   };
+  
+  const handleSelectProject = () => {
+    Alert.alert("Coming Soon", "Project view is under development.");
+  };
+
+  const handleSearch = () => {
+     Alert.alert("Coming Soon", "Search is under development.");
+  }
+  
+  const handleNewFolder = () => {
+     Alert.alert("Coming Soon", "Folder creation is under development.");
+  }
 
   if (!isOpen) return null;
 
@@ -96,13 +167,23 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
       <TouchableOpacity 
         style={styles.backdrop} 
         activeOpacity={1} 
-        onPress={onClose}
+        onPress={() => {
+           if (isUserDropdownOpen) setIsUserDropdownOpen(false);
+           else onClose();
+        }}
       />
       
       <SafeAreaView style={styles.drawer} edges={['top', 'bottom']}>
         {/* User Profile Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.userSection} activeOpacity={0.8}>
+        <View style={[styles.header, { zIndex: 201 }]}>
+          <TouchableOpacity 
+            style={styles.userSection} 
+            activeOpacity={0.8}
+            onPress={() => {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              setIsUserDropdownOpen(!isUserDropdownOpen);
+            }}
+          >
             <View style={styles.avatarContainer}>
               {user?.image ? (
                 <Image source={{ uri: user.image }} style={styles.avatar} />
@@ -120,56 +201,64 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
                 <Text style={styles.tierText}>{tierLabel}</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-               <X size={20} color={theme.colors.text.tertiary} />
-            </TouchableOpacity>
           </TouchableOpacity>
         </View>
+        
+        {/* User Menu (Accordion) - Pushes content down */}
+        {isUserDropdownOpen && (
+           <UserMenu 
+             user={user} 
+             onSignOut={handleSignOut}
+           />
+        )}
 
-        {/* New Chat Button */}
-        <View style={styles.actionSection}>
+        {/* Action Toolbar (Search + New) */}
+        <View style={styles.actionToolbar}>
           <TouchableOpacity 
-            style={styles.newChatButton}
-            onPress={handleNewChat}
+            style={styles.searchButton}
+            onPress={handleSearch}
             activeOpacity={0.7}
           >
-            <Plus size={16} color={theme.colors.text.primary} />
-            <Text style={styles.newChatText}>New Chat</Text>
+            <Search size={14} color={theme.colors.text.tertiary} />
+            <Text style={styles.searchText}>Search</Text>
+            <View style={styles.commandShortcut}>
+               <Text style={styles.commandText}>⌘K</Text>
+            </View>
           </TouchableOpacity>
+          
+          <View style={styles.actionIcons}>
+            <TouchableOpacity 
+              style={styles.actionIconButton}
+              onPress={handleNewChat}
+            >
+               <Plus size={18} color={theme.colors.text.secondary} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.actionIconButton}
+               onPress={handleNewFolder}
+            >
+               <FolderPlus size={16} color={theme.colors.text.secondary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <FlatList
           style={styles.list}
           contentContainerStyle={styles.listContent}
-          data={[]} // Main list is mixed, so we use ListHeaderComponent/ListFooterComponent or manual render
+          data={[]} 
           renderItem={() => null} 
           ListHeaderComponent={
             <>
               {/* Projects */}
               {projects.length > 0 && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Projects</Text>
+                  {/* <Text style={styles.sectionTitle}>Projects</Text> */}
                   {projects.map(p => (
                     <ProjectListItem 
                       key={p.id} 
                       project={p} 
-                      // isActive={...} 
-                      // onSelect={() => ...}
-                    />
-                  ))}
-                </View>
-              )}
-
-              {/* Pinned */}
-              {pinnedConversations.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Pinned</Text>
-                  {pinnedConversations.map(c => (
-                    <ConversationListItem 
-                      key={c.id} 
-                      conversation={c} 
-                      isActive={currentConversationId === c.id}
-                      onSelect={handleSelectConversation}
+                      onSelect={handleSelectProject}
                     />
                   ))}
                 </View>
@@ -178,29 +267,52 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
               {/* Folders */}
               {folders.length > 0 && (
                 <View style={styles.section}>
-                   <Text style={styles.sectionTitle}>Folders</Text>
+                   <View style={styles.sectionHeader}>
+                      <Text style={styles.sectionTitle}>Folders</Text>
+                   </View>
                    {folders.map(f => (
                      <FolderListItem
                        key={f.id}
                        folder={f}
                        itemCount={f.conversationIds.length}
-                       isExpanded={foldersExpanded} // Simplified global expand for now or individual state
-                       // onToggleExpand={() => ...}
+                       isExpanded={foldersExpanded} 
+                       onToggleExpand={() => setFoldersExpanded(!foldersExpanded)}
                      />
                    ))}
+                </View>
+              )}
+              
+              {/* Pinned */}
+              {pinnedConversations.length > 0 && (
+                <View style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Pinned</Text>
+                  </View>
+                  {pinnedConversations.map(c => (
+                    <ConversationListItem 
+                      key={c.id} 
+                      conversation={c} 
+                      isActive={currentConversationId === c.id}
+                      onSelect={handleSelectConversation}
+                      onShowMenu={handleShowMenu}
+                    />
+                  ))}
                 </View>
               )}
               
               {/* Recent */}
               {recentConversations.length > 0 && (
                  <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Today</Text>
+                  <View style={styles.sectionHeader}>
+                     <Text style={styles.sectionTitle}>Today</Text>
+                  </View>
                   {recentConversations.map(c => (
                     <ConversationListItem 
                       key={c.id} 
                       conversation={c} 
                       isActive={currentConversationId === c.id}
                       onSelect={handleSelectConversation}
+                      onShowMenu={handleShowMenu}
                     />
                   ))}
                  </View>
@@ -209,13 +321,16 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
               {/* Older */}
               {olderConversations.length > 0 && (
                  <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Previous 7 Days</Text>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Previous 7 Days</Text>
+                  </View>
                   {olderConversations.map(c => (
                     <ConversationListItem 
                       key={c.id} 
                       conversation={c} 
                       isActive={currentConversationId === c.id}
                       onSelect={handleSelectConversation}
+                      onShowMenu={handleShowMenu}
                     />
                   ))}
                  </View>
@@ -223,24 +338,18 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
             </>
           }
         />
-
-        {/* Footer Actions */}
-        <View style={styles.footer}>
-          <TouchableOpacity 
-            style={styles.footerItem} 
-            onPress={handleSignOut}
-          >
-            <LogOut size={18} color={theme.colors.text.secondary} />
-            <Text style={styles.footerText}>Sign Out</Text>
-          </TouchableOpacity>
-           <TouchableOpacity 
-            style={styles.footerItem} 
-            // onPress={() => router.push('/settings')}
-          >
-            <Settings size={18} color={theme.colors.text.secondary} />
-            <Text style={styles.footerText}>Settings</Text>
-          </TouchableOpacity>
-        </View>
+        
+        {/* Conversation Menu Overlay */}
+        <ConversationMenu
+          visible={!!menuConversation}
+          conversation={menuConversation}
+          onClose={() => setMenuConversation(null)}
+          onTogglePin={handleTogglePin}
+          onDelete={handleDeleteConversation}
+          onRename={handleRename}
+          onAddToFolder={handleAddToFolder}
+          onEditTags={handleEditTags}
+        />
 
       </SafeAreaView>
     </View>
@@ -284,14 +393,14 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: theme.borderRadius.lg, // Sharp
   },
   avatarPlaceholder: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: theme.borderRadius.lg, // Sharp
     backgroundColor: theme.colors.background.secondary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -307,36 +416,67 @@ const styles = StyleSheet.create({
   tierBadge: {
     marginTop: 2,
     alignSelf: 'flex-start',
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
     paddingVertical: 1,
     backgroundColor: theme.colors.accent.primary + '15',
-    borderRadius: 4,
+    borderRadius: 2, // Tiny rounding ok
   },
   tierText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '600',
     color: theme.colors.accent.primary,
   },
   closeButton: {
     padding: 4,
   },
-  actionSection: {
-    padding: 12,
-  },
-  newChatButton: {
+  
+  // Action Toolbar Styles
+  actionToolbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 8,
-    backgroundColor: theme.colors.text.primary,
-    paddingVertical: 10,
-    borderRadius: 8,
+    padding: 12,
   },
-  newChatText: {
-    color: theme.colors.background.primary,
-    fontSize: 14,
-    fontWeight: '600',
+  searchButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: theme.colors.background.secondary + '80', // 50% opacity
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: theme.borderRadius.lg, // Sharp
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
+  searchText: {
+    fontSize: 12,
+    color: theme.colors.text.tertiary,
+    flex: 1,
+  },
+  commandShortcut: {
+    backgroundColor: theme.colors.background.primary + '50',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 2,
+  },
+  commandText: {
+    fontSize: 9,
+    color: theme.colors.text.tertiary,
+  },
+  actionIcons: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  actionIconButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: theme.borderRadius.lg, // Sharp
+    backgroundColor: 'transparent', // Ghost
+  },
+  
   list: {
     flex: 1,
   },
@@ -346,30 +486,18 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 16,
   },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: theme.colors.text.tertiary,
-    textTransform: 'uppercase',
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
     marginBottom: 4,
   },
-  footer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border.subtle,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  footerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    padding: 8,
-  },
-  footerText: {
-    fontSize: 13,
-    color: theme.colors.text.secondary,
-    fontWeight: '500',
+  sectionTitle: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: theme.colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });

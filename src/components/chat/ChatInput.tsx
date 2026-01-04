@@ -242,44 +242,9 @@ export function ChatInput({
         </View>
       )}
 
-      <View style={styles.inputRow}>
-        {/* Surface Mode Button */}
-        {onSurfaceModeChange && (
-          <TouchableOpacity
-            style={[styles.surfaceButton, surfaceMode !== 'chat' && { backgroundColor: surfaceColor + '15' }]}
-            onPress={() => setSurfacePickerOpen(true)}
-            disabled={disabled || isLoading}
-          >
-            <SurfaceIcon 
-              size={20} 
-              color={surfaceMode !== 'chat' ? surfaceColor : theme.colors.text.secondary} 
-            />
-          </TouchableOpacity>
-        )}
-
-        {/* Context Button */}
-        {showContextPicker && onAddContext && (
-          <TouchableOpacity
-            style={styles.attachButton}
-            onPress={onAddContext}
-            disabled={disabled || isLoading}
-          >
-            <Plus size={20} color={theme.colors.text.secondary} />
-          </TouchableOpacity>
-        )}
-
-        {/* Attach Button */}
-        {onAttach && (
-          <TouchableOpacity
-            style={styles.attachButton}
-            onPress={onAttach}
-            disabled={disabled || isLoading}
-          >
-            <Paperclip size={18} color={theme.colors.text.secondary} />
-          </TouchableOpacity>
-        )}
-
-        {/* Input Field */}
+      {/* Input Card Container */}
+      <View style={styles.inputCard}>
+        {/* Input Field (Top) */}
         <TextInput
           ref={inputRef}
           style={[
@@ -291,7 +256,7 @@ export function ChatInput({
           placeholder={quotedMessage ? 'Add your reply...' : placeholder}
           placeholderTextColor={theme.colors.text.tertiary}
           multiline
-          textAlignVertical="center"
+          textAlignVertical="top"
           autoFocus={autoFocus}
           onContentSizeChange={(e) => {
             setInputHeight(e.nativeEvent.contentSize.height);
@@ -299,28 +264,69 @@ export function ChatInput({
           editable={!disabled && !isLoading}
         />
 
-        {/* Send Button */}
-        <TouchableOpacity
-          style={[
-            styles.sendButton,
-            canSend && styles.sendButtonActive,
-            isLoading && styles.sendButtonLoading,
-          ]}
-          onPress={handleSend}
-          disabled={!canSend || isLoading}
-          activeOpacity={0.7}
-        >
-          {isLoading ? (
-            <Animated.View style={{ transform: [{ rotate: spinRotation }, { scale: pulseValue }] }}>
-              <Loader2 size={18} color={theme.colors.text.inverse} />
-            </Animated.View>
-          ) : (
-            <Send 
-              size={18} 
-              color={canSend ? theme.colors.text.inverse : theme.colors.text.tertiary} 
-            />
-          )}
-        </TouchableOpacity>
+        {/* Action Bar (Bottom) */}
+        <View style={styles.actionBar}>
+          <View style={styles.leftActions}>
+            {/* Surface Mode Button */}
+            {onSurfaceModeChange && (
+              <TouchableOpacity
+                style={[styles.actionButton, surfaceMode !== 'chat' && { backgroundColor: surfaceColor + '15' }]}
+                onPress={() => setSurfacePickerOpen(true)}
+                disabled={disabled || isLoading}
+              >
+                <SurfaceIcon 
+                  size={18} 
+                  color={surfaceMode !== 'chat' ? surfaceColor : theme.colors.text.secondary} 
+                />
+              </TouchableOpacity>
+            )}
+
+            {/* Context Button */}
+            {showContextPicker && onAddContext && (
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={onAddContext}
+                disabled={disabled || isLoading}
+              >
+                <Plus size={18} color={theme.colors.text.secondary} />
+              </TouchableOpacity>
+            )}
+
+            {/* Attach Button */}
+            {onAttach && (
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={onAttach}
+                disabled={disabled || isLoading}
+              >
+                <Paperclip size={18} color={theme.colors.text.secondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Send Button */}
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              canSend && styles.sendButtonActive,
+              isLoading && styles.sendButtonLoading,
+            ]}
+            onPress={handleSend}
+            disabled={!canSend || isLoading}
+            activeOpacity={0.7}
+          >
+            {isLoading ? (
+              <Animated.View style={{ transform: [{ rotate: spinRotation }, { scale: pulseValue }] }}>
+                <Loader2 size={16} color={theme.colors.text.inverse} />
+              </Animated.View>
+            ) : (
+              <Send 
+                size={16} 
+                color={canSend ? theme.colors.text.inverse : theme.colors.text.tertiary} 
+              />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -328,68 +334,69 @@ export function ChatInput({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 16,
     paddingBottom: Platform.OS === 'ios' ? 0 : 16,
-    paddingTop: 8,
     backgroundColor: theme.colors.background.primary,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border.subtle,
   },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  surfaceButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 0,
+  // Input Card Styles
+  inputCard: {
     backgroundColor: theme.colors.background.secondary,
-  },
-  attachButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 0, 
-    backgroundColor: theme.colors.background.secondary,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: theme.colors.background.secondary,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: Platform.OS === 'ios' ? 8 : 4,
-    paddingTop: Platform.OS === 'ios' ? 8 : 4,
-    fontSize: 15,
-    color: theme.colors.text.primary,
-    minHeight: 36,
-    maxHeight: MAX_INPUT_HEIGHT,
-    lineHeight: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
+    borderRadius: theme.borderRadius.lg,
+    overflow: 'hidden',
+    // Swiss Modern Shadow
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
       },
       android: {
-        elevation: 2,
+        elevation: 3,
       },
     }),
   },
+  input: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
+    fontSize: 15,
+    color: theme.colors.text.primary,
+    minHeight: MIN_INPUT_HEIGHT,
+    maxHeight: MAX_INPUT_HEIGHT,
+    lineHeight: 22,
+    backgroundColor: 'transparent', // Transparent to blend with card
+  },
+  // Action Bar Styles
+  actionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+    paddingTop: 4,
+  },
+  leftActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 6, // Specific small radius for internal buttons or theme.borderRadius.sm
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Ghost style by default (transparent)
+  },
   sendButton: {
-    width: 32, // Smaller button
+    width: 32,
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
-    backgroundColor: theme.colors.background.secondary,
-    marginBottom: Platform.OS === 'ios' ? 2 : 2, // Align with input
+    borderRadius: 6, // Matches action buttons
+    backgroundColor: theme.colors.background.primary, // Contrast with card (secondary)
   },
   sendButtonActive: {
     backgroundColor: theme.colors.text.primary,
@@ -397,12 +404,15 @@ const styles = StyleSheet.create({
   sendButtonLoading: {
     backgroundColor: theme.colors.accent.primary || theme.colors.text.primary,
   },
-  // Quote styles
+  
+  // Quote styles (unchanged mostly, but ensured alignment)
   quoteContainer: {
+    marginHorizontal: 16,
+    marginTop: 10,
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: theme.colors.background.secondary,
-    borderRadius: 12,
+    borderRadius: theme.borderRadius.lg,
     borderLeftWidth: 3,
     borderLeftColor: theme.colors.accent.primary,
     padding: 10,
@@ -432,18 +442,20 @@ const styles = StyleSheet.create({
     padding: 4,
   },
 
-  // Context picker styles
+  // Context pills styles
   contextPillsContainer: {
+    paddingHorizontal: 16,
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
     marginBottom: 10,
+    marginTop: 10,
   },
   contextPill: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.accent.primary + '15',
-    borderRadius: 16,
+    borderRadius: theme.borderRadius.lg,
     paddingVertical: 6,
     paddingLeft: 12,
     paddingRight: 8,
@@ -455,22 +467,6 @@ const styles = StyleSheet.create({
     color: theme.colors.accent.primary,
     fontWeight: '500',
     flexShrink: 1,
-  },
-  addContextButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.background.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-
-  inputWithContext: {
-    // No additional styles needed, just for differentiation
-  },
-  surfaceSelectorContainer: {
-    marginBottom: 8,
   },
 });
 

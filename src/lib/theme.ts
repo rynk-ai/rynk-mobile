@@ -6,43 +6,43 @@
 
 // Main background colors
 export const colors = {
-  // Backgrounds - "True Neutral" (Dark Mode)
+  // Backgrounds - "Swiss Modern" (True Black like Web)
   background: {
-    primary: '#191919',      // Main app background (Notion-like)
-    card: '#1F1F1F',         // Card/surface background
-    secondary: '#262626',    // Secondary surfaces
-    elevated: '#2E2E2E',     // Hover states, elevated surfaces
-    tertiary: '#333333',     // Third level surfaces
+    primary: '#0A0A0A',      // True Black (Web match)
+    card: '#0F0F0F',         // Surface (Web match)
+    secondary: '#1A1A1A',    // Secondary (Web match)
+    elevated: '#242424',     // Elevated
+    tertiary: '#242424',     // Tertiary
   },
   
   // Foreground - Text Colors
   text: {
-    primary: '#E5E5E5',      // Primary text (Soft White)
-    secondary: '#999999',    // Muted/secondary text
-    tertiary: '#666666',     // Placeholder text
-    inverse: '#191919',      // Text on accent backgrounds
+    primary: '#F0F0F0',      // Primary (Web match)
+    secondary: '#A1A1AA',    // Muted foreground (Web match approx)
+    tertiary: '#71717A',     // Tertiary
+    inverse: '#0A0A0A',      // Inverse
   },
   
   // Accent - Interactive Elements
   accent: {
-    primary: '#4D7DFF',      // Brighter Blue (Web Match)
-    secondary: '#4D7DFF',    // Use primary blue as secondary instead of purple
-    success: '#10B981',      // Emerald Green (Web Match)
+    primary: '#3B82F6',      // Swiss Blue
+    secondary: '#F5F5F5',    // Secondary
+    success: '#10B981',      // Emerald Green
     warning: '#F59E0B',      // Amber
     error: '#EF4444',        // Red
   },
   
   // Borders
   border: {
-    default: '#2E2E2E',      // Default border
-    subtle: 'rgba(255, 255, 255, 0.06)', // Very subtle borders
-    focus: 'rgba(77, 125, 255, 0.3)',    // Focus ring
+    default: '#242424',      // Web border color
+    subtle: '#242424',       // Subtle
+    focus: '#3B82F6',        // Focus ring
   },
   
   // Surface overlays
   surface: {
-    overlay: 'rgba(0, 0, 0, 0.5)',
-    glassBg: 'rgba(25, 25, 25, 0.95)',
+    overlay: 'rgba(0, 0, 0, 0.7)',
+    glassBg: 'rgba(10, 10, 10, 0.95)',
   },
 };
 
@@ -57,13 +57,13 @@ export const spacing = {
   xxxl: 48,
 };
 
-// Border radius scale
+// Border radius scale - Swiss Style (Sharp)
 export const borderRadius = {
-  sm: 4,
-  md: 8,
-  lg: 12,
-  xl: 16,
-  full: 9999,
+  sm: 0,
+  md: 0,
+  lg: 0,
+  xl: 0,
+  full: 0, // Even pills are sharp in strict Swiss, but we might check if 'full' acts as pill. Web has --radius: 0.
 };
 
 // Typography

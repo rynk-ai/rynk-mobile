@@ -20,6 +20,7 @@ export interface SearchResult {
     title: string;
     snippet: string;
     image?: string;
+    images?: string[];
   }>;
   strategy?: string[];
   totalResults?: number;

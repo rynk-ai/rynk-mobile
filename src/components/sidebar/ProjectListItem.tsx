@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     marginHorizontal: 8,
-    borderRadius: 6,
+    borderRadius: theme.borderRadius.lg, // 0
   },
   activeContainer: {
     backgroundColor: theme.colors.background.secondary,
