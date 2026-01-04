@@ -3,7 +3,8 @@
  * Connects to the rynk.io backend
  */
 
-import * as SecureStore from 'expo-secure-store';
+import { loadSession, saveSession, clearSession } from '../auth/storage';
+import type { Session } from '../types/auth';
 
 const API_BASE_URL = 'https://rynk.io/api';
 
@@ -20,29 +21,55 @@ class ApiClient {
 
   private async getAuthToken(): Promise<string | null> {
     try {
-      // Read from session storage (same as AuthContext uses)
-      const sessionStr = await SecureStore.getItemAsync('rynk_session');
-      if (!sessionStr) return null;
-      
-      const session = JSON.parse(sessionStr);
-      
-      // Check if expired
-      if (session.expiresAt && Date.now() > session.expiresAt) {
-        return null;
+      const session = await loadSession();
+      if (!session) return null;
+
+      // Check if access token is expired or expiring soon (within 60s)
+      if (Date.now() > session.accessTokenExpiresAt - 60000) {
+        console.log('[ApiClient] Access token expired/expiring, refreshing...');
+        return await this.refreshAccessToken(session.refreshToken);
       }
-      
-      return session.accessToken || null;
+
+      return session.accessToken;
     } catch {
       return null;
     }
   }
 
-  async setAuthToken(token: string): Promise<void> {
-    await SecureStore.setItemAsync('auth_token', token);
+  private async refreshAccessToken(refreshToken: string): Promise<string | null> {
+    try {
+      const response = await fetch(`${this.baseUrl}/auth/mobile/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) {
+        console.log('[ApiClient] Refresh failed:', response.status);
+        await clearSession();
+        return null;
+      }
+
+      const data = await response.json();
+      
+      const newSession: Session = {
+        user: data.user,
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        accessTokenExpiresAt: new Date(data.accessTokenExpiresAt).getTime(),
+        refreshTokenExpiresAt: new Date(data.refreshTokenExpiresAt).getTime(),
+      };
+
+      await saveSession(newSession);
+      return newSession.accessToken;
+    } catch (error) {
+      console.error('[ApiClient] Refresh error:', error);
+      return null;
+    }
   }
 
   async clearAuthToken(): Promise<void> {
-    await SecureStore.deleteItemAsync('auth_token');
+    await clearSession();
   }
 
   async request<T>(

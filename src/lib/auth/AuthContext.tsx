@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { Platform } from 'react-native';
-import { saveSession, loadSession, clearSession } from './storage';
+import { saveSession, loadSession, clearSession, onSessionChange } from './storage';
 import type { AuthContextType, AuthState, Session, LoginResult, User } from '../types/auth';
 
 const BASE_URL = 'https://rynk.io';
@@ -50,6 +50,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     configureGoogleSignIn();
     loadStoredSession();
+    
+    // Subscribe to session changes (e.g. token refresh)
+    const unsubscribe = onSessionChange((newSession) => {
+      console.log('[Auth] Session updated via storage listener');
+      if (newSession) {
+        setState({
+          isLoading: false,
+          isAuthenticated: true,
+          session: newSession,
+          user: newSession.user,
+        });
+      } else {
+        setState({
+          isLoading: false,
+          isAuthenticated: false,
+          session: null,
+          user: null,
+        });
+      }
+    });
+    
+    return unsubscribe;
   }, []);
 
   const loadStoredSession = async () => {
@@ -394,8 +416,10 @@ async function verifyAndCreateSession(
         subscriptionTier: data.user.subscriptionTier || 'free',
         subscriptionStatus: data.user.subscriptionStatus || 'none',
       },
-      accessToken: data.token,
-      expiresAt: new Date(data.expiresAt).getTime(),
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+      accessTokenExpiresAt: new Date(data.accessTokenExpiresAt).getTime(),
+      refreshTokenExpiresAt: new Date(data.refreshTokenExpiresAt).getTime(),
     };
   } catch (error) {
     console.error('[Auth] Verify and create session error:', error);

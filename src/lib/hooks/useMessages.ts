@@ -1,6 +1,7 @@
 /**
  * useMessages - Message state management hook
  * Port of web's useMessageState.ts for React Native
+ * Enhanced with pagination support
  */
 
 import { useState, useCallback } from 'react';
@@ -9,6 +10,11 @@ import type { Message } from '../types';
 export function useMessages() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageVersions, setMessageVersions] = useState<Map<string, Message[]>>(new Map());
+  
+  // Pagination state
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   /**
    * Update a specific message by ID with partial updates
@@ -42,11 +48,14 @@ export function useMessages() {
   }, []);
 
   /**
-   * Clear all messages
+   * Clear all messages and reset pagination
    */
   const clearMessages = useCallback(() => {
     setMessages([]);
     setMessageVersions(new Map());
+    setNextCursor(null);
+    setHasMoreMessages(false);
+    setIsLoadingMore(false);
   }, []);
 
   /**
@@ -67,6 +76,24 @@ export function useMessages() {
     });
   }, []);
 
+  /**
+   * Prepend older messages to the beginning of the list (for pagination)
+   * Avoids duplicates and maintains sorted order
+   */
+  const prependMessages = useCallback((olderMessages: Message[]) => {
+    setMessages(prev => {
+      const existingIds = new Set(prev.map(m => m.id));
+      const toAdd = olderMessages.filter(m => !existingIds.has(m.id));
+      if (toAdd.length === 0) return prev;
+
+      const combined = [...toAdd, ...prev];
+      // Sort by createdAt to ensure correct order
+      return combined.sort((a, b) => 
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+    });
+  }, []);
+
   return {
     messages,
     setMessages,
@@ -77,5 +104,13 @@ export function useMessages() {
     removeMessage,
     clearMessages,
     replaceMessage,
+    // Pagination
+    prependMessages,
+    nextCursor,
+    setNextCursor,
+    hasMoreMessages,
+    setHasMoreMessages,
+    isLoadingMore,
+    setIsLoadingMore,
   };
 }

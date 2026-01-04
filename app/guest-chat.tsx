@@ -47,6 +47,10 @@ function GuestChatContent() {
     loadConversations,
     clearError,
     isLoadingConversations,
+    // Pagination
+    hasMoreMessages,
+    isLoadingMore,
+    loadMoreMessages,
 
     folders,
     togglePinConversation,
@@ -278,6 +282,17 @@ function GuestChatContent() {
                     flatListRef.current?.scrollToEnd({ animated: true });
                   }
                 }}
+                // Pagination - load more when scrolling to top
+                onStartReached={hasMoreMessages ? loadMoreMessages : undefined}
+                onStartReachedThreshold={0.5}
+                maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 100 }}
+                ListHeaderComponent={
+                  isLoadingMore ? (
+                    <View style={styles.loadingMore}>
+                      <Text style={styles.loadingMoreText}>Loading older messages...</Text>
+                    </View>
+                  ) : null
+                }
               />
             </View>
 
@@ -475,5 +490,13 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     padding: 4,
+  },
+  loadingMore: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  loadingMoreText: {
+    fontSize: 12,
+    color: theme.colors.text.tertiary,
   },
 });

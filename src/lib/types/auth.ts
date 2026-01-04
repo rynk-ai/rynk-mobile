@@ -13,7 +13,9 @@ export interface User {
 export interface Session {
   user: User;
   accessToken: string;
-  expiresAt: number;
+  refreshToken: string;
+  accessTokenExpiresAt: number; // timestamp in ms
+  refreshTokenExpiresAt: number; // timestamp in ms
 }
 
 export interface AuthState {

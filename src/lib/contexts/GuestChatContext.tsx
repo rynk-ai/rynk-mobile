@@ -12,6 +12,9 @@ import type { Message, Conversation, Folder, SurfaceMode } from '../types';
 // Initial Folders (Mock data for guest)
 const INITIAL_FOLDERS: Folder[] = [];
 
+// Page size for message pagination
+const MESSAGE_PAGE_SIZE = 30;
+
 interface GuestChatContextValue {
   // Conversations
   conversations: Conversation[];
@@ -22,6 +25,11 @@ interface GuestChatContextValue {
   
   // Messages
   messages: Message[];
+  
+  // Pagination
+  hasMoreMessages: boolean;
+  isLoadingMore: boolean;
+  loadMoreMessages: () => Promise<void>;
   
   // Streaming
   streamingMessageId: string | null;
@@ -83,6 +91,14 @@ export function GuestChatProvider({ children, initialConversationId }: GuestChat
     updateMessage,
     replaceMessage,
     clearMessages,
+    // Pagination
+    prependMessages,
+    nextCursor,
+    setNextCursor,
+    hasMoreMessages,
+    setHasMoreMessages,
+    isLoadingMore,
+    setIsLoadingMore,
   } = useMessages();
   
   const {
@@ -139,7 +155,7 @@ export function GuestChatProvider({ children, initialConversationId }: GuestChat
     loadConversations();
   }, [loadConversations]);
   
-  // Load messages when conversation changes
+  // Load messages when conversation changes (with pagination)
   useEffect(() => {
     if (!currentConversationId) {
       clearMessages();
@@ -150,21 +166,46 @@ export function GuestChatProvider({ children, initialConversationId }: GuestChat
     // Don't reload if we're sending (preserve optimistic messages)
     if (isSendingRef.current) return;
     
-    const loadMessages = async () => {
+    const loadInitialMessages = async () => {
       try {
-        const response = await guestApi.get<{ messages: Message[] }>(
-          `/guest/conversations/${currentConversationId}/messages`
+        const response = await guestApi.get<{ messages: Message[]; nextCursor: string | null }>(
+          `/guest/conversations/${currentConversationId}/messages?limit=${MESSAGE_PAGE_SIZE}`
         );
         if (response.messages) {
           setMessages(response.messages);
+          setNextCursor(response.nextCursor ?? null);
+          setHasMoreMessages(!!response.nextCursor);
         }
       } catch (err) {
         console.error('Failed to load messages:', err);
       }
     };
     
-    loadMessages();
-  }, [currentConversationId, clearMessages, clearStatus, setMessages]);
+    loadInitialMessages();
+  }, [currentConversationId, clearMessages, clearStatus, setMessages, setNextCursor, setHasMoreMessages]);
+  
+  // Load more messages (for pagination)
+  const loadMoreMessages = useCallback(async () => {
+    if (!currentConversationId || !nextCursor || isLoadingMore) return;
+    
+    setIsLoadingMore(true);
+    try {
+      const response = await guestApi.get<{ messages: Message[]; nextCursor: string | null }>(
+        `/guest/conversations/${currentConversationId}/messages?limit=${MESSAGE_PAGE_SIZE}&cursor=${encodeURIComponent(nextCursor)}`
+      );
+      if (response.messages && response.messages.length > 0) {
+        prependMessages(response.messages);
+        setNextCursor(response.nextCursor ?? null);
+        setHasMoreMessages(!!response.nextCursor);
+      } else {
+        setHasMoreMessages(false);
+      }
+    } catch (err) {
+      console.error('Failed to load more messages:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [currentConversationId, nextCursor, isLoadingMore, prependMessages, setNextCursor, setHasMoreMessages, setIsLoadingMore]);
   
   // Select conversation
   const selectConversation = useCallback((id: string | null) => {
@@ -388,6 +429,10 @@ export function GuestChatProvider({ children, initialConversationId }: GuestChat
     deleteFolder: async (id: string) => { 
       setFolders(prev => prev.filter(f => f.id !== id));
     },
+    // Pagination
+    hasMoreMessages,
+    isLoadingMore,
+    loadMoreMessages,
     clearError,
   }), [
     conversations,
@@ -411,6 +456,10 @@ export function GuestChatProvider({ children, initialConversationId }: GuestChat
     loadConversations,
     deleteConversation,
     folders,
+    // Pagination deps
+    hasMoreMessages,
+    isLoadingMore,
+    loadMoreMessages,
     clearError,
   ]);
   
