@@ -48,6 +48,9 @@ export interface Message {
   webAnnotations: WebAnnotation[] | null;
   modelUsed: string | null;
   createdAt: string;
+  // Context references
+  referencedConversations?: { id: string; title: string }[] | null;
+  referencedFolders?: { id: string; name: string }[] | null;
 }
 
 export interface Attachment {

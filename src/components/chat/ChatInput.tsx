@@ -85,6 +85,10 @@ export interface ChatInputProps {
   isGuest?: boolean;
   /** Callback to show sign in modal */
   onShowSignIn?: () => void;
+  /** Edit mode - when true, input is for editing a message */
+  editMode?: boolean;
+  /** Callback to cancel edit */
+  onCancelEdit?: () => void;
 }
 
 const MIN_INPUT_HEIGHT = 36;
@@ -109,6 +113,8 @@ export function ChatInput({
   isGuest = false,
   onShowSignIn,
   onAttach,
+  editMode = false,
+  onCancelEdit,
 }: ChatInputProps & { onAttach?: () => void }) {
   const [text, setText] = useState(initialValue);
   const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);

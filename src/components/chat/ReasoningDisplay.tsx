@@ -1,44 +1,61 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform } from 'react-native';
+/**
+ * ReasoningDisplay - Enhanced with ProcessingTimeline and LiveSourcePills
+ * Shows processing stages during AI response generation
+ * Swiss Modern: Sharp corners, minimal design
+ */
+
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { ChevronDown, ChevronRight, Brain } from 'lucide-react-native';
 import { theme } from '../../lib/theme';
-import { StatusPills, type StatusPill } from './StatusPills';
+import type { StatusPill, SearchResult } from '../../lib/hooks/useStreaming';
+import { ProcessingTimeline } from './ProcessingTimeline';
+import { LiveSourcePills, extractSourcesFromSearchResults } from './LiveSourcePills';
 
 interface ReasoningDisplayProps {
   content?: string | null;
   statusPills?: StatusPill[];
+  searchResults?: SearchResult | null;
   isStreaming?: boolean;
 }
 
-export function ReasoningDisplay({ content, statusPills = [], isStreaming = false }: ReasoningDisplayProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [animation] = useState(new Animated.Value(0));
+export function ReasoningDisplay({
+  content,
+  statusPills = [],
+  searchResults,
+  isStreaming = false,
+}: ReasoningDisplayProps) {
+  const [isExpanded, setIsExpanded] = useState(true); // Default open for better UX
 
-  // Determine if we should show the toggle
-  // Show if we have content OR if we have pills (even if empty content for now)
-  const hasContent = !!content || statusPills.length > 0;
+  // Extract sources for pills
+  const discoveredSources = useMemo(
+    () => extractSourcesFromSearchResults(searchResults),
+    [searchResults]
+  );
 
-  useEffect(() => {
-    Animated.timing(animation, {
-      toValue: isExpanded ? 1 : 0,
-      duration: 300,
-      useNativeDriver: false, // Height animation needs false
-    }).start();
-  }, [isExpanded, animation]);
+  // Check if we're in search phase
+  const isSearching = useMemo(() => {
+    const latestStatus = statusPills[statusPills.length - 1]?.status;
+    return latestStatus === 'searching' || latestStatus === 'reading_sources';
+  }, [statusPills]);
 
-  if (!hasContent) return null;
+  // Determine if we have anything to show
+  const hasContent = !!content;
+  const hasStatusPills = statusPills.length > 0;
+  const hasSources = discoveredSources.length > 0;
+  const shouldShow = hasContent || hasStatusPills || isStreaming || hasSources;
 
+  if (!shouldShow) return null;
+
+  // Get latest status for header
   const latestPill = statusPills[statusPills.length - 1];
   const statusLabel = latestPill?.message || (isStreaming ? 'Thinking...' : 'Reasoning complete');
-  
-  // Calculate height interpolation (simplified, ideally we measure content)
-  // For now we just animate opacity/transform of the content container
-  
+
   return (
     <View style={styles.container}>
       {/* Header / Toggle */}
-      <TouchableOpacity 
-        style={styles.header} 
+      <TouchableOpacity
+        style={styles.header}
         onPress={() => setIsExpanded(!isExpanded)}
         activeOpacity={0.7}
       >
@@ -48,7 +65,7 @@ export function ReasoningDisplay({ content, statusPills = [], isStreaming = fals
           </View>
           <Text style={styles.statusText}>{statusLabel}</Text>
         </View>
-        
+
         {isExpanded ? (
           <ChevronDown size={16} color={theme.colors.text.tertiary} />
         ) : (
@@ -56,24 +73,30 @@ export function ReasoningDisplay({ content, statusPills = [], isStreaming = fals
         )}
       </TouchableOpacity>
 
-      {/* Content */}
+      {/* Expanded Content */}
       {isExpanded && (
         <View style={styles.contentContainer}>
-          {/* Status Pills Visualization */}
-          {statusPills.length > 0 && (
-            <View style={styles.pillsContainer}>
-               <StatusPills pills={statusPills} />
-            </View>
+          {/* Processing Timeline */}
+          <ProcessingTimeline
+            statusPills={statusPills}
+            isStreaming={isStreaming}
+            hasContent={hasContent}
+          />
+
+          {/* Live Source Pills - shown during/after search */}
+          {(hasSources || isSearching) && (
+            <LiveSourcePills
+              sources={discoveredSources}
+              isSearching={isSearching}
+            />
           )}
 
-          {/* Reasoning Text Content */}
-          {content ? (
+          {/* Reasoning Text Content (if available) */}
+          {content && (
             <View style={styles.reasoningTextContainer}>
               <Text style={styles.reasoningText}>{content}</Text>
             </View>
-          ) : isStreaming ? (
-            <Text style={styles.placeholderText}>Generating reasoning...</Text>
-          ) : null}
+          )}
         </View>
       )}
     </View>
@@ -83,16 +106,15 @@ export function ReasoningDisplay({ content, statusPills = [], isStreaming = fals
 const styles = StyleSheet.create({
   container: {
     marginBottom: 12,
-    backgroundColor: theme.colors.background.secondary, // Surface
+    backgroundColor: theme.colors.background.secondary,
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
-    // borderRadius: 0, // Sharp
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 10, // slightly more compact
+    padding: 10,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -107,10 +129,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
-    // borderRadius: 0, // Sharp
   },
   statusText: {
-    fontSize: 12, // Compact
+    fontSize: 12,
     fontWeight: '500',
     color: theme.colors.text.secondary,
     letterSpacing: -0.1,
@@ -120,28 +141,19 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border.subtle,
-    backgroundColor: theme.colors.background.secondary, // Keep same bg
-  },
-  pillsContainer: {
-    marginVertical: 10,
+    backgroundColor: theme.colors.background.secondary,
   },
   reasoningTextContainer: {
+    marginTop: 12,
     padding: 10,
     backgroundColor: theme.colors.background.primary,
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
-    // borderRadius: 0, // Sharp
   },
   reasoningText: {
     fontSize: 12,
     lineHeight: 18,
     color: theme.colors.text.secondary,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  placeholderText: {
-    fontSize: 12,
-    color: theme.colors.text.tertiary,
-    fontStyle: 'italic',
-    padding: 4,
   },
 });

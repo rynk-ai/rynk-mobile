@@ -23,7 +23,7 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import Markdown from 'react-native-markdown-display';
-import { Copy, Check, Info, ChevronRight, Play, BookOpen, GitBranch, MessageSquare, Pencil, Trash2 } from 'lucide-react-native';
+import { Copy, Check, Info, ChevronRight, Play, BookOpen, GitBranch, MessageSquare, Pencil, Trash2, Folder, Paperclip } from 'lucide-react-native';
 import { theme } from '../../lib/theme';
 import type { Message } from '../../lib/types';
 import type { StatusPill, SearchResult } from '../../lib/hooks/useStreaming';
@@ -154,7 +154,8 @@ function MessageItemBase({
   const effectiveSearchResults = isStreaming ? searchResults : (parsedMetadata as any)?.searchResults;
 
   const displayContent = isAssistant && isStreaming ? streamingContent : message.content;
-  const showActions = displayContent && !isStreaming;
+  // Show actions when not streaming and message exists (for both user and assistant)
+  const showActions = !isStreaming && (displayContent || message.content);
   const hasSubChats = messageSubChats.length > 0;
 
   // Prepare Citations & Images
@@ -258,10 +259,11 @@ function MessageItemBase({
         {isAssistant && (
             <>
                 {/* 1. Reasoning Display */}
-                {(message.reasoningContent || (effectiveStatusPills && effectiveStatusPills.length > 0)) && (
+                {(message.reasoningContent || (effectiveStatusPills && effectiveStatusPills.length > 0) || (isStreaming && isLastMessage)) && (
                 <ReasoningDisplay 
                     content={message.reasoningContent}
                     statusPills={isLastMessage && isStreaming ? statusPills : effectiveStatusPills}
+                    searchResults={isLastMessage && isStreaming ? searchResults : effectiveSearchResults}
                     isStreaming={isStreaming && isLastMessage}
                 />
                 )}
@@ -296,6 +298,36 @@ function MessageItemBase({
             </View>
           </Animated.View>
         ) : null}
+
+        {/* Context Badges (User messages only) */}
+        {isUser && ((message.referencedConversations?.length ?? 0) > 0 || (message.referencedFolders?.length ?? 0) > 0) && (
+          <View style={styles.contextBadgesContainer}>
+            {message.referencedFolders?.map((f) => (
+              <View key={`f-${f.id}`} style={styles.contextBadge}>
+                <Folder size={10} color={theme.colors.text.tertiary} />
+                <Text style={styles.contextBadgeText} numberOfLines={1}>{f.name}</Text>
+              </View>
+            ))}
+            {message.referencedConversations?.map((c) => (
+              <View key={`c-${c.id}`} style={styles.contextBadge}>
+                <MessageSquare size={10} color={theme.colors.text.tertiary} />
+                <Text style={styles.contextBadgeText} numberOfLines={1}>{c.title}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Attachments (User messages only) */}
+        {isUser && message.attachments && message.attachments.length > 0 && (
+          <View style={styles.attachmentsContainer}>
+            {message.attachments.map((file, i) => (
+              <View key={file.id || i} style={styles.attachmentItem}>
+                <Paperclip size={12} color={theme.colors.text.tertiary} />
+                <Text style={styles.attachmentName} numberOfLines={1}>{file.fileName}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Assistant-only Footer Components */}
         {isAssistant && (
@@ -505,6 +537,53 @@ const styles = StyleSheet.create({
     padding: 0,
     opacity: 0.8,
   },
+  // Context Badges
+  contextBadgesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+    justifyContent: 'flex-end',
+  },
+  contextBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: theme.colors.background.tertiary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
+  },
+  contextBadgeText: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: theme.colors.text.tertiary,
+    maxWidth: 100,
+  },
+  // Attachments
+  attachmentsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+    justifyContent: 'flex-end',
+  },
+  attachmentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: theme.colors.background.tertiary,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
+  },
+  attachmentName: {
+    fontSize: 11,
+    color: theme.colors.text.secondary,
+    maxWidth: 120,
+  },
 });
 
 const markdownStyles = StyleSheet.create({
@@ -604,11 +683,44 @@ const markdownStyles = StyleSheet.create({
   link: {
     color: theme.colors.accent.primary,
     textDecorationLine: 'underline',
+    textDecorationStyle: 'solid',
   },
   hr: {
     backgroundColor: theme.colors.border.subtle,
     height: 1,
-    marginVertical: 16,
+    marginVertical: 20,
+  },
+  // Table styles
+  table: {
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
+    marginVertical: 12,
+  },
+  thead: {
+    backgroundColor: theme.colors.background.secondary,
+  },
+  th: {
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
+    padding: 8,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+    fontSize: 13,
+  },
+  tr: {
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.subtle,
+  },
+  td: {
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
+    padding: 8,
+    color: theme.colors.text.secondary,
+    fontSize: 13,
+  },
+  // Image
+  image: {
+    marginVertical: 12,
   },
 });
 

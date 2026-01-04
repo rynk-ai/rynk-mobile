@@ -48,6 +48,17 @@ interface ChatContextValue {
   getMessageVersions: (messageId: string) => Promise<Message[]>;
   switchToMessageVersion: (versionId: string) => Promise<void>;
   reloadMessages: () => Promise<void>;
+  
+  // Edit state
+  isEditing: boolean;
+  editingMessageId: string | null;
+  editContent: string;
+  startEdit: (message: Message) => void;
+  cancelEdit: () => void;
+  updateEditContent: (content: string) => void;
+  saveEdit: () => Promise<void>;
+  isSavingEdit: boolean;
+  
   clearError: () => void;
 }
 
@@ -78,6 +89,12 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userCredits, setUserCredits] = useState<number | null>(user?.credits ?? null);
+
+  // Edit state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   
   // Hooks
   const {
@@ -302,7 +319,158 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     }
   }, [currentConversationId, setMessages]);
 
+  // Edit actions
+  const startEdit = useCallback((message: Message) => {
+    setIsEditing(true);
+    setEditingMessageId(message.id);
+    setEditContent(message.content);
+  }, []);
+
+  const cancelEdit = useCallback(() => {
+    setIsEditing(false);
+    setEditingMessageId(null);
+    setEditContent('');
+  }, []);
+
+  const updateEditContent = useCallback((content: string) => {
+    setEditContent(content);
+  }, []);
+
+  const saveEdit = useCallback(async () => {
+    if (!editingMessageId || !currentConversationId || !editContent.trim() || isSavingEdit) return;
+
+    setIsSavingEdit(true);
+    const messageIdToEdit = editingMessageId;
+
+    try {
+      // Cancel edit UI immediately
+      cancelEdit();
+
+      // Create new version
+      const result = await api.post<{ newMessage: Message }>('/mobile/messages/edit', {
+        conversationId: currentConversationId,
+        messageId: messageIdToEdit,
+        newContent: editContent.trim(),
+      });
+
+      if (!result.newMessage) {
+        throw new Error('Failed to create message version');
+      }
+
+      // Reload messages to get updated list
+      await reloadMessages();
+
+      // Check if edited message was last user message -> generate AI response
+      const lastUserMsgIndex = messages.findLastIndex(m => m.role === 'user');
+      const editedMsgIndex = messages.findIndex(m => m.id === messageIdToEdit);
+      
+      if (lastUserMsgIndex === editedMsgIndex) {
+        // The edited message was the last user message, trigger AI response
+        // This will be handled by the streaming flow
+        const tempAssistantMsgId = `temp_assistant_${Date.now()}`;
+        const assistantMessage: Message = {
+          id: tempAssistantMsgId,
+          conversationId: currentConversationId,
+          role: 'assistant',
+          content: '',
+          attachments: null,
+          parentMessageId: null,
+          versionOf: null,
+          versionNumber: 1,
+          branchId: null,
+          reasoningContent: null,
+          reasoningMetadata: null,
+          webAnnotations: null,
+          modelUsed: null,
+          createdAt: new Date().toISOString(),
+        };
+        
+        addMessages([assistantMessage]);
+        startStreaming(tempAssistantMsgId);
+        
+        addStatusPill({
+          status: 'analyzing',
+          message: 'Thinking...',
+          timestamp: Date.now(),
+        });
+        
+        let fullContent = '';
+        
+        await api.stream(
+          '/mobile/chat',
+          {
+            conversationId: currentConversationId,
+            messageId: result.newMessage.id, // Use new message ID
+            useReasoning: 'auto',
+          },
+          (rawText: string) => {
+            const lines = rawText.split('\n');
+            let contentBuffer = '';
+            
+            for (let i = 0; i < lines.length; i++) {
+              const line = lines[i];
+              
+              if (line.startsWith('{')) {
+                try {
+                  const parsed = JSON.parse(line);
+                  if (parsed.type === 'status') {
+                    addStatusPill({
+                      status: parsed.status,
+                      message: parsed.message,
+                      timestamp: Date.now(),
+                    });
+                    continue;
+                  }
+                  if (parsed.type === 'search_results') {
+                    updateSearchResults(parsed);
+                    continue;
+                  }
+                  if (parsed.type === 'context_cards') continue;
+                  contentBuffer += line;
+                  if (i < lines.length - 1) contentBuffer += '\n';
+                } catch {
+                  contentBuffer += line;
+                  if (i < lines.length - 1) contentBuffer += '\n';
+                }
+              } else {
+                contentBuffer += line;
+                if (i < lines.length - 1) contentBuffer += '\n';
+              }
+            }
+            
+            fullContent = contentBuffer;
+            updateStreamContent(fullContent);
+          }
+        );
+        
+        updateMessage(tempAssistantMsgId, { content: fullContent });
+        finishStreaming(fullContent);
+      }
+    } catch (err) {
+      console.error('Failed to save edit:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save edit');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }, [
+    editingMessageId,
+    currentConversationId,
+    editContent,
+    isSavingEdit,
+    cancelEdit,
+    reloadMessages,
+    messages,
+    addMessages,
+    startStreaming,
+    addStatusPill,
+    updateSearchResults,
+    updateStreamContent,
+    updateMessage,
+    finishStreaming,
+  ]);
+
   // Send message with streaming
+
   const sendMessage = useCallback(async (content: string, referencedConversations?: { id: string; title: string }[]) => {
     if (!content.trim() || isSendingRef.current) return;
     
@@ -518,6 +686,15 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     getMessageVersions,
     switchToMessageVersion,
     reloadMessages,
+    // Edit state
+    isEditing,
+    editingMessageId,
+    editContent,
+    startEdit,
+    cancelEdit,
+    updateEditContent,
+    saveEdit,
+    isSavingEdit,
     clearError,
   }), [
     conversations,
@@ -546,6 +723,14 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     getMessageVersions,
     switchToMessageVersion,
     reloadMessages,
+    isEditing,
+    editingMessageId,
+    editContent,
+    startEdit,
+    cancelEdit,
+    updateEditContent,
+    saveEdit,
+    isSavingEdit,
     clearError,
   ]);
   

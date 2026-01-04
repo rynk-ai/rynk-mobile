@@ -52,6 +52,14 @@ function ChatContent() {
     sendMessage,
     createNewChat,
     clearError,
+    // Edit state
+    isEditing,
+    editingMessageId,
+    editContent,
+    startEdit,
+    cancelEdit,
+    saveEdit,
+    isSavingEdit,
   } = useChatContext();
 
   // Sub-chats (reuse guest hook for now as logic is similar)
@@ -75,7 +83,6 @@ function ChatContent() {
   const [selectedContext, setSelectedContext] = useState<ContextItem[]>([]);
   const [surfaceMode, setSurfaceMode] = useState<any>('chat');
   const [pendingPrompt, setPendingPrompt] = useState('');
-  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
 
   // Determine if we're in empty state
   const isEmptyState = messages.length === 0 && !isSending;
@@ -134,11 +141,10 @@ function ChatContent() {
     setQuotedMessage({ messageId, quotedText: text, authorRole: role });
   }, []);
 
-  // Handle edit start - populate input with message content
+  // Handle edit start - use context's startEdit
   const handleStartEdit = useCallback((message: Message) => {
-    setEditingMessage(message);
-    setPendingPrompt(message.content);
-  }, []);
+    startEdit(message);
+  }, [startEdit]);
 
   // Render message
   const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
@@ -162,9 +168,10 @@ function ChatContent() {
         }}
         conversationId={currentConversationId}
         onStartEdit={handleStartEdit}
+        isEditing={editingMessageId === item.id}
       />
     );
-  }, [messages.length, streamingMessageId, streamingContent, statusPills, searchResults, handleQuote, handleDeepDive, subChats, handleOpenExistingSubChat, currentConversationId, handleStartEdit]);
+  }, [messages.length, streamingMessageId, streamingContent, statusPills, searchResults, handleQuote, handleDeepDive, subChats, handleOpenExistingSubChat, currentConversationId, handleStartEdit, editingMessageId]);
 
   // Handle new chat
   const handleNewChat = useCallback(() => {
@@ -254,8 +261,8 @@ function ChatContent() {
             )}
 
             <AuthenticatedChatInput
-              onSend={handleSend}
-              isLoading={isSending}
+              onSend={isEditing ? saveEdit : handleSend}
+              isLoading={isSending || isSavingEdit}
               quotedMessage={quotedMessage}
               onClearQuote={() => setQuotedMessage(null)}
               showContextPicker={conversations.length > 0}
@@ -264,7 +271,9 @@ function ChatContent() {
               onRemoveContext={(id: string) => setSelectedContext(prev => prev.filter(p => p.id !== id))}
               surfaceMode={surfaceMode}
               onSurfaceModeChange={setSurfaceMode}
-              initialValue={pendingPrompt}
+              initialValue={isEditing ? editContent : pendingPrompt}
+              editMode={isEditing}
+              onCancelEdit={cancelEdit}
             />
           </>
         )}
