@@ -36,6 +36,7 @@ import { SourceImages, type SourceImage } from './SourceImages';
 import { SourcesFooter, type Citation } from './SourcesFooter';
 import { CodeBlock } from './markdown/CodeBlock';
 import { SurfaceTrigger } from './SurfaceTrigger';
+import { InlineCitation, parseCitationsInText } from './InlineCitation';
 import { useChatContext } from '../../lib/contexts/ChatContext';
 import { useRouter } from 'expo-router';
 import { VersionIndicator } from './VersionIndicator';
@@ -73,7 +74,8 @@ function formatCitationsFromSearchResults(
   if (!results || !results.sources) return [];
   // Assuming SearchResult structure matches what's needed or adapting
   // If SearchResult.sources is already { title, url, ... }
-  return results.sources.map(s => ({
+  return results.sources.map((s, index) => ({
+    id: index + 1, // Assign 1-based ID
     title: s.title,
     url: s.url,
     snippet: s.snippet,
@@ -245,6 +247,40 @@ function MessageItemBase({
 
   const canSelect = !isStreaming && displayContent;
 
+  const markdownRules = useMemo(() => ({
+    fence: (node: any, children: any, parent: any, styles: any) => {
+      const info = node.sourceInfo || '';
+      if (info.toLowerCase() === 'mermaid') {
+        const content = node.content || '';
+        return (
+          <MermaidDiagram key={node.key} code={content} />
+        );
+      }
+      return (
+        <CodeBlock key={node.key} code={node.content} language={info} />
+      );
+    },
+    // Custom text rule to parse citations
+    text: (node: any, children: any, parent: any, styles: any) => {
+      try {
+        // Parse content for [n] patterns
+        const parts = parseCitationsInText(node.content, citations || []);
+        return (
+          <Text key={node.key} style={[styles.text, { color: theme.colors.text.primary }]}>
+            {parts}
+          </Text>
+        );
+      } catch (e) {
+        // Fallback to plain text on error
+        return (
+          <Text key={node.key} style={styles.text}>
+            {node.content}
+          </Text>
+        );
+      }
+    },
+  }), [citations]);
+
   return (
     <View style={[
       styles.container,
@@ -265,6 +301,7 @@ function MessageItemBase({
                     statusPills={isLastMessage && isStreaming ? statusPills : effectiveStatusPills}
                     searchResults={isLastMessage && isStreaming ? searchResults : effectiveSearchResults}
                     isStreaming={isStreaming && isLastMessage}
+                    hasContent={!!displayContent}
                 />
                 )}
 
@@ -724,20 +761,4 @@ const markdownStyles = StyleSheet.create({
   },
 });
 
-// Custom render rules for markdown (unchanged logic)
-const markdownRules = {
-  fence: (node: any, children: any, parent: any, styles: any) => {
-    const info = node.sourceInfo || '';
-    if (info.toLowerCase() === 'mermaid') {
-      const content = node.content || '';
-      return (
-        <MermaidDiagram key={node.key} code={content} />
-      );
-    }
-    // Use custom CodeBlock
-    return (
-      <CodeBlock key={node.key} code={node.content} language={info} />
-    );
-  },
-};
 

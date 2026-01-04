@@ -10,6 +10,7 @@ export interface StatusPill {
   status: 'analyzing' | 'building_context' | 'searching' | 'reading_sources' | 'synthesizing' | 'complete';
   message: string;
   timestamp: number;
+  metadata?: any;
 }
 
 export interface SearchResult {

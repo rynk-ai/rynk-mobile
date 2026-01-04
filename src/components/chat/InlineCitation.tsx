@@ -22,14 +22,17 @@ export function InlineCitation({ id, citation }: InlineCitationProps) {
     }
   };
 
+  // Use Text with onPress for better compatibility nested inside other Text nodes (Markdown paragraphs)
   return (
-    <TouchableOpacity 
+    <Text 
       onPress={handlePress}
-      style={styles.badge}
-      hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+      style={styles.superscriptPlaceholder} // Helper to lift layout
     >
-      <Text style={styles.text}>{id}</Text>
-    </TouchableOpacity>
+      <Text style={styles.badgeText}>
+       {/* Zero-width space to force height if needed, or just padding */}
+       {` [${id}] `}
+      </Text>
+    </Text>
   );
 }
 
@@ -83,20 +86,18 @@ export function parseCitationsInText(
 }
 
 const styles = StyleSheet.create({
-  badge: {
-    backgroundColor: theme.colors.accent.primary,
-    minWidth: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-    marginHorizontal: 2,
-    // Superscript positioning
-    transform: [{ translateY: -4 }],
+  superscriptPlaceholder: {
+    // Attempt to lift via lineHeight or textAlignVertical if supported
+    lineHeight: 18, 
   },
-  text: {
+  badgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: theme.colors.accent.primary,
+    // Add vertical align details if needed, or simply color/bold
   },
+  // Used for non-text nesting if needed later
+  badge: {
+     backgroundColor: theme.colors.accent.primary,
+  }
 });

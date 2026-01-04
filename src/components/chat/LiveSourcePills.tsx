@@ -62,9 +62,11 @@ function SourcePill({ source }: { source: DiscoveredSource }) {
 }
 
 export function LiveSourcePills({ sources, isSearching }: LiveSourcePillsProps) {
-  if (sources.length === 0 && !isSearching) {
+  if ((!sources || sources.length === 0) && !isSearching) {
     return null;
   }
+  
+  const safeSources = sources || [];
 
   return (
     <View style={styles.container}>
