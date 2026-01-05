@@ -340,7 +340,7 @@ export function ChatInput({
 
 const styles = StyleSheet.create({
   container: {
-    paddingBottom: Platform.OS === 'ios' ? 0 : 16,
+    paddingBottom: 0,
     backgroundColor: theme.colors.background.primary,
   },
   // Input Card Styles

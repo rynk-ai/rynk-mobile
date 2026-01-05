@@ -49,19 +49,25 @@ export function useStreaming() {
   }, []);
 
   /**
+   * Update streaming message ID (when temp ID is replaced with real ID)
+   */
+  const updateStreamingMessageId = useCallback((newMessageId: string) => {
+    setStreamingMessageId(newMessageId);
+  }, []);
+
+  /**
    * Update streaming content with throttling (16ms batching)
    */
   const updateStreamContent = useCallback((newContent: string) => {
     contentBufferRef.current = newContent;
 
-    if (flushTimeoutRef.current) {
-      clearTimeout(flushTimeoutRef.current);
+    // Throttle: Only schedule a flush if one isn't already pending
+    if (!flushTimeoutRef.current) {
+      flushTimeoutRef.current = setTimeout(() => {
+        setStreamingContent(contentBufferRef.current);
+        flushTimeoutRef.current = null;
+      }, 16); // 60fps
     }
-
-    // Throttle to max 60fps
-    flushTimeoutRef.current = setTimeout(() => {
-      setStreamingContent(contentBufferRef.current);
-    }, 16);
   }, []);
 
   /**
@@ -132,6 +138,7 @@ export function useStreaming() {
 
     // Actions
     startStreaming,
+    updateStreamingMessageId,
     updateStreamContent,
     addStatusPill,
     updateSearchResults,

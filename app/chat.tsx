@@ -56,6 +56,7 @@ function ChatContent() {
     isEditing,
     editingMessageId,
     editContent,
+    updateEditContent,
     startEdit,
     cancelEdit,
     saveEdit,
@@ -272,6 +273,7 @@ function ChatContent() {
               surfaceMode={surfaceMode}
               onSurfaceModeChange={setSurfaceMode}
               initialValue={isEditing ? editContent : pendingPrompt}
+              onValueChange={isEditing ? updateEditContent : undefined}
               editMode={isEditing}
               onCancelEdit={cancelEdit}
             />

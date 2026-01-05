@@ -9,6 +9,7 @@ import { useMessages } from '../hooks/useMessages';
 import { useStreaming, type StatusPill, type SearchResult } from '../hooks/useStreaming';
 import { useAuth } from '../auth';
 import type { Message, Conversation, Folder, Project } from '../types';
+import { filterActiveVersions } from '../utils/filterActiveVersions';
 
 interface ChatContextValue {
   // Conversations
@@ -47,7 +48,7 @@ interface ChatContextValue {
   deleteMessage: (messageId: string) => Promise<void>;
   getMessageVersions: (messageId: string) => Promise<Message[]>;
   switchToMessageVersion: (versionId: string) => Promise<void>;
-  reloadMessages: () => Promise<void>;
+  reloadMessages: () => Promise<Message[]>;
   
   // Edit state
   isEditing: boolean;
@@ -96,6 +97,8 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
   const [editContent, setEditContent] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   
+
+  
   // Hooks
   const {
     messages,
@@ -113,12 +116,27 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     searchResults,
     isStreaming,
     startStreaming,
+    updateStreamingMessageId,
     updateStreamContent,
     addStatusPill,
     updateSearchResults,
     finishStreaming,
     clearStatus,
   } = useStreaming();
+
+  // Safety Net: Ensure isSending doesn't get stuck if streaming finishes/fails weirdly
+  useEffect(() => {
+    if (!isStreaming && isSending) {
+      const timeout = setTimeout(() => {
+        if (isSendingRef.current) {
+          console.warn('[ChatContext] Safety net: Force clearing stuck isSending state');
+          setIsSending(false);
+          isSendingRef.current = false;
+        }
+      }, 1000); // 1s grace period for post-processing
+      return () => clearTimeout(timeout);
+    }
+  }, [isStreaming, isSending]);
   
   // Refs
   const isSendingRef = useRef(false);
@@ -162,13 +180,30 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
       return;
     }
     
-    if (isSendingRef.current) return;
+    // Skip loading if we're in the middle of sending or streaming
+    if (isSendingRef.current || isStreaming) {
+      console.log('[ChatContext] Skipping loadMessages - sending or streaming in progress');
+      return;
+    }
     
     const loadMessages = async () => {
+      // Double-check we're still not sending (async race condition guard)
+      if (isSendingRef.current || isStreaming) {
+        console.log('[ChatContext] loadMessages aborted - sending started');
+        return;
+      }
+      
       try {
         const response = await api.get<{ messages: Message[] }>(
           `/mobile/conversations/${currentConversationId}/messages`
         );
+        
+        // Final check before setting - don't overwrite optimistic messages
+        if (isSendingRef.current || isStreaming) {
+          console.log('[ChatContext] loadMessages result discarded - sending in progress');
+          return;
+        }
+        
         if (response.messages) {
           setMessages(response.messages);
         }
@@ -178,7 +213,12 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     };
     
     loadMessages();
-  }, [currentConversationId, clearMessages, clearStatus, setMessages]);
+  }, [currentConversationId, clearMessages, clearStatus, setMessages, isStreaming]);
+  
+  // Debug Messages State
+  useEffect(() => {
+     console.log('[ChatContext] Messages state:', messages.length, messages.map(m => m.id));
+  }, [messages]);
   
   // Select conversation
   const selectConversation = useCallback((id: string | null) => {
@@ -189,6 +229,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
   
   // Create new chat
   const createNewChat = useCallback(() => {
+    console.log('[ChatContext] createNewChat called - clearing messages');
     setCurrentConversationId(null);
     clearMessages();
     clearStatus();
@@ -256,20 +297,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     }
   }, [currentConversationId]);
 
-  // Delete message
-  const deleteMessage = useCallback(async (messageId: string) => {
-    try {
-      if (!currentConversationId) throw new Error("No active conversation");
 
-      await api.delete(`/mobile/conversations/${currentConversationId}/messages/${messageId}`);
-      
-      // Remove from local state
-      setMessages(prev => prev.filter(m => m.id !== messageId));
-    } catch (err) {
-      console.error('Failed to delete message:', err);
-      throw err;
-    }
-  }, [currentConversationId, setMessages]);
 
   // Get message versions
   const getMessageVersions = useCallback(async (messageId: string): Promise<Message[]> => {
@@ -305,19 +333,37 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
   }, [currentConversationId, setMessages]);
 
   // Reload messages
-  const reloadMessages = useCallback(async () => {
-    if (!currentConversationId) return;
+  const reloadMessages = useCallback(async (): Promise<Message[]> => {
+    if (!currentConversationId) return [];
     try {
       const response = await api.get<{ messages: Message[] }>(
         `/mobile/conversations/${currentConversationId}/messages`
       );
       if (response.messages) {
         setMessages(response.messages);
+        return response.messages;
       }
+      return [];
     } catch (err) {
       console.error('Failed to reload messages:', err);
+      return [];
     }
   }, [currentConversationId, setMessages]);
+
+  // Delete message
+  const deleteMessage = useCallback(async (messageId: string) => {
+    try {
+      if (!currentConversationId) throw new Error("No active conversation");
+
+      await api.delete(`/mobile/conversations/${currentConversationId}/messages/${messageId}`);
+      
+      // Reload messages to reflect server-side cascading deletion
+      await reloadMessages();
+    } catch (err) {
+      console.error('Failed to delete message:', err);
+      throw err;
+    }
+  }, [currentConversationId, reloadMessages]);
 
   // Edit actions
   const startEdit = useCallback((message: Message) => {
@@ -341,110 +387,111 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
 
     setIsSavingEdit(true);
     const messageIdToEdit = editingMessageId;
+    const contentToSave = editContent.trim(); // Capture before cancelEdit
 
     try {
       // Cancel edit UI immediately
       cancelEdit();
 
+      console.log('[saveEdit] Saving edit:', { messageIdToEdit, contentToSave: contentToSave.substring(0, 50) });
+
       // Create new version
       const result = await api.post<{ newMessage: Message }>('/mobile/messages/edit', {
         conversationId: currentConversationId,
         messageId: messageIdToEdit,
-        newContent: editContent.trim(),
+        newContent: contentToSave,
       });
 
       if (!result.newMessage) {
         throw new Error('Failed to create message version');
       }
 
-      // Reload messages to get updated list
-      await reloadMessages();
+      // Reload messages to get updated list (server returns in path order)
+      const freshMessages = await reloadMessages();
+      // Note: Server already returns messages in path order with correct version
+      // No need for filterActiveVersions as server handles this via conversation.path
 
-      // Check if edited message was last user message -> generate AI response
-      const lastUserMsgIndex = messages.findLastIndex(m => m.role === 'user');
-      const editedMsgIndex = messages.findIndex(m => m.id === messageIdToEdit);
+      // Check if edited message (new version) is the last user message -> generate AI response
+      const lastUserMessage = [...freshMessages].reverse().find(m => m.role === 'user');
+      const isEditedMessageLast = lastUserMessage?.id === result.newMessage.id;
       
-      if (lastUserMsgIndex === editedMsgIndex) {
+      if (isEditedMessageLast) {
         // The edited message was the last user message, trigger AI response
-        // This will be handled by the streaming flow
-        const tempAssistantMsgId = `temp_assistant_${Date.now()}`;
-        const assistantMessage: Message = {
-          id: tempAssistantMsgId,
-          conversationId: currentConversationId,
-          role: 'assistant',
-          content: '',
-          attachments: null,
-          parentMessageId: null,
-          versionOf: null,
-          versionNumber: 1,
-          branchId: null,
-          reasoningContent: null,
-          reasoningMetadata: null,
-          webAnnotations: null,
-          modelUsed: null,
-          createdAt: new Date().toISOString(),
-        };
+        // The server will create the assistant message - we just need to stream the content
         
-        addMessages([assistantMessage]);
-        startStreaming(tempAssistantMsgId);
+        startStreaming('pending'); // Generic streaming indicator
         
         addStatusPill({
           status: 'analyzing',
           message: 'Thinking...',
           timestamp: Date.now(),
         });
-        
+
         let fullContent = '';
-        
-        await api.stream(
-          '/mobile/chat',
-          {
-            conversationId: currentConversationId,
-            messageId: result.newMessage.id, // Use new message ID
-            useReasoning: 'auto',
-          },
-          (rawText: string) => {
-            const lines = rawText.split('\n');
-            let contentBuffer = '';
-            
-            for (let i = 0; i < lines.length; i++) {
-              const line = lines[i];
-              
-              if (line.startsWith('{')) {
-                try {
-                  const parsed = JSON.parse(line);
-                  if (parsed.type === 'status') {
-                    addStatusPill({
-                      status: parsed.status,
-                      message: parsed.message,
-                      timestamp: Date.now(),
-                    });
-                    continue;
-                  }
-                  if (parsed.type === 'search_results') {
-                    updateSearchResults(parsed);
-                    continue;
-                  }
-                  if (parsed.type === 'context_cards') continue;
-                  contentBuffer += line;
-                  if (i < lines.length - 1) contentBuffer += '\n';
-                } catch {
-                  contentBuffer += line;
-                  if (i < lines.length - 1) contentBuffer += '\n';
-                }
-              } else {
-                contentBuffer += line;
-                if (i < lines.length - 1) contentBuffer += '\n';
+        let realAssistantMsgId: string | null = null;
+
+        // Create a dedicated completion handler for this stream execution
+        const handleStreamCompletion = async (finalContent: string) => {
+             finishStreaming(finalContent);
+             await reloadMessages();
+        };
+
+        try {
+          await api.stream(
+            '/mobile/chat',
+            {
+              conversationId: currentConversationId,
+              messageId: result.newMessage.id, // Use new message ID
+              useReasoning: 'auto',
+            },
+            (dataString: string) => {
+               if (!dataString) return;
+               try {
+                 const parsed = JSON.parse(dataString);
+                 
+                 if (parsed.type === 'status') {
+                   if (parsed.status === 'complete') {
+                     // Server says complete
+                     return; 
+                   }
+                   addStatusPill({
+                     status: parsed.status,
+                     message: parsed.message,
+                     timestamp: Date.now(),
+                   });
+                   return;
+                 }
+                 
+                 if (parsed.type === 'content') {
+                   fullContent += parsed.content;
+                   updateStreamContent(fullContent);
+                   return;
+                 }
+                 
+                 if (parsed.type === 'search_results') {
+                   updateSearchResults(parsed);
+                   return;
+                 }
+               } catch (e) {
+                 // Fallback
+                 fullContent += dataString;
+                 updateStreamContent(fullContent);
+               }
+            },
+            {
+              onHeaders: (headers: Headers) => {
+                 realAssistantMsgId = headers.get('X-Assistant-Message-Id');
+                 console.log('[saveEdit] Got real assistant ID from headers:', realAssistantMsgId);
               }
             }
-            
-            fullContent = contentBuffer;
-            updateStreamContent(fullContent);
-          }
-        );
-        
-        updateMessage(tempAssistantMsgId, { content: fullContent });
-        finishStreaming(fullContent);
+          );
+        } catch (e) {
+           console.error('[saveEdit] Stream error:', e);
+        } finally {
+           // ALWAYS ensure streaming is finished, even on error or hang
+           console.log('[saveEdit] Stream finished/closed, cleaning up');
+           await handleStreamCompletion(fullContent);
+        }
       }
     } catch (err) {
       console.error('Failed to save edit:', err);
@@ -484,6 +531,9 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
       const isNewConversation = !convId;
       if (!convId) {
         const response = await api.post<{ conversationId: string }>('/mobile/conversations', {});
+        if (!response?.conversationId) {
+           throw new Error('Failed to create conversation: No ID returned');
+        }
         convId = response.conversationId;
         setCurrentConversationId(convId);
       }
@@ -528,6 +578,9 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
         createdAt: new Date().toISOString(),
       };
       
+      console.log('[sendMessage] Adding optimistic messages:', { tempUserMsgId, tempAssistantMsgId });
+      
+      console.log('[sendMessage] Adding optimistic messages:', { tempUserMsgId, tempAssistantMsgId });
       addMessages([userMessage, assistantMessage]);
       startStreaming(tempAssistantMsgId);
       
@@ -536,89 +589,94 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
         message: 'Thinking...',
         timestamp: Date.now(),
       });
+
+      // Track effective IDs
+      let effectiveUserMsgId = tempUserMsgId;
+      let effectiveAssistantMsgId = tempAssistantMsgId;
       
       // Stream response
       let fullContent = '';
       
-      await api.stream(
-        '/mobile/chat',
-        {
-          conversationId: convId,
-          message: content.trim(),
-          useReasoning: 'auto',
-          referencedConversations: referencedConversations || [],
-          referencedFolders: [],
-        },
-        (rawText: string) => {
-          // The streaming format is:
-          // - Status events: {"type":"status",...}\n
-          // - Search results: {"type":"search_results",...}\n
-          // - Content: raw text (may contain newlines)
-          
-          // Strategy: Find and extract JSON events at start of lines,
-          // everything else is content
-          
-          const lines = rawText.split('\n');
-          let contentBuffer = '';
-          
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            
-            // Try to parse as JSON event
-            if (line.startsWith('{')) {
-              try {
-                const parsed = JSON.parse(line);
-                
-                // Handle status events
-                if (parsed.type === 'status') {
-                  addStatusPill({
-                    status: parsed.status,
-                    message: parsed.message,
-                    timestamp: Date.now(),
-                  });
-                  continue; // Don't add to content
-                }
-                
-                // Handle search results
-                if (parsed.type === 'search_results') {
-                  updateSearchResults(parsed);
-                  continue; // Don't add to content
-                }
-                
-                // Handle context cards (skip)
-                if (parsed.type === 'context_cards') {
-                  continue;
-                }
-                
-                // Unknown JSON - add as content
-                contentBuffer += line;
-                if (i < lines.length - 1) contentBuffer += '\n';
-              } catch {
-                // Not valid JSON - add as content
-                contentBuffer += line;
-                if (i < lines.length - 1) contentBuffer += '\n';
-              }
-            } else {
-              // Plain text line - add to content
-              contentBuffer += line;
-              if (i < lines.length - 1) contentBuffer += '\n';
-            }
+      try {
+        await api.stream(
+          '/mobile/chat',
+          {
+            conversationId: convId,
+            message: content.trim(),
+            useReasoning: 'auto',
+            referencedConversations: referencedConversations || [],
+            referencedFolders: [],
+          },
+          (dataString: string) => {
+             if (!dataString) return;
+             try {
+               const parsed = JSON.parse(dataString);
+               
+               if (parsed.type === 'meta') {
+                  // Update specific IDs from server
+                  if (parsed.userMessageId && parsed.userMessageId !== effectiveUserMsgId) {
+                     effectiveUserMsgId = parsed.userMessageId;
+                  }
+                  if (parsed.assistantMessageId && parsed.assistantMessageId !== effectiveAssistantMsgId) {
+                     effectiveAssistantMsgId = parsed.assistantMessageId;
+                  }
+                  return;
+               }
+  
+               if (parsed.type === 'status') {
+                 if (parsed.status === 'complete') return;
+                 addStatusPill({
+                   status: parsed.status,
+                   message: parsed.message,
+                   timestamp: Date.now(),
+                 });
+                 return;
+               }
+               
+               if (parsed.type === 'content') {
+                 fullContent += parsed.content;
+                 updateStreamContent(fullContent); 
+                 return;
+               }
+               
+               if (parsed.type === 'search_results') {
+                 updateSearchResults(parsed);
+                 return;
+               }
+             } catch (e) {
+               fullContent += dataString;
+               updateStreamContent(fullContent);
+             }
+          },
+          {
+             onHeaders: (headers: Headers) => {
+               const realUserMsgId = headers.get('X-User-Message-Id');
+               const realAssistantMsgId = headers.get('X-Assistant-Message-Id');
+               
+               if (realUserMsgId && realUserMsgId !== tempUserMsgId) {
+                  replaceMessage(tempUserMsgId, { ...userMessage, id: realUserMsgId });
+                  effectiveUserMsgId = realUserMsgId;
+               }
+               if (realAssistantMsgId && realAssistantMsgId !== tempAssistantMsgId) {
+                  replaceMessage(tempAssistantMsgId, { ...assistantMessage, id: realAssistantMsgId });
+                  effectiveAssistantMsgId = realAssistantMsgId;
+                  // Update streaming message ID to match the real ID
+                  updateStreamingMessageId(realAssistantMsgId);
+               }
+             }
           }
-          
-          // Set the full content (not append - rawText contains full response)
-          fullContent = contentBuffer;
-          updateStreamContent(fullContent);
-        }
-      );
-      
-      // Update message with final content
-      updateMessage(tempAssistantMsgId, { content: fullContent });
-      finishStreaming(fullContent);
-      
-      // Refresh conversations list immediately to show the new chat
-      loadData();
+        );
+      } catch (err) {
+         console.error('[sendMessage] inner stream error', err);
+         throw err;
+      } finally {
+         console.log('[sendMessage] Stream finished/closed, cleaning up');
+         // Update message with final content using correct ID
+         updateMessage(effectiveAssistantMsgId, { content: fullContent });
+         finishStreaming(fullContent);
+      }
 
-      // For new conversations, generate a title
+      // For new conversations, generate a title (Fire and forget)
       if (isNewConversation) {
         api.post<{ title: string }>('/mobile/chat/title', { 
           conversationId: convId, 
@@ -626,34 +684,40 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
         })
         .then(() => {
           // Reload conversations to reflect the new title
+          // We don't need to await this
           loadData();
         })
         .catch(err => {
           console.error('Failed to generate title:', err);
         });
       }
-      
-    } catch (err) {
-      console.error('Send message error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to send message');
-      setMessages(prev => prev.filter(m => !m.id.startsWith('temp_')));
+
+      // Reload actual messages from server to ensure we have real IDs
+      await reloadMessages();
       finishStreaming();
+
     } finally {
-      setIsSending(false);
-      isSendingRef.current = false;
+      // Force state update on next tick to ensure UI unblocks
+      setTimeout(() => {
+        setIsSending(false);
+        isSendingRef.current = false;
+        // Refresh conversations list in background
+        loadData();
+      }, 10);
     }
   }, [
     currentConversationId,
     addMessages,
     startStreaming,
+    updateStreamingMessageId,
     addStatusPill,
     updateStreamContent,
     updateSearchResults,
     updateMessage,
-    updateMessage,
+    replaceMessage,
     finishStreaming,
     loadData,
-    setMessages,
+    reloadMessages,
   ]);
   
   const clearError = useCallback(() => setError(null), []);

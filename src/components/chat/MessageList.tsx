@@ -83,6 +83,7 @@ export function MessageList({
       }
       onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
       onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
+      extraData={{ streamingMessageId, streamingContent, statusPills, searchResults }}
     />
   );
 }

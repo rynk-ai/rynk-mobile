@@ -126,10 +126,29 @@ function MessageItemBase({
   const [showCopied, setShowCopied] = useState(false);
   
   // Streaming dots animation
-  const { branchConversation, loadConversations, deleteMessage, switchToMessageVersion } = useChatContext();
+  const { branchConversation, loadConversations, deleteMessage, switchToMessageVersion, getMessageVersions } = useChatContext();
   const router = useRouter();
   const dotsAnim = useRef(new Animated.Value(0)).current;
   
+  // Versions State
+  const [localVersions, setLocalVersions] = useState<Message[]>([]);
+  const effectiveVersions = versions.length > 0 ? versions : localVersions;
+
+  useEffect(() => {
+    // Only fetch versions for user messages to show indicator
+    // Validate if we need to fetch (don't have them yet)
+    if (isUser && effectiveVersions.length === 0) {
+      let isMounted = true;
+      getMessageVersions(message.id).then(fetched => {
+        // Only update if we have multiple versions to show
+        if (isMounted && fetched && fetched.length > 1) {
+          setLocalVersions(fetched);
+        }
+      });
+      return () => { isMounted = false; };
+    }
+  }, [message.id, isUser, getMessageVersions, effectiveVersions.length]);
+
   useEffect(() => {
     if (isStreaming && !streamingContent) {
       const animation = Animated.loop(
@@ -247,39 +266,47 @@ function MessageItemBase({
 
   const canSelect = !isStreaming && displayContent;
 
-  const markdownRules = useMemo(() => ({
-    fence: (node: any, children: any, parent: any, styles: any) => {
-      const info = node.sourceInfo || '';
-      if (info.toLowerCase() === 'mermaid') {
-        const content = node.content || '';
+  const markdownRules = useMemo(() => {
+    // Base rules always available
+    const rules: any = {
+      fence: (node: any, children: any, parent: any, styles: any) => {
+        const info = node.sourceInfo || '';
+        if (info.toLowerCase() === 'mermaid') {
+          const content = node.content || '';
+          return (
+            <MermaidDiagram key={node.key} code={content} />
+          );
+        }
         return (
-          <MermaidDiagram key={node.key} code={content} />
+          <CodeBlock key={node.key} code={node.content} language={info} />
         );
-      }
-      return (
-        <CodeBlock key={node.key} code={node.content} language={info} />
-      );
-    },
-    // Custom text rule to parse citations
-    text: (node: any, children: any, parent: any, styles: any) => {
-      try {
-        // Parse content for [n] patterns
-        const parts = parseCitationsInText(node.content, citations || []);
-        return (
-          <Text key={node.key} style={[styles.text, { color: theme.colors.text.primary }]}>
-            {parts}
-          </Text>
-        );
-      } catch (e) {
-        // Fallback to plain text on error
-        return (
-          <Text key={node.key} style={styles.text}>
-            {node.content}
-          </Text>
-        );
-      }
-    },
-  }), [citations]);
+      },
+    };
+
+    // Only enable expensive citation parsing when NOT streaming
+    // This prevents layout thrashing and flicker during high-speed updates
+    if (!isStreaming) {
+        rules.text = (node: any, children: any, parent: any, styles: any) => {
+            try {
+              // Parse content for [n] patterns
+              const parts = parseCitationsInText(node.content, citations || []);
+              return (
+                <Text key={node.key} style={[styles.text, { color: theme.colors.text.primary }]}>
+                  {parts}
+                </Text>
+              );
+            } catch (e) {
+              return (
+                <Text key={node.key} style={styles.text}>
+                  {node.content}
+                </Text>
+              );
+            }
+        };
+    }
+
+    return rules;
+  }, [citations, isStreaming]);
 
   return (
     <View style={[
@@ -415,10 +442,10 @@ function MessageItemBase({
           )}
 
           {/* Version Indicator (User Only, when multiple versions) */}
-          {isUser && versions.length > 1 && (
+          {isUser && effectiveVersions.length > 1 && (
             <VersionIndicator
               message={message}
-              versions={versions}
+              versions={effectiveVersions}
               onSwitchVersion={handleSwitchVersion}
             />
           )}
