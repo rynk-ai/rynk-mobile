@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Mail, ArrowRight, Check } from 'lucide-react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -9,6 +9,7 @@ import { useAuth } from '../src/lib/auth';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { signIn, isAuthenticated, isLoading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -32,9 +33,19 @@ export default function LoginScreen() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace('/chat');
+      // Check for redirect param
+      const { redirect, prompt } = params;
+      if (typeof redirect === 'string') {
+        const routeParams: any = {};
+        if (typeof prompt === 'string') {
+          routeParams.prompt = prompt;
+        }
+        router.replace({ pathname: redirect as any, params: routeParams });
+      } else {
+        router.replace('/chat');
+      }
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, router, params]);
 
   const handleEmailLogin = async () => {
     if (!email.trim()) return;

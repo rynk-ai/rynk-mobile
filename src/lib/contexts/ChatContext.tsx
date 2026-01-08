@@ -73,6 +73,10 @@ export function useChatContext() {
   return context;
 }
 
+export function useOptionalChatContext() {
+  return useContext(ChatContext);
+}
+
 interface ChatProviderProps {
   children: React.ReactNode;
   initialConversationId?: string | null;

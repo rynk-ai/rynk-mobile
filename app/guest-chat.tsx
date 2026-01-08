@@ -62,6 +62,7 @@ function GuestChatContent() {
   const [surfaceMode, setSurfaceMode] = useState<SurfaceMode>('chat');
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [pendingPrompt, setPendingPrompt] = useState('');
+  const [inputText, setInputText] = useState(''); // Track current input
   const [quotedMessage, setQuotedMessage] = useState<QuotedMessage | null>(null);
   const [contextPickerOpen, setContextPickerOpen] = useState(false);
   const [selectedContext, setSelectedContext] = useState<ContextItem[]>([]);
@@ -131,6 +132,7 @@ function GuestChatContent() {
     console.log('[handleSend] Calling sendMessage with referencedConversations:', referencedConversations?.length || 0);
     sendMessage(finalContent, referencedConversations, surfaceMode);
     setPendingPrompt('');
+    setInputText(''); // Clear input
     setQuotedMessage(null);
     setSelectedContext([]); // Clear context after sending
   }, [sendMessage, isCreditsExhausted, quotedMessage, selectedContext, surfaceMode]);
@@ -263,6 +265,7 @@ function GuestChatContent() {
                 onSurfaceModeChange={setSurfaceMode}
                 isGuest={true}
                 onShowSignIn={() => setShowSignInModal(true)}
+                onValueChange={setInputText}
               />
             </View>
           </View>
@@ -314,6 +317,7 @@ function GuestChatContent() {
               disabled={isCreditsExhausted}
               placeholder="Continue the conversation..."
               initialValue={pendingPrompt}
+              onValueChange={setInputText}
               quotedMessage={quotedMessage}
               onClearQuote={handleClearQuote}
               showContextPicker={conversations.length > 1}
@@ -354,6 +358,7 @@ function GuestChatContent() {
         onClose={() => setShowSignInModal(false)}
         isBlocking={isCreditsExhausted}
         creditsRemaining={creditsRemaining}
+        pendingPrompt={inputText} // Pass current input
       />
 
       {/* Sub-Chat Sheet */}

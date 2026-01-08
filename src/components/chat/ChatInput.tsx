@@ -270,6 +270,19 @@ export function ChatInput({
           editable={!disabled && !isLoading}
         />
 
+        {/* Guest Sign In Overlay */}
+        {disabled && isGuest && onShowSignIn && (
+          <View style={[StyleSheet.absoluteFill, styles.signInOverlay]}>
+            <TouchableOpacity 
+              style={styles.signInButton}
+              onPress={onShowSignIn}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.signInButtonText}>Sign in to continue</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Action Bar (Bottom) */}
         <View style={styles.actionBar}>
           <View style={styles.leftActions}>
@@ -473,6 +486,31 @@ const styles = StyleSheet.create({
     color: theme.colors.accent.primary,
     fontWeight: '500',
     flexShrink: 1,
+  },
+  
+  // Sign In Overlay
+  signInOverlay: {
+    backgroundColor: 'rgba(255, 255, 255, 0.8)', // Semi-transparent overlay
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    borderRadius: theme.borderRadius.lg,
+  },
+  signInButton: {
+    backgroundColor: theme.colors.text.primary,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: theme.borderRadius.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  signInButtonText: {
+    color: theme.colors.text.inverse,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

@@ -83,7 +83,10 @@ function ChatContent() {
   const [contextPickerOpen, setContextPickerOpen] = useState(false);
   const [selectedContext, setSelectedContext] = useState<ContextItem[]>([]);
   const [surfaceMode, setSurfaceMode] = useState<any>('chat');
-  const [pendingPrompt, setPendingPrompt] = useState('');
+  
+  // Initialize with prompt from params if available
+  const params = useLocalSearchParams<{ conversationId?: string; prompt?: string }>();
+  const [pendingPrompt, setPendingPrompt] = useState(params.prompt || '');
 
   // Determine if we're in empty state
   const isEmptyState = messages.length === 0 && !isSending;

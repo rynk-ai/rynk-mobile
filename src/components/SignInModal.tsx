@@ -18,6 +18,7 @@ interface SignInModalProps {
   onClose?: () => void;
   isBlocking?: boolean; // If true, cannot dismiss (credits exhausted)
   creditsRemaining?: number | null;
+  pendingPrompt?: string;
 }
 
 export function SignInModal({
@@ -25,12 +26,23 @@ export function SignInModal({
   onClose,
   isBlocking = false,
   creditsRemaining,
+  pendingPrompt,
 }: SignInModalProps) {
   const router = useRouter();
 
   const handleSignIn = () => {
     if (onClose) onClose();
-    router.replace('/login');
+    
+    // Pass pending prompt to login screen
+    const params: any = { redirect: '/chat' };
+    if (pendingPrompt) {
+      params.prompt = pendingPrompt;
+    }
+    
+    router.replace({
+      pathname: '/login',
+      params
+    });
   };
 
   const handleClose = () => {

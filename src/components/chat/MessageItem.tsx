@@ -37,7 +37,7 @@ import { SourcesFooter, type Citation } from './SourcesFooter';
 import { CodeBlock } from './markdown/CodeBlock';
 import { SurfaceTrigger } from './SurfaceTrigger';
 import { InlineCitation, parseCitationsInText } from './InlineCitation';
-import { useChatContext } from '../../lib/contexts/ChatContext';
+import { useOptionalChatContext } from '../../lib/contexts/ChatContext';
 import { useRouter } from 'expo-router';
 import { VersionIndicator } from './VersionIndicator';
 import { Alert } from 'react-native';
@@ -126,7 +126,8 @@ function MessageItemBase({
   const [showCopied, setShowCopied] = useState(false);
   
   // Streaming dots animation
-  const { branchConversation, loadConversations, deleteMessage, switchToMessageVersion, getMessageVersions } = useChatContext();
+  const chatContext = useOptionalChatContext();
+  const { branchConversation, loadConversations, deleteMessage, switchToMessageVersion, getMessageVersions } = chatContext || {};
   const router = useRouter();
   const dotsAnim = useRef(new Animated.Value(0)).current;
   
@@ -137,7 +138,7 @@ function MessageItemBase({
   useEffect(() => {
     // Only fetch versions for user messages to show indicator
     // Validate if we need to fetch (don't have them yet)
-    if (isUser && effectiveVersions.length === 0) {
+    if (isUser && effectiveVersions.length === 0 && typeof getMessageVersions === 'function') {
       let isMounted = true;
       getMessageVersions(message.id).then(fetched => {
         // Only update if we have multiple versions to show
@@ -199,10 +200,10 @@ function MessageItemBase({
 
   // Branch handler
   const handleBranch = useCallback(async () => {
-    if (!conversationId || !message.id) return;
+    if (!conversationId || !message.id || !branchConversation) return;
     const newConversationId = await branchConversation(message.id);
     if (newConversationId) {
-      await loadConversations(); // Refresh conversation list
+      if (loadConversations) await loadConversations(); // Refresh conversation list
       router.push({ pathname: '/chat', params: { id: newConversationId } });
     }
   }, [conversationId, message.id, branchConversation, loadConversations, router]);
@@ -225,6 +226,7 @@ function MessageItemBase({
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            if (!deleteMessage) return;
             try {
               await deleteMessage(message.id);
             } catch (err) {
@@ -238,7 +240,9 @@ function MessageItemBase({
 
   // Version switch handler
   const handleSwitchVersion = useCallback(async (versionId: string) => {
-    await switchToMessageVersion(versionId);
+    if (switchToMessageVersion) {
+      await switchToMessageVersion(versionId);
+    }
   }, [switchToMessageVersion]);
 
   // Selection handlers
