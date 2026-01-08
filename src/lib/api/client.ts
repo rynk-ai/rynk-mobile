@@ -247,31 +247,38 @@ class ApiClient {
             
           } else {
              // It's raw content (Text Stream)
-             // We flush until the NEXT newline or just all of it?
-             // If we flush all of it, we might consume the start of a subsequent JSON message if they are concatenated without newline?
-             // StreamManager guarantees JSON ends with \n. But doesn't guarantee start.
-             // But sendText("...") followed by sendStatus(...) -> "Text...{"type"...}"
-             // So we must look for the START of the next structured message?
-             // Searching for "{" or "data:" is expensive and prone to false positives in text (e.g. "I wrote { code }").
              
-             // SAFE BET: Flush everything until the next newline, OR all of it if no newline?
-             // If we flush all, we accept the risk of merging.
-             // BUT, in ChatService, status updates usually happen distinct from text generation loops.
-             // So we can probably dump the buffer as content.
-             // Exception: "Analyz" ... "ing..." (split JSON). Handled by isStructured check on FIRST chunk.
+             // Check for functionality: content immediately followed by JSON control message
+             // (e.g. "Some text{"type":"status"...)
+             const jsonPatterns = [
+               '{"type":"status"',
+               '{"type":"search_results"',
+               '{"type":"context_cards"'
+             ];
              
-             // If buffer="Hello", isStructured=false. Flush "Hello". buffer="".
-             // Next chunk "{". buffer="{". isStructured=true. Wait for "}".
+             let jsonIdx = -1;
+             for (const pattern of jsonPatterns) {
+               const idx = buffer.indexOf(pattern);
+               if (idx !== -1 && (jsonIdx === -1 || idx < jsonIdx)) {
+                 jsonIdx = idx;
+               }
+             }
              
-             // What if buffer="Hello { " ?
-             // isStructured=false. Flush "Hello { ". 
-             // That breaks the JSON.
+             if (jsonIdx !== -1) {
+               // Found embedded JSON!
+               // 1. Emit content up to the JSON
+               if (jsonIdx > 0) {
+                 const contentChunk = buffer.substring(0, jsonIdx);
+                 onMessage(JSON.stringify({ type: 'content', content: contentChunk }));
+               }
+               
+               // 2. Keep the JSON part in the buffer for the next loop iteration
+               // (where isStructured will be true)
+               buffer = buffer.substring(jsonIdx);
+               continue;
+             }
              
-             // Refined Strategy:
-             // Find the first index of `\n{` or `\ndata:`? 
-             // No, StreamManager appends `\n` to JSON, so JSON is usually at start of line.
-             // So if we have raw content, we can consume up to the next newline.
-             
+             // Normal content handling
              const newlineIdx = buffer.indexOf('\n');
              if (newlineIdx === -1) {
                 // No newline. Flush ALL as content
