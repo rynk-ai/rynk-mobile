@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)', // Slightly lighter backdrop
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Darker backdrop for focus
   },
   drawer: {
     position: 'absolute',
@@ -403,36 +403,26 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background.primary,
     borderRightWidth: 1,
     borderRightColor: theme.colors.border.subtle,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 2, height: 0 },
-        shadowOpacity: 0.1, // Softer shadow
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 16,
-      },
-    }),
+    // Removed shadows for flat Swiss look
   },
   header: {
-    padding: 16, // Reduced padding
+    padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border.subtle,
   },
   // Brand header for guests
   brandHeader: {
-    marginBottom: 8,
+    marginBottom: 12,
   },
   brandText: {
-    fontSize: 24, // Smaller brand text
+    fontSize: 24,
     fontWeight: '700',
     color: theme.colors.text.primary,
-    letterSpacing: -1,
+    letterSpacing: theme.typography.letterSpacing.tight,
   },
   // Guest header styles
   creditsSection: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   creditsLabel: {
     fontSize: 13,
@@ -449,63 +439,67 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: theme.colors.text.primary,
-    paddingVertical: 10, // Compact button
+    backgroundColor: theme.colors.accent.primary, // White
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 10,
+    borderRadius: theme.borderRadius.sm, // Sharp or minimal radius
   },
   signInText: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.text.inverse,
+    color: theme.colors.text.inverse, // Black text on White button
   },
   // Authenticated header styles
   userSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   avatarContainer: {
-    marginRight: 10,
+    marginRight: 12,
   },
   avatar: {
-    width: 40, // Smaller avatar
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: theme.borderRadius.sm, // Square avatar? Or slight radius. Let's go minimal radius.
   },
   avatarPlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: theme.borderRadius.sm,
     backgroundColor: theme.colors.background.secondary,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
   },
   userInfo: {
     flex: 1,
   },
   userName: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: theme.colors.text.primary,
+    letterSpacing: -0.2,
   },
   userEmail: {
-    fontSize: 11,
+    fontSize: 12,
     color: theme.colors.text.secondary,
-    marginTop: 1,
+    marginTop: 2,
   },
   tierBadge: {
     marginTop: 4,
     alignSelf: 'flex-start',
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
     paddingVertical: 2,
-    backgroundColor: theme.colors.accent.primary + '15',
-    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
+    borderRadius: theme.borderRadius.sm,
   },
   tierText: {
     fontSize: 10,
     fontWeight: '600',
-    color: theme.colors.accent.primary,
+    color: theme.colors.text.secondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -513,38 +507,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: theme.colors.background.secondary,
-    paddingVertical: 8,
+    gap: 8,
+    backgroundColor: 'transparent',
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: theme.borderRadius.sm,
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
   },
   signOutText: {
     fontSize: 13,
     fontWeight: '500',
-    color: theme.colors.text.secondary,
+    color: theme.colors.text.primary,
   },
   // Rest of styles
   newChatSection: {
-    padding: 12, // Compact padding
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border.subtle,
   },
   newChatButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: theme.colors.background.secondary,
-    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: 'transparent', // Minimal
+    borderRadius: theme.borderRadius.sm,
     borderWidth: 1,
-    borderColor: theme.colors.border.subtle,
+    borderColor: theme.colors.border.default,
   },
   newChatText: {
-    fontSize: 14, // Smaller
+    fontSize: 14,
     fontWeight: '500',
     color: theme.colors.text.primary,
   },
@@ -553,80 +548,71 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   group: {
-    marginBottom: 16,
+    marginBottom: 24,
   },
   groupTitle: {
-    fontSize: 10, // Smaller section header
+    fontSize: 11,
     fontWeight: '600',
     color: theme.colors.text.tertiary,
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    opacity: 0.8,
+    letterSpacing: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
   },
   conversationItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6, // Very compact
-    paddingHorizontal: 16,
-    marginHorizontal: 8, // Inset look
-    borderRadius: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderLeftWidth: 2,
+    borderLeftColor: 'transparent',
   },
   conversationItemActive: {
     backgroundColor: theme.colors.background.secondary,
+    borderLeftColor: theme.colors.text.primary, // Swiss indicator
   },
   conversationIcon: {
-    width: 24, // Smaller icon box
-    height: 24,
-    borderRadius: 6,
-    backgroundColor: 'transparent', // Transparent by default
+    width: 20,
+    height: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 12,
   },
   conversationIconActive: {
-    backgroundColor: theme.colors.background.primary,
-    borderWidth: 1,
-    borderColor: theme.colors.border.subtle,
+    // No special background, just color change
   },
   conversationTitle: {
     flex: 1,
-    fontSize: 13,
-    color: theme.colors.text.secondary, // Default to secondary
+    fontSize: 14,
+    color: theme.colors.text.secondary,
   },
   conversationTitleActive: {
     fontWeight: '500',
-    color: theme.colors.text.primary, // Primary when active
+    color: theme.colors.text.primary,
   },
   // Empty state
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 60,
     paddingHorizontal: 24,
   },
   emptyIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: theme.colors.background.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
+    opacity: 0.5,
   },
   emptyText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: theme.colors.text.secondary,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   emptySubtext: {
-    fontSize: 12,
+    fontSize: 13,
     color: theme.colors.text.tertiary,
     textAlign: 'center',
   },
   footer: {
-    padding: 16,
+    padding: 20,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border.subtle,
   },
@@ -647,9 +633,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.text.tertiary,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
+    letterSpacing: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
   },
   foldersSection: {
     paddingVertical: 8,
@@ -660,13 +646,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 4,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
   },
   foldersTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   foldersList: {
     paddingTop: 4,
@@ -674,25 +660,25 @@ const styles = StyleSheet.create({
   folderItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 28, // Indented
-    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 32, // Indented
+    gap: 10,
   },
   folderName: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 14,
     color: theme.colors.text.secondary,
   },
   folderCount: {
-    fontSize: 11,
+    fontSize: 12,
     color: theme.colors.text.tertiary,
   },
   emptyFoldersText: {
-    fontSize: 12,
+    fontSize: 13,
     color: theme.colors.text.tertiary,
     fontStyle: 'italic',
-    paddingLeft: 28,
-    paddingVertical: 4,
+    paddingLeft: 32,
+    paddingVertical: 8,
   },
 });
 

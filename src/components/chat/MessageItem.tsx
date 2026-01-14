@@ -35,7 +35,7 @@ import { MermaidDiagram } from './MermaidDiagram';
 import { SourceImages, type SourceImage } from './SourceImages';
 import { SourcesFooter, type Citation } from './SourcesFooter';
 import { CodeBlock } from './markdown/CodeBlock';
-import { SurfaceTrigger } from './SurfaceTrigger';
+
 import { InlineCitation, parseCitationsInText } from './InlineCitation';
 import { useOptionalChatContext } from '../../lib/contexts/ChatContext';
 import { useRouter } from 'expo-router';
@@ -398,23 +398,12 @@ function MessageItemBase({
         )}
 
         {/* Assistant-only Footer Components */}
-        {isAssistant && (
             <>
-                {/* 3. Surface Trigger */}
-                {(parsedMetadata as any)?.detectedSurfaces && (parsedMetadata as any).detectedSurfaces.length > 0 && (
-                  <SurfaceTrigger 
-                    surfaces={(parsedMetadata as any).detectedSurfaces}
-                    conversationId={conversationId || undefined}
-                    userQuery={userQuery}
-                  />
-                )}
-
                 {/* 4. Sources Footer */}
                 {citations.length > 0 && (
                     <SourcesFooter citations={citations} />
                 )}
             </>
-        )}
 
         {/* Sub-chat indicator */}
         {hasSubChats && !isStreaming && (

@@ -29,7 +29,8 @@ export function useMessages() {
    */
   const addMessages = useCallback((newMessages: Message[]) => {
     setMessages(prev => {
-      const existingIds = new Set(prev.map(m => m.id));
+      const db = prev || [];
+      const existingIds = new Set(db.map(m => m.id));
       const toAdd = newMessages.filter(m => !existingIds.has(m.id));
       if (toAdd.length === 0) return prev;
 

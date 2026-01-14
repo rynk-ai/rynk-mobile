@@ -1,47 +1,47 @@
 /**
  * rynk Mobile Design System
  * Based on rynk-web "Cognitive Minimalist" design philosophy
- * Inspired by Notion/Perplexity with neutral, clean aesthetics
+ * "Swiss Modern" - Precision. Clarity. Bold Typography.
  */
 
-// Main background colors
+// Main background colors - Strictly Dark Mode (Swiss Modern)
 export const colors = {
-  // Backgrounds - "Swiss Modern" (True Black like Web)
+  // Backgrounds
   background: {
-    primary: '#0A0A0A',      // True Black (Web match)
-    card: '#0F0F0F',         // Surface (Web match)
-    secondary: '#1A1A1A',    // Secondary (Web match)
-    elevated: '#242424',     // Elevated
+    primary: '#0A0A0A',      // True Black
+    card: '#0F0F0F',         // Surface / Card
+    secondary: '#1A1A1A',    // Secondary elements
+    elevated: '#242424',     // Modals / Elevated surfaces
     tertiary: '#242424',     // Tertiary
   },
   
   // Foreground - Text Colors
   text: {
-    primary: '#F0F0F0',      // Primary (Web match)
-    secondary: '#A1A1AA',    // Muted foreground (Web match approx)
-    tertiary: '#71717A',     // Tertiary
-    inverse: '#0A0A0A',      // Inverse
+    primary: '#F0F0F0',      // Primary Text
+    secondary: '#A1A1AA',    // Muted Text
+    tertiary: '#71717A',     // Tertiary Text
+    inverse: '#0A0A0A',      // Inverse Text (for primary buttons)
   },
   
-  // Accent - Interactive Elements
+  // Accent - Monochrome Action
   accent: {
-    primary: '#3B82F6',      // Swiss Blue
-    secondary: '#F5F5F5',    // Secondary
-    success: '#10B981',      // Emerald Green
+    primary: '#F5F5F5',      // White (Primary Action)
+    secondary: '#242424',    // Dark Grey (Secondary Action)
+    success: '#10B981',      // Emerald Green (Keep for functional states)
     warning: '#F59E0B',      // Amber
     error: '#EF4444',        // Red
   },
   
   // Borders
   border: {
-    default: '#242424',      // Web border color
-    subtle: '#242424',       // Subtle
-    focus: '#3B82F6',        // Focus ring
+    default: '#242424',      // Default Border
+    subtle: '#1A1A1A',       // Subtle Border
+    focus: '#F5F5F5',        // Focus ring (White)
   },
   
   // Surface overlays
   surface: {
-    overlay: 'rgba(0, 0, 0, 0.7)',
+    overlay: 'rgba(0, 0, 0, 0.8)',
     glassBg: 'rgba(10, 10, 10, 0.95)',
   },
 };
@@ -57,21 +57,21 @@ export const spacing = {
   xxxl: 48,
 };
 
-// Border radius scale - Swiss Style (Sharp)
+// Border radius scale - Sharp (Swiss)
 export const borderRadius = {
   sm: 0,
   md: 0,
   lg: 0,
   xl: 0,
-  full: 0, // Even pills are sharp in strict Swiss, but we might check if 'full' acts as pill. Web has --radius: 0.
+  full: 0, // Enforce sharp even for "pills" where possible, or use specific component overrides if needed
 };
 
 // Typography
 export const typography = {
-  // Font families (system fonts similar to web)
+  // Font families
   fontFamily: {
-    sans: 'System',  // Uses system font on iOS/Android
-    mono: 'Menlo',   // Monospace for code
+    sans: 'System',  // Uses system font
+    mono: 'Menlo',   // Monospace
   },
   
   // Font sizes
@@ -97,43 +97,43 @@ export const typography = {
   
   // Line heights
   lineHeight: {
-    tight: 1.2,
-    snug: 1.375,
+    tight: 1.1,
+    snug: 1.3,
     normal: 1.5,
     relaxed: 1.625,
   },
   
-  // Letter spacing
+  // Letter spacing - Tighter for Swiss Headings
   letterSpacing: {
-    tighter: -0.05,
-    tight: -0.025,
+    tighter: -0.8,    // -0.05em approx
+    tight: -0.4,      // -0.025em approx
     normal: 0,
-    wide: 0.025,
+    wide: 0.4,
   },
 };
 
-// Shadows (subtle for minimalist design)
+// Shadows - Removed/Minimized for Flat Style
 export const shadows = {
   sm: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   md: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   lg: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
 };
 
@@ -147,40 +147,40 @@ export const animation = {
 
 // Common style patterns
 export const commonStyles = {
-  // Card styles
+  // Card styles - Flat, Bordered
   card: {
     backgroundColor: colors.background.card,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.border.subtle,
+    borderColor: colors.border.default,
   },
   
-  // Input styles
+  // Input styles - Sharp, Minimal
   input: {
-    backgroundColor: colors.background.secondary,
-    borderRadius: borderRadius.full,
+    backgroundColor: 'transparent',
+    borderRadius: borderRadius.sm,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     fontSize: typography.fontSize.md,
     color: colors.text.primary,
     borderWidth: 1,
-    borderColor: colors.border.subtle,
+    borderColor: colors.border.default,
   },
   
-  // Button primary
+  // Button primary - White Background, Black Text
   buttonPrimary: {
-    backgroundColor: colors.text.primary,
-    borderRadius: borderRadius.lg,
+    backgroundColor: colors.accent.primary,
+    borderRadius: borderRadius.sm,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
   
-  // Button secondary
+  // Button secondary - Transparent, White Border
   buttonSecondary: {
-    backgroundColor: colors.background.secondary,
-    borderRadius: borderRadius.lg,
+    backgroundColor: 'transparent',
+    borderRadius: borderRadius.sm,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
     borderWidth: 1,
@@ -189,10 +189,10 @@ export const commonStyles = {
     justifyContent: 'center' as const,
   },
   
-  // Badge styles
+  // Badge styles - Sharp, Outlined
   badge: {
     backgroundColor: colors.background.secondary,
-    borderRadius: borderRadius.full,
+    borderRadius: borderRadius.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderWidth: 1,

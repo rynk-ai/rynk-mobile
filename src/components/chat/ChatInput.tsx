@@ -4,9 +4,10 @@
  * - Auto-sizing textarea
  * - Loading animation
  * - Quote reply support
+ * - Swiss Modern Design
  */
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,39 +18,9 @@ import {
   Easing,
   Platform,
 } from 'react-native';
-import { SurfacePickerSheet } from './SurfacePickerSheet';
-import { MessageCircle, BookOpen, CheckSquare, Layers, FileText, TrendingUp, Search } from 'lucide-react-native';
-import { Send, Loader2, X, Quote, Plus, Paperclip } from 'lucide-react-native';
+import { Send, Loader2, X, Plus, Paperclip } from 'lucide-react-native';
 import { theme } from '../../lib/theme';
 import type { ContextItem } from './ContextPickerSheet';
-import { SurfaceModeSelector } from './SurfaceModeSelector'; 
-import type { SurfaceMode } from '../../lib/types';
-
-const SURFACE_ICONS: Record<string, any> = {
-  chat: MessageCircle,
-  learning: BookOpen,
-  guide: Layers,
-  quiz: CheckSquare,
-  comparison: Layers,
-  flashcard: Layers,
-  timeline: Layers,
-  wiki: FileText,
-  finance: TrendingUp,
-  research: Search,
-};
-
-const SURFACE_COLORS: Record<string, string> = {
-  chat: theme.colors.text.primary,
-  learning: '#3b82f6',
-  guide: '#22c55e',
-  quiz: '#ec4899',
-  comparison: '#6366f1',
-  flashcard: '#14b8a6',
-  timeline: '#f59e0b',
-  wiki: '#f97316',
-  finance: '#10b981',
-  research: '#a855f7',
-};
 
 export interface QuotedMessage {
   messageId: string;
@@ -77,10 +48,6 @@ export interface ChatInputProps {
   onRemoveContext?: (id: string) => void;
   /** Show the + button */
   showContextPicker?: boolean;
-  /** Current Surface Mode */
-  surfaceMode?: SurfaceMode;
-  /** Callback to change surface mode */
-  onSurfaceModeChange?: (mode: SurfaceMode) => void;
   /** Whether the user is a guest */
   isGuest?: boolean;
   /** Callback to show sign in modal */
@@ -91,7 +58,7 @@ export interface ChatInputProps {
   onCancelEdit?: () => void;
 }
 
-const MIN_INPUT_HEIGHT = 36;
+const MIN_INPUT_HEIGHT = 44; // Slightly taller for better touch target
 const MAX_INPUT_HEIGHT = 160;
 
 export function ChatInput({
@@ -108,8 +75,6 @@ export function ChatInput({
   onAddContext,
   onRemoveContext,
   showContextPicker = false,
-  surfaceMode = 'chat',
-  onSurfaceModeChange,
   isGuest = false,
   onShowSignIn,
   onAttach,
@@ -118,7 +83,6 @@ export function ChatInput({
 }: ChatInputProps & { onAttach?: () => void }) {
   const [text, setText] = useState(initialValue);
   const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
-  const [surfacePickerOpen, setSurfacePickerOpen] = useState(false);
   const inputRef = useRef<TextInput>(null);
   
   // Loading animation
@@ -189,25 +153,10 @@ export function ChatInput({
     onClearQuote?.();
   };
 
-  const SurfaceIcon = SURFACE_ICONS[surfaceMode] || MessageCircle;
-  const surfaceColor = SURFACE_COLORS[surfaceMode] || theme.colors.text.primary;
-
   const canSend = text.trim().length > 0 && !isLoading && !disabled;
 
   return (
     <View style={styles.container}>
-      {/* Surface Picker Sheet */}
-      {onSurfaceModeChange && (
-        <SurfacePickerSheet
-          open={surfacePickerOpen}
-          onOpenChange={setSurfacePickerOpen}
-          selectedMode={surfaceMode}
-          onSelectMode={onSurfaceModeChange}
-          isGuest={isGuest}
-          onShowSignIn={onShowSignIn}
-        />
-      )}
-
       {/* Quoted Message */}
       {quotedMessage && (
         <View style={styles.quoteContainer}>
@@ -286,20 +235,6 @@ export function ChatInput({
         {/* Action Bar (Bottom) */}
         <View style={styles.actionBar}>
           <View style={styles.leftActions}>
-            {/* Surface Mode Button */}
-            {onSurfaceModeChange && (
-              <TouchableOpacity
-                style={[styles.actionButton, surfaceMode !== 'chat' && { backgroundColor: surfaceColor + '15' }]}
-                onPress={() => setSurfacePickerOpen(true)}
-                disabled={disabled || isLoading}
-              >
-                <SurfaceIcon 
-                  size={18} 
-                  color={surfaceMode !== 'chat' ? surfaceColor : theme.colors.text.secondary} 
-                />
-              </TouchableOpacity>
-            )}
-
             {/* Context Button */}
             {showContextPicker && onAddContext && (
               <TouchableOpacity
@@ -356,28 +291,17 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
     backgroundColor: theme.colors.background.primary,
   },
-  // Input Card Styles
+  // Input Card Styles - Flat Swiss
   inputCard: {
     backgroundColor: theme.colors.background.secondary,
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: theme.borderRadius.sm, // Sharp
     overflow: 'hidden',
-    // Swiss Modern Shadow
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
+    // No shadows
   },
   input: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
     fontSize: 15,
@@ -385,7 +309,7 @@ const styles = StyleSheet.create({
     minHeight: MIN_INPUT_HEIGHT,
     maxHeight: MAX_INPUT_HEIGHT,
     lineHeight: 22,
-    backgroundColor: 'transparent', // Transparent to blend with card
+    backgroundColor: 'transparent',
   },
   // Action Bar Styles
   actionBar: {
@@ -402,40 +326,41 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   actionButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 6, // Specific small radius for internal buttons or theme.borderRadius.sm
+    width: 36,
+    height: 36,
+    borderRadius: theme.borderRadius.sm, // Sharp
     alignItems: 'center',
     justifyContent: 'center',
-    // Ghost style by default (transparent)
   },
   sendButton: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6, // Matches action buttons
-    backgroundColor: theme.colors.background.primary, // Contrast with card (secondary)
+    borderRadius: theme.borderRadius.sm, // Sharp
+    backgroundColor: theme.colors.background.tertiary, // Disabled state
   },
   sendButtonActive: {
-    backgroundColor: theme.colors.text.primary,
+    backgroundColor: theme.colors.text.primary, // Active state (White)
   },
   sendButtonLoading: {
-    backgroundColor: theme.colors.accent.primary || theme.colors.text.primary,
+    backgroundColor: theme.colors.accent.primary,
   },
   
-  // Quote styles (unchanged mostly, but ensured alignment)
+  // Quote styles
   quoteContainer: {
     marginHorizontal: 16,
     marginTop: 10,
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: theme.colors.background.secondary,
-    borderRadius: theme.borderRadius.lg,
-    borderLeftWidth: 3,
+    borderRadius: theme.borderRadius.sm, // Sharp
+    borderLeftWidth: 2,
     borderLeftColor: theme.colors.accent.primary,
     padding: 10,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
   },
   quoteBar: {
     display: 'none', 
@@ -448,9 +373,9 @@ const styles = StyleSheet.create({
   quoteAuthor: {
     fontSize: 11,
     fontWeight: '600',
-    color: theme.colors.accent.primary,
+    color: theme.colors.text.primary,
     textTransform: 'uppercase', 
-    marginBottom: 0,
+    letterSpacing: 0.5,
   },
   quoteText: {
     fontSize: 13,
@@ -473,8 +398,10 @@ const styles = StyleSheet.create({
   contextPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.accent.primary + '15',
-    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.background.tertiary,
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
+    borderRadius: theme.borderRadius.sm, // Sharp
     paddingVertical: 6,
     paddingLeft: 12,
     paddingRight: 8,
@@ -483,29 +410,24 @@ const styles = StyleSheet.create({
   },
   contextPillText: {
     fontSize: 12,
-    color: theme.colors.accent.primary,
+    color: theme.colors.text.secondary,
     fontWeight: '500',
     flexShrink: 1,
   },
   
   // Sign In Overlay
   signInOverlay: {
-    backgroundColor: 'rgba(255, 255, 255, 0.8)', // Semi-transparent overlay
+    backgroundColor: 'rgba(0,0,0,0.6)', // Dark overlay
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: theme.borderRadius.sm,
   },
   signInButton: {
-    backgroundColor: theme.colors.text.primary,
+    backgroundColor: theme.colors.accent.primary,
     paddingVertical: 8,
     paddingHorizontal: 16,
-    borderRadius: theme.borderRadius.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: theme.borderRadius.sm,
   },
   signInButtonText: {
     color: theme.colors.text.inverse,
@@ -513,4 +435,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

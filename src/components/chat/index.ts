@@ -9,8 +9,6 @@ export { SelectableMessage } from './SelectableMessage';
 export { SubChatSheet } from './SubChatSheet';
 export { MermaidDiagram } from './MermaidDiagram';
 export { ContextPickerSheet, type ContextItem } from './ContextPickerSheet';
-export * from './SurfacePickerSheet';
-export * from './SurfaceModeSelector';
 export * from './MessageList';
 export * from './AuthenticatedChatInput';
 export type { StatusPill, SearchResult } from '../../lib/hooks/useStreaming';

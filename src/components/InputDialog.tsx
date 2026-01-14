@@ -128,49 +128,46 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Darker backdrop
   },
   content: {
     width: '100%',
     maxWidth: 320,
     backgroundColor: theme.colors.background.card,
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: theme.borderRadius.sm, // Sharp
+    padding: 24,
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
+    // Removed shadows
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   title: {
     fontSize: 16,
     fontWeight: '600',
     color: theme.colors.text.primary,
+    letterSpacing: -0.2,
   },
   description: {
     fontSize: 13,
     color: theme.colors.text.secondary,
-    marginBottom: 16,
-    lineHeight: 18,
+    marginBottom: 20,
+    lineHeight: 20,
   },
   input: {
-    backgroundColor: theme.colors.background.secondary,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: 'transparent', // Minimal input
+    borderRadius: theme.borderRadius.sm,
+    paddingHorizontal: 0, // Underline style or minimal box? Let's go minimal box.
+    padding: 12,
     fontSize: 15,
     color: theme.colors.text.primary,
     borderWidth: 1,
     borderColor: theme.colors.border.default,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   footer: {
     flexDirection: 'row',
@@ -179,29 +176,33 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
+    borderRadius: theme.borderRadius.sm,
   },
   cancelText: {
-    fontSize: 14,
-    color: theme.colors.text.secondary,
+    fontSize: 13,
+    color: theme.colors.text.primary,
     fontWeight: '500',
   },
   submitButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: theme.colors.text.primary,
+    gap: 8,
+    backgroundColor: theme.colors.accent.primary, // White
     paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: theme.borderRadius.sm,
+    minWidth: 100,
   },
   submitButtonDisabled: {
     opacity: 0.5,
   },
   submitText: {
-    fontSize: 14,
-    color: theme.colors.text.inverse,
+    fontSize: 13,
+    color: theme.colors.text.inverse, // Black
     fontWeight: '600',
   },
 });
