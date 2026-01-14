@@ -18,8 +18,7 @@ function configureGoogleSignIn() {
   if (isGoogleSignInConfigured) return;
   try {
     GoogleSignin.configure({
-      webClientId: '401382357558-s9fq3lsl2sog3lndd8v4l92mqek3sbbr.apps.googleusercontent.com',
-      iosClientId: '401382357558-g2615f5a98vegfeks9ugjsoi36an3qls.apps.googleusercontent.com',
+      webClientId: '400644197476-1mai5n25a5vln4fvelua41oo1mm8crik.apps.googleusercontent.com',
       offlineAccess: true,
     });
     isGoogleSignInConfigured = true;
