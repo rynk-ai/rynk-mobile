@@ -107,16 +107,6 @@ function ChatContent() {
 
   // Handle send
   const handleSend = useCallback((content: string) => {
-    // Handle Surface generation (all non-chat surfaces)
-    if (surfaceMode && surfaceMode !== 'chat') {
-      router.push({
-        pathname: '/surface',
-        params: { type: surfaceMode, query: content, conversationId: currentConversationId }
-      });
-      setQuotedMessage(null);
-      setSelectedContext([]);
-      return;
-    }
 
     let finalContent = content;
     
@@ -235,8 +225,6 @@ function ChatContent() {
                 onAddContext={() => setContextPickerOpen(true)}
                 contextItems={selectedContext}
                 onRemoveContext={(id: string) => setSelectedContext(prev => prev.filter(p => p.id !== id))}
-                surfaceMode={surfaceMode}
-                onSurfaceModeChange={setSurfaceMode}
                 initialValue={pendingPrompt}
               />
             </View>
@@ -273,8 +261,6 @@ function ChatContent() {
               onAddContext={() => setContextPickerOpen(true)}
               contextItems={selectedContext}
               onRemoveContext={(id: string) => setSelectedContext(prev => prev.filter(p => p.id !== id))}
-              surfaceMode={surfaceMode}
-              onSurfaceModeChange={setSurfaceMode}
               initialValue={isEditing ? editContent : pendingPrompt}
               onValueChange={isEditing ? updateEditContent : undefined}
               editMode={isEditing}

@@ -117,17 +117,6 @@ function GuestChatContent() {
     const referencedConversations = selectedContext.length > 0 
       ? selectedContext.map(item => ({ id: item.id, title: item.title })) 
       : undefined;
-    
-    // Handle Surface generation (all non-chat surfaces)
-    if (surfaceMode && surfaceMode !== 'chat') {
-      router.push({
-        pathname: '/guest-surface',
-        params: { type: surfaceMode, query: content }
-      });
-      setPendingPrompt('');
-      setSelectedContext([]);
-      return;
-    }
 
     console.log('[handleSend] Calling sendMessage with referencedConversations:', referencedConversations?.length || 0);
     sendMessage(finalContent, referencedConversations, surfaceMode);
@@ -261,8 +250,6 @@ function GuestChatContent() {
                 onAddContext={() => setContextPickerOpen(true)}
                 contextItems={selectedContext}
                 onRemoveContext={(id: string) => setSelectedContext(prev => prev.filter(item => item.id !== id))}
-                surfaceMode={surfaceMode}
-                onSurfaceModeChange={setSurfaceMode}
                 isGuest={true}
                 onShowSignIn={() => setShowSignInModal(true)}
                 onValueChange={setInputText}
@@ -325,8 +312,6 @@ function GuestChatContent() {
 
               contextItems={selectedContext}
               onRemoveContext={(id: string) => setSelectedContext(prev => prev.filter(item => item.id !== id))}
-              surfaceMode={surfaceMode}
-              onSurfaceModeChange={setSurfaceMode}
               isGuest={true}
               onShowSignIn={() => setShowSignInModal(true)}
             />
