@@ -5,27 +5,8 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-
-export interface StatusPill {
-  status: 'analyzing' | 'building_context' | 'searching' | 'reading_sources' | 'synthesizing' | 'complete';
-  message: string;
-  timestamp: number;
-  metadata?: any;
-}
-
-export interface SearchResult {
-  query: string;
-  sources: Array<{
-    type: string;
-    url: string;
-    title: string;
-    snippet: string;
-    image?: string;
-    images?: string[];
-  }>;
-  strategy?: string[];
-  totalResults?: number;
-}
+import type { StatusPill, SearchResult } from '../types';
+export type { StatusPill, SearchResult };
 
 export function useStreaming() {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);

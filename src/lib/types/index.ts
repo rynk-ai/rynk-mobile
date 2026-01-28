@@ -300,3 +300,30 @@ export interface LearningMetadata {
   }[];
 }
 
+// Streaming Types
+export interface StatusMetadata {
+  contextChunks?: number;
+  sourceCount?: number;
+  currentSource?: string;
+}
+
+export interface StatusPill {
+  status: 'analyzing' | 'building_context' | 'searching' | 'reading_sources' | 'synthesizing' | 'complete' | 'planning' | 'researching';
+  message: string;
+  timestamp: number;
+  metadata?: StatusMetadata;
+}
+
+export interface SearchResult {
+  query: string;
+  sources: Array<{
+    type: string;
+    url: string;
+    title: string;
+    snippet: string;
+    image?: string;
+    images?: string[];
+  }>;
+  strategy?: string[];
+  totalResults?: number;
+}

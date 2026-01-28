@@ -328,15 +328,14 @@ function MessageItemBase({
         {isAssistant && (
             <>
                 {/* 1. Reasoning Display */}
-                {(message.reasoningContent || (effectiveStatusPills && effectiveStatusPills.length > 0) || (isStreaming && isLastMessage)) && (
+                {(effectiveStatusPills && effectiveStatusPills.length > 0) || (isStreaming && isLastMessage) ? (
                 <ReasoningDisplay 
-                    content={message.reasoningContent}
-                    statusPills={isLastMessage && isStreaming ? statusPills : effectiveStatusPills}
+                    statuses={isLastMessage && isStreaming ? (statusPills || []) : (effectiveStatusPills || [])}
                     searchResults={isLastMessage && isStreaming ? searchResults : effectiveSearchResults}
                     isStreaming={isStreaming && isLastMessage}
                     hasContent={!!displayContent}
                 />
-                )}
+                ) : null}
 
                 {/* 2. Source Images (Hero) */}
                 {sourceImages.length > 0 && (

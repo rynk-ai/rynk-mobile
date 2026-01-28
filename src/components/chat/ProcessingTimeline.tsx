@@ -1,32 +1,32 @@
-/**
- * ProcessingTimeline - Replicated from Web App
- * Features:
- * - Chain of Thought vertical structure
- * - 4 Stages: Files, Context, Search, Generate
- * - Collapsible steps with LayoutAnimation
- * - Embedded LiveSourcePills
- */
 
-import React, { memo, useMemo, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, LayoutAnimation, Platform, UIManager } from 'react-native';
-import {
-  FileText,
-  Database,
-  Globe,
-  Sparkles,
-  Check,
-  Loader2,
-  ChevronDown,
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { 
+  FileText, 
+  Database, 
+  Globe, 
+  Sparkles, 
+  Check, 
+  Loader2 
 } from 'lucide-react-native';
 import { theme } from '../../lib/theme';
-import type { StatusPill, SearchResult } from '../../lib/hooks/useStreaming';
-import { LiveSourcePills, extractSourcesFromSearchResults, type DiscoveredSource } from './LiveSourcePills';
+import { ChainOfThought, ChainOfThoughtStep, ChainOfThoughtTrigger, ChainOfThoughtContent, ChainOfThoughtItem } from './ChainOfThought';
+import type { StatusPill, StatusMetadata } from '../../lib/types';
 
-// Enable LayoutAnimation on Android
-if (Platform.OS === 'android') {
-  if (UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-  }
+// Types (simplified from web)
+export interface PDFJob {
+  jobId: string;
+  fileName: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  progress: number;
+  error?: string;
+}
+
+export interface IndexingJob {
+    id: string;
+    fileName: string;
+    status: 'pending' | 'processing' | 'completed' | 'failed';
+    progress: number;
 }
 
 export interface ProcessingStage {
@@ -34,48 +34,81 @@ export interface ProcessingStage {
   label: string;
   status: 'pending' | 'active' | 'complete' | 'skipped';
   description?: string;
-  metadata?: any;
+  metadata?: StatusMetadata & {
+    jobs?: IndexingJob[];
+    pdfJobs?: PDFJob[];
+  };
+}
+
+interface SearchSource {
+  url: string;
+  title: string;
+  snippet?: string;
+}
+
+interface SearchResults {
+  sources: SearchSource[];
 }
 
 interface ProcessingTimelineProps {
   statusPills: StatusPill[];
+  indexingJobs?: IndexingJob[];
+  pdfJobs?: PDFJob[];
   isStreaming: boolean;
   hasContent: boolean;
-  searchResults?: SearchResult | null;
+  searchResults?: SearchResults | null;
+  style?: any;
 }
 
-// ----------------------------------------------------------------------
-// 1. Data Logic (Ported from Web)
-// ----------------------------------------------------------------------
-
+// Logic (Replicated from web)
 function deriveStages(
   statusPills: StatusPill[],
+  indexingJobs: IndexingJob[] = [],
+  pdfJobs: PDFJob[] = [],
   isStreaming: boolean,
   hasContent: boolean
 ): ProcessingStage[] {
   const stages: ProcessingStage[] = [];
   
-  // Safe access
-  const safePills = statusPills || [];
-  const latestStatus = safePills.length > 0 ? safePills[safePills.length - 1] : null;
+  const latestStatus = statusPills.length > 0 ? statusPills[statusPills.length - 1] : null;
   const currentStatus = latestStatus?.status;
   
-  // Check if we have any status that indicates web search happened
-  const hasSearched = safePills.some(s => 
+  const hasSearched = statusPills.some(s => 
     s.status === 'searching' || s.status === 'reading_sources'
   );
   
-  // Check if context was built
-  const hasBuiltContext = safePills.some(s => s.status === 'building_context');
-  const contextPill = safePills.find(s => s.status === 'building_context');
+  const hasBuiltContext = statusPills.some(s => s.status === 'building_context');
+  const contextPill = statusPills.find(s => s.status === 'building_context');
   
-  // Note: 'Files' stage skipped as we don't have indexingJobs prop yet in mobile
+  // 1. Files
+  const activeJobs = indexingJobs.filter(j => j.status !== 'completed' && j.status !== 'failed');
+  const activePdfJobs = pdfJobs.filter(j => j.status !== 'completed' && j.status !== 'failed');
+  const hasFiles = indexingJobs.length > 0 || pdfJobs.length > 0;
   
-  // 2. Context stage
+  if (hasFiles) {
+    const allIndexingComplete = indexingJobs.every(j => j.status === 'completed');
+    const allPdfComplete = pdfJobs.every(j => j.status === 'completed');
+    const allComplete = allIndexingComplete && allPdfComplete;
+    const totalFiles = indexingJobs.length + pdfJobs.length;
+    const completedFiles = indexingJobs.filter(j => j.status === 'completed').length + 
+                          pdfJobs.filter(j => j.status === 'completed').length;
+    
+    stages.push({
+      id: 'files',
+      label: allComplete ? 'Files processed' : 'Processing files',
+      status: allComplete ? 'complete' : (activeJobs.length > 0 || activePdfJobs.length > 0 ? 'active' : 'pending'),
+      description: `${completedFiles}/${totalFiles} files indexed`,
+      metadata: {
+        jobs: indexingJobs,
+        pdfJobs: pdfJobs,
+      }
+    });
+  }
+  
+  // 2. Context
   if (hasBuiltContext || hasSearched || currentStatus === 'synthesizing' || hasContent) {
     const isContextComplete = hasSearched || currentStatus === 'synthesizing' || hasContent;
-    // Mobile metadata might differ, checking generic metadata structure
-    const contextChunks = (contextPill?.metadata as any)?.contextChunks;
+    const contextChunks = contextPill?.metadata?.contextChunks;
     
     stages.push({
       id: 'context',
@@ -88,267 +121,162 @@ function deriveStages(
           ? 'active' 
           : 'pending',
       description: contextChunks 
-        ? `Found ${contextChunks} relevant pieces of information` 
-        : 'Searching through conversation history',
+        ? `Found ${contextChunks} relevant pieces of information from your knowledge base` 
+        : 'Searching through conversation history and knowledge base',
       metadata: contextPill?.metadata
     });
   }
   
-  // 3. Search stage
-  if (hasSearched) {
-    const searchPill = safePills.find(s => s.status === 'reading_sources' || s.status === 'searching');
+  // 3. Search
+  const hasDeepResearch = statusPills.some(s => s.status === 'planning' || s.status === 'researching');
+  
+  if (hasSearched || hasDeepResearch) {
+    const searchPill = statusPills.find(s => 
+      s.status === 'reading_sources' || 
+      s.status === 'searching' ||
+      s.status === 'planning' ||
+      s.status === 'researching'
+    );
     const isSearchComplete = currentStatus === 'synthesizing' || hasContent;
-    const sourceCount = (searchPill?.metadata as any)?.sourceCount;
-    const currentSource = (searchPill?.metadata as any)?.currentSource;
+    const sourceCount = searchPill?.metadata?.sourceCount;
     
+    let label = hasDeepResearch ? 'Deep Research' : 'Web Search';
+    let description = 'Finding relevant sources';
+    
+    if (isSearchComplete) {
+       label = hasDeepResearch 
+         ? `Researched ${sourceCount || ''} sources` 
+         : `Found ${sourceCount || ''} sources`;
+       description = `Gathered information from ${sourceCount || 0} sources`;
+    } else {
+       if (currentStatus === 'planning') {
+         description = 'Formulating research strategy...';
+       } else if (currentStatus === 'researching') {
+         description = searchPill?.message || 'Conducting deep research...';
+       } else if (searchPill?.metadata?.currentSource) {
+         description = `Reading: ${searchPill.metadata.currentSource}`;
+       }
+    }
+
     stages.push({
       id: 'search',
-      label: isSearchComplete 
-        ? `Found ${sourceCount || ''} sources` 
-        : 'Searching the web',
+      label: label,
       status: isSearchComplete 
         ? 'complete' 
-        : (currentStatus === 'searching' || currentStatus === 'reading_sources')
+        : (currentStatus === 'searching' || currentStatus === 'reading_sources' || currentStatus === 'planning' || currentStatus === 'researching')
           ? 'active'
           : 'pending',
-      description: currentSource 
-        ? `Currently reading: ${currentSource}`
-        : sourceCount 
-          ? `Gathered information from ${sourceCount} web sources`
-          : 'Finding relevant sources from the web',
+      description: description,
       metadata: searchPill?.metadata
     });
-  }
-  
-  // 4. Generate stage
-  if (isStreaming || hasContent || currentStatus === 'synthesizing') {
-    stages.push({
-      id: 'generate',
-      label: hasContent ? 'Response complete' : 'Generating response',
-      status: hasContent 
-        ? 'complete' 
-        : isStreaming || currentStatus === 'synthesizing'
-          ? 'active'
-          : 'pending',
-      description: hasContent 
-        ? undefined
-        : 'Synthesizing information into a comprehensive answer'
-    });
-  }
-  
-  // Fallback: If no stages derived but streaming (e.g. very start), show generic "Thinking"
-  if (stages.length === 0 && isStreaming) {
-      // We can use 'context' or 'generate' as placeholder
-      stages.push({
-          id: 'generate', // Use generate icon (Sparkles)
-          label: 'Thinking...',
-          status: 'active',
-          description: 'Analyzing your request'
-      });
   }
   
   return stages;
 }
 
-// ----------------------------------------------------------------------
-// 2. UI Components (Chain of Thought)
-// ----------------------------------------------------------------------
-
 function StageIcon({ stageId, status }: { stageId: ProcessingStage['id'], status: ProcessingStage['status'] }) {
-  const size = 14;
-  const color = status === 'active' ? theme.colors.accent.primary : 
-                status === 'complete' ? theme.colors.accent.primary : // Web uses primary for check too? Web uses text-primary which is black/white. Mobile uses accent for check.
-                theme.colors.text.tertiary;
-
+  const iconSize = 14;
+  const color = status === 'active' ? theme.colors.text.primary : theme.colors.text.tertiary;
+  
   if (status === 'complete') {
-    return <Check size={size} color={color} />;
+    return <Check size={iconSize} color={theme.colors.accent.primary} />;
   }
   
   if (status === 'active') {
-    return <Loader2 size={size} color={theme.colors.accent.primary} />; // Animate this via parent or effect if possible
+    // Should be animated spinner in real implementation
+    return <Loader2 size={iconSize} color={theme.colors.accent.primary} />; // animate manually or use specific prop if available
   }
   
   switch (stageId) {
-    case 'files': return <FileText size={size} color={color} />;
-    case 'context': return <Database size={size} color={color} />;
-    case 'search': return <Globe size={size} color={color} />;
-    case 'generate': return <Sparkles size={size} color={color} />;
-    default: return <Sparkles size={size} color={color} />;
+    case 'files': return <FileText size={iconSize} color={color} />;
+    case 'context': return <Database size={iconSize} color={color} />;
+    case 'search': return <Globe size={iconSize} color={color} />;
+    case 'generate': return <Sparkles size={iconSize} color={color} />;
+    default: return <Sparkles size={iconSize} color={color} />;
   }
 }
 
-function ChainOfThoughtStep({ 
-    stage, 
-    isLast, 
-    children 
-}: { 
-    stage: ProcessingStage, 
-    isLast: boolean, 
-    children?: React.ReactNode 
-}) {
-    // Default open if active
-    const [isOpen, setIsOpen] = useState(stage.status === 'active');
-    
-    // Auto-open when becoming active
-    useEffect(() => {
-        if (stage.status === 'active') {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setIsOpen(true);
-        }
-    }, [stage.status]);
-
-    const toggleOpen = () => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setIsOpen(!isOpen);
-    };
-
-    const isComplete = stage.status === 'complete';
-    const isActive = stage.status === 'active';
-    
-    return (
-        <View style={styles.stepContainer}>
-            {/* Header */}
-            <Pressable onPress={toggleOpen} style={styles.stepHeader}>
-                <View style={styles.iconContainer}>
-                    <StageIcon stageId={stage.id} status={stage.status} />
-                </View>
-                <Text style={[
-                    styles.stepLabel, 
-                    isActive && styles.labelActive,
-                    isComplete && styles.labelComplete
-                ]}>
-                    {stage.label}
-                </Text>
-                 {/* Optional: Add chevron if desired, web has it on hover or implicit */}
-            </Pressable>
-
-            {/* Vertical Connector Line */}
-            {!isLast && <View style={[styles.connectorLine, { backgroundColor: theme.colors.border.subtle }]} />}
-
-            {/* Content */}
-            {isOpen && (
-                <View style={styles.stepContent}>
-                    {stage.description && (
-                        <Text style={styles.stepDescription}>{stage.description}</Text>
-                    )}
-                    {children}
-                </View>
-            )}
-        </View>
-    );
-}
-
-// ----------------------------------------------------------------------
-// 3. Main Component
-// ----------------------------------------------------------------------
-
-export const ProcessingTimeline = memo(function ProcessingTimeline({
+export function ProcessingTimeline({
   statusPills,
+  indexingJobs = [],
+  pdfJobs = [],
   isStreaming,
   hasContent,
   searchResults,
+  style
 }: ProcessingTimelineProps) {
+  
   const stages = useMemo(
-    () => deriveStages(statusPills, isStreaming, hasContent),
-    [statusPills, isStreaming, hasContent]
+    () => deriveStages(statusPills, indexingJobs, pdfJobs, isStreaming, hasContent),
+    [statusPills, indexingJobs, pdfJobs, isStreaming, hasContent]
   );
   
-  // Filter visible stages
   const visibleStages = useMemo(
     () => stages.filter(s => s.status === 'active' || s.status === 'complete'),
     [stages]
   );
   
-  const discoveredSources = useMemo(
-      () => extractSourcesFromSearchResults(searchResults), 
-      [searchResults]
-  );
-  
   if (visibleStages.length === 0) return null;
 
-  // Web Logic: Don't render if everything is complete and we have content
-  // "const allComplete = visibleStages.every(s => s.status === 'complete')"
-  // "if (allComplete && hasContent && !isStreaming) return null"
   const allComplete = visibleStages.every(s => s.status === 'complete');
-  if (allComplete && hasContent && !isStreaming) {
-      return null;
-  }
+  if (allComplete && hasContent && !isStreaming) return null;
 
   return (
-    <View style={styles.container}>
-      {visibleStages.map((stage, index) => (
-        <ChainOfThoughtStep
-          key={stage.id}
-          stage={stage}
-          isLast={index === visibleStages.length - 1}
-        >
-            {/* Inject LiveSourcePills into Search stage */}
-            {stage.id === 'search' && discoveredSources.length > 0 && (
-                <View style={{ marginTop: 8 }}>
-                    <LiveSourcePills 
-                        sources={discoveredSources} 
-                        isSearching={stage.status === 'active'} 
-                    />
-                </View>
-            )}
-        </ChainOfThoughtStep>
-      ))}
+    <View style={[styles.container, style]}>
+      <ChainOfThought>
+        {visibleStages.map((stage) => (
+          <ChainOfThoughtStep 
+            key={stage.id}
+            defaultOpen={stage.status === 'active'}
+          >
+            <ChainOfThoughtTrigger 
+               leftIcon={<StageIcon stageId={stage.id} status={stage.status} />}
+               status={stage.status}
+            >
+              {stage.label}
+            </ChainOfThoughtTrigger>
+            
+            <ChainOfThoughtContent>
+              {stage.description && (
+                <ChainOfThoughtItem>
+                  {stage.description}
+                </ChainOfThoughtItem>
+              )}
+              
+              {/* File details */}
+              {stage.id === 'files' && stage.metadata?.jobs && (
+                 stage.metadata.jobs.map((job: IndexingJob) => (
+                   <ChainOfThoughtItem key={job.id}>
+                     • {job.fileName} ({job.progress}%)
+                   </ChainOfThoughtItem>
+                 ))
+              )}
+
+              {/* Search results - simplified for mobile */}
+              {stage.id === 'search' && searchResults?.sources && searchResults.sources.length > 0 && (
+                 <View style={{ marginTop: 4 }}>
+                   {searchResults.sources.slice(0, 3).map((source, idx) => (
+                      <ChainOfThoughtItem key={idx}>
+                        • {source.title}
+                      </ChainOfThoughtItem>
+                   ))}
+                   {searchResults.sources.length > 3 && (
+                     <ChainOfThoughtItem>
+                       + {searchResults.sources.length - 3} more sources...
+                     </ChainOfThoughtItem>
+                   )}
+                 </View>
+              )}
+            </ChainOfThoughtContent>
+          </ChainOfThoughtStep>
+        ))}
+      </ChainOfThought>
     </View>
   );
-});
+}
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  stepContainer: {
-    position: 'relative',
-    paddingBottom: 4, 
-  },
-  stepHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    zIndex: 2, // Ensure clickability
-  },
-  iconContainer: {
-    width: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-    backgroundColor: theme.colors.background.secondary, // Mask the line behind it? No, line starts below.
-    zIndex: 2,
-  },
-  stepLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: theme.colors.text.tertiary,
-    flex: 1,
-  },
-  labelActive: {
-    color: theme.colors.text.primary,
-    fontWeight: '600',
-  },
-  labelComplete: {
-    color: theme.colors.text.secondary,
-  },
-  connectorLine: {
-    position: 'absolute',
-    left: 9.5, // Center of 20px icon is 10. Line width 1. Left = 10 - 0.5 = 9.5
-    top: 24, // Start below icon (20 height + pad 4?)
-    bottom: 0,
-    width: 1,
-    zIndex: 1,
-  },
-  stepContent: {
-    marginLeft: 30, // Indent content (20 icon + 10 gap)
-    paddingBottom: 12,
-  },
-  stepDescription: {
-    fontSize: 12,
-    color: theme.colors.text.tertiary,
-    lineHeight: 18,
-  },
+    marginVertical: 4,
+  }
 });

@@ -1,53 +1,67 @@
-/**
- * ReasoningDisplay - Replicates Web App "reasoning-display.tsx"
- * Thin wrapper around ProcessingTimeline.
- * Swiss Modern: Sharp corners, minimal design
- */
 
 import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
-import type { StatusPill, SearchResult } from '../../lib/hooks/useStreaming';
-import { ProcessingTimeline } from './ProcessingTimeline';
-import { extractSourcesFromSearchResults } from './LiveSourcePills';
+import { ProcessingTimeline, IndexingJob, PDFJob } from './ProcessingTimeline';
+import type { StatusPill } from '../../lib/types';
+
+interface SearchSource {
+  url: string;
+  title: string;
+  snippet?: string;
+}
+
+interface SearchResults {
+  sources: SearchSource[];
+}
 
 interface ReasoningDisplayProps {
-  content?: string | null; // Kept for interface compatibility but unused for text rendering
-  statusPills?: StatusPill[];
-  searchResults?: SearchResult | null;
+  statuses: StatusPill[];
+  searchResults?: SearchResults | null;
+  isComplete?: boolean;
+  indexingJobs?: IndexingJob[];
   isStreaming?: boolean;
-  hasContent?: boolean; // Prop from Web App logic
+  hasContent?: boolean;
 }
 
 export function ReasoningDisplay({
-  content,
-  statusPills = [],
+  statuses,
   searchResults,
+  isComplete = false,
+  indexingJobs = [],
   isStreaming = false,
   hasContent = false,
 }: ReasoningDisplayProps) {
-  
-  // Ensure statusPills is an array even if null is passed
-  const safeStatusPills = statusPills || [];
+  // Mobile currently doesn't have usePdfJobs hook yet, so we pass empty
+  const pdfJobs: PDFJob[] = []; 
 
-  // Extract sources to check counts (for visibility logic)
-  const discoveredSources = useMemo(
-    () => extractSourcesFromSearchResults(searchResults),
-    [searchResults]
-  );
+  const sourceCount = searchResults?.sources?.length || 0;
   
-  // Determine if we should show the timeline (Ported from Web)
-  // Show if: streaming (even if pills empty, we show optimistic 'Thinking' in timeline derived logic)
-  // OR has real statuses
-  const shouldShow = isStreaming || safeStatusPills.length > 0;
+  // Create optimistic "thinking" status
+  const effectiveStatuses = useMemo(() => {
+    if (isStreaming && (!statuses || statuses.length === 0)) {
+      return [{
+        status: "analyzing" as const, // Cast as const to match literal type
+        message: "Thinking...",
+        timestamp: Date.now(),
+      }];
+    }
+    return statuses || [];
+  }, [statuses, isStreaming]);
+  
+  const shouldShow = 
+    (isStreaming && effectiveStatuses.length > 0) ||
+    (effectiveStatuses.length > 0 && !(isComplete && sourceCount === 0));
 
   if (!shouldShow) return null;
 
   return (
     <View style={styles.container}>
       <ProcessingTimeline
-        statusPills={safeStatusPills}
+        statusPills={effectiveStatuses}
+        indexingJobs={indexingJobs}
+        pdfJobs={pdfJobs}
         isStreaming={isStreaming}
-        hasContent={hasContent} // Pass hasContent to allow timeline to complete/hide
+        hasContent={hasContent}
         searchResults={searchResults}
       />
     </View>
@@ -56,7 +70,7 @@ export function ReasoningDisplay({
 
 const styles = StyleSheet.create({
   container: {
+    width: '100%',
     marginBottom: 8,
-    // No border or background here, ProcessingTimeline handles its own steps
-  },
+  }
 });
