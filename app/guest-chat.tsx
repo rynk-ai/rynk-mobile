@@ -19,13 +19,13 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Menu, Plus, AlertCircle, RotateCcw, Search } from 'lucide-react-native';
 
 import { GuestChatProvider, useGuestChatContext } from '../src/lib/contexts/GuestChatContext';
-import { MessageItem, ChatInput, EmptyStateChat, SubChatSheet, ContextPickerSheet, ScrollToBottomButton, ChatBackground, type StatusPill, type QuotedMessage, type ContextItem } from '../src/components/chat';
+import { MessageItem, ChatInput, EmptyStateChat, SubChatSheet, ContextPickerSheet, ScrollToBottomButton, ChatBackground, ChatSearchSheet, type StatusPill, type QuotedMessage, type ContextItem } from '../src/components/chat';
 import { useGuestSubChats } from '../src/lib/hooks/useGuestSubChats';
 import { GuestDrawer } from '../src/components/GuestDrawer';
 import { SignInModal } from '../src/components/SignInModal';
 import { theme } from '../src/lib/theme';
 import { ONBOARDING_MESSAGES } from '../src/lib/services/onboarding-content';
-import type { Message, SurfaceMode } from '../src/lib/types';
+import type { Message, Conversation, SurfaceMode } from '../src/lib/types';
 
 function GuestChatContent() {
   const router = useRouter(); // Initialize router
@@ -66,6 +66,7 @@ function GuestChatContent() {
   const [inputText, setInputText] = useState(''); // Track current input
   const [quotedMessage, setQuotedMessage] = useState<QuotedMessage | null>(null);
   const [contextPickerOpen, setContextPickerOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [selectedContext, setSelectedContext] = useState<ContextItem[]>([]);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const flatListRef = useRef<FlatList>(null);
@@ -240,7 +241,7 @@ function GuestChatContent() {
           {/* Search Button (placeholder) */}
           <TouchableOpacity
             style={styles.headerButton}
-            onPress={() => {/* TODO: Open search */}}
+            onPress={() => setSearchOpen(true)}
             activeOpacity={0.7}
           >
             <Search size={18} color={theme.colors.text.secondary} />
@@ -416,6 +417,16 @@ function GuestChatContent() {
         selectedItems={selectedContext}
         onSelectionChange={setSelectedContext}
         currentConversationId={currentConversationId}
+      />
+
+      <ChatSearchSheet
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        conversations={conversations}
+        onSelectConversation={(c: Conversation) => {
+          selectConversation(c.id);
+          setSearchOpen(false);
+        }}
       />
     </SafeAreaView>
   );

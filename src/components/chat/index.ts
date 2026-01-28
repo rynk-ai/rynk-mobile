@@ -12,6 +12,7 @@ export { ContextPickerSheet, type ContextItem } from './ContextPickerSheet';
 export { ScrollToBottomButton } from './ScrollToBottomButton';
 export * from './MessageList';
 export * from './AuthenticatedChatInput';
+export { ChatSearchSheet } from './ChatSearchSheet';
 export { ChatBackground } from './ChatBackground';
 export type { StatusPill, SearchResult } from '../../lib/hooks/useStreaming';
 

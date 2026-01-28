@@ -32,6 +32,7 @@ import {
   type ContextItem,
   type MessageListRef,
   ChatBackground,
+  ChatSearchSheet,
 } from '../src/components/chat';
 import { AppSidebar } from '../src/components/sidebar/AppSidebar';
 import { useGuestSubChats } from '../src/lib/hooks/useGuestSubChats';
@@ -84,6 +85,7 @@ function ChatContent() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [quotedMessage, setQuotedMessage] = useState<any | null>(null);
   const [contextPickerOpen, setContextPickerOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [selectedContext, setSelectedContext] = useState<ContextItem[]>([]);
   const [surfaceMode, setSurfaceMode] = useState<any>('chat');
   const [isScrolledUp, setIsScrolledUp] = useState(false);
@@ -214,7 +216,7 @@ function ChatContent() {
           {/* Search Button (placeholder for future command bar) */}
           <TouchableOpacity
             style={styles.headerButton}
-            onPress={() => {/* TODO: Open search/command bar */}}
+            onPress={() => setSearchOpen(true)}
             activeOpacity={0.7}
           >
             <Search size={18} color={theme.colors.text.secondary} />
@@ -324,6 +326,23 @@ function ChatContent() {
          onSendMessage={handleSubChatSendMessage}
          isLoading={subChatLoading}
          streamingContent={subChatStreamingContent}
+      />
+
+      {/* Search Sheet */}
+      <ChatSearchSheet
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        conversations={conversations}
+        onSelectConversation={(conv: Conversation) => {
+           // Handle select (navigate if different)
+           if (conv.id !== currentConversationId) {
+             // We can just use selectConversation exposed via Context -> but router push is cleaner if URL updates
+             // Actually, we use Context selectConversation usually.
+             // But wait, router logic:
+             router.push({ pathname: '/chat', params: { conversationId: conv.id } });
+           }
+           setSearchOpen(false);
+        }}
       />
       
     </SafeAreaView>
