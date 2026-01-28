@@ -48,9 +48,10 @@ const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.85, 320);
 interface AppSidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  onSearch: () => void;
 }
 
-export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
+export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const { 
@@ -205,7 +206,11 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
   };
 
   const handleSearch = () => {
-     Alert.alert("Coming Soon", "Search is under development.");
+     onClose();
+     // Small delay to allow drawer to close smoothy
+     setTimeout(() => {
+        onSearch();
+     }, 300);
   }
   
   const handleNewFolder = () => {

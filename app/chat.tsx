@@ -337,6 +337,7 @@ function ChatContent() {
       <AppSidebar
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
+        onSearch={() => setSearchOpen(true)}
       />
 
       {/* Context Picker */}
