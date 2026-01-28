@@ -9,6 +9,9 @@ export { SelectableMessage } from './SelectableMessage';
 export { SubChatSheet } from './SubChatSheet';
 export { MermaidDiagram } from './MermaidDiagram';
 export { ContextPickerSheet, type ContextItem } from './ContextPickerSheet';
+export { ScrollToBottomButton } from './ScrollToBottomButton';
 export * from './MessageList';
 export * from './AuthenticatedChatInput';
+export { ChatBackground } from './ChatBackground';
 export type { StatusPill, SearchResult } from '../../lib/hooks/useStreaming';
+

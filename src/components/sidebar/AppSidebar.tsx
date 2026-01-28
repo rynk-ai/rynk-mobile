@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Alert,
   LayoutAnimation,
   UIManager,
+  Animated,
 } from 'react-native';
 
 if (Platform.OS === 'android') {
@@ -27,7 +28,9 @@ import {
   Settings,
   X,
   Search,
-  FolderPlus
+  FolderPlus,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react-native';
 import { theme } from '../../lib/theme';
 import { useAuth } from '../../lib/auth';
@@ -62,7 +65,59 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
     // isLoadingConversations,
   } = useChatContext();
 
+  // Section Header Component with Animation
+  function CollapsibleSection({ 
+    title, 
+    expanded, 
+    onToggle, 
+    children 
+  }: { 
+    title: string; 
+    expanded: boolean; 
+    onToggle: () => void; 
+    children: React.ReactNode 
+  }) {
+    const rotateAnim = useRef(new Animated.Value(expanded ? 1 : 0)).current;
+
+    useEffect(() => {
+      Animated.timing(rotateAnim, {
+        toValue: expanded ? 1 : 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }, [expanded]);
+
+    const rotate = rotateAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '90deg'], // Right (0) to Down (90)
+    });
+
+    return (
+      <View style={styles.section}>
+        <TouchableOpacity 
+          style={styles.sectionHeader}
+          onPress={onToggle}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.sectionTitle}>{title}</Text>
+          <Animated.View style={{ transform: [{ rotate }] }}>
+            <ChevronRight size={14} color={theme.colors.text.tertiary} />
+          </Animated.View>
+        </TouchableOpacity>
+        {expanded && children}
+      </View>
+    );
+  }
+
   const [foldersExpanded, setFoldersExpanded] = useState(true);
+  const [pinnedExpanded, setPinnedExpanded] = useState(true);
+  const [recentExpanded, setRecentExpanded] = useState(true);
+  const [olderExpanded, setOlderExpanded] = useState(true);
+
+  const toggleSection = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setter(prev => !prev);
+  };
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [menuConversation, setMenuConversation] = useState<Conversation | null>(null);
 
@@ -266,28 +321,30 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
 
               {/* Folders */}
               {folders.length > 0 && (
-                <View style={styles.section}>
-                   <View style={styles.sectionHeader}>
-                      <Text style={styles.sectionTitle}>Folders</Text>
-                   </View>
+                <CollapsibleSection 
+                  title="Folders" 
+                  expanded={foldersExpanded} 
+                  onToggle={() => toggleSection(setFoldersExpanded)}
+                >
                    {folders.map(f => (
                      <FolderListItem
                        key={f.id}
                        folder={f}
                        itemCount={f.conversationIds.length}
-                       isExpanded={foldersExpanded} 
-                       onToggleExpand={() => setFoldersExpanded(!foldersExpanded)}
+                       isExpanded={true}
+                       onToggleExpand={() => {}} 
                      />
                    ))}
-                </View>
+                </CollapsibleSection>
               )}
               
               {/* Pinned */}
               {pinnedConversations.length > 0 && (
-                <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Pinned</Text>
-                  </View>
+                <CollapsibleSection 
+                  title="Pinned" 
+                  expanded={pinnedExpanded} 
+                  onToggle={() => toggleSection(setPinnedExpanded)}
+                >
                   {pinnedConversations.map(c => (
                     <ConversationListItem 
                       key={c.id} 
@@ -297,15 +354,16 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
                       onShowMenu={handleShowMenu}
                     />
                   ))}
-                </View>
+                </CollapsibleSection>
               )}
               
               {/* Recent */}
               {recentConversations.length > 0 && (
-                 <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                     <Text style={styles.sectionTitle}>Today</Text>
-                  </View>
+                <CollapsibleSection 
+                  title="Today" 
+                  expanded={recentExpanded} 
+                  onToggle={() => toggleSection(setRecentExpanded)}
+                >
                   {recentConversations.map(c => (
                     <ConversationListItem 
                       key={c.id} 
@@ -315,15 +373,16 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
                       onShowMenu={handleShowMenu}
                     />
                   ))}
-                 </View>
+                </CollapsibleSection>
               )}
 
               {/* Older */}
               {olderConversations.length > 0 && (
-                 <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Previous 7 Days</Text>
-                  </View>
+                <CollapsibleSection 
+                  title="Previous 7 Days" 
+                  expanded={olderExpanded} 
+                  onToggle={() => toggleSection(setOlderExpanded)}
+                >
                   {olderConversations.map(c => (
                     <ConversationListItem 
                       key={c.id} 
@@ -333,7 +392,7 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
                       onShowMenu={handleShowMenu}
                     />
                   ))}
-                 </View>
+                </CollapsibleSection>
               )}
             </>
           }

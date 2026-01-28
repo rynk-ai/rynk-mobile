@@ -31,29 +31,6 @@ interface SuggestionItem {
   prompt: string;
 }
 
-const SUGGESTIONS: SuggestionItem[] = [
-  {
-    icon: <Sparkles size={16} color={theme.colors.accent.primary || theme.colors.text.secondary} />,
-    title: 'Explain a concept',
-    prompt: 'Explain quantum computing in simple terms',
-  },
-  {
-    icon: <MessageSquare size={16} color={theme.colors.accent.primary || theme.colors.text.secondary} />,
-    title: 'Write for me',
-    prompt: 'Help me write a professional email',
-  },
-  {
-    icon: <Lightbulb size={16} color={theme.colors.accent.primary || theme.colors.text.secondary} />,
-    title: 'Brainstorm ideas',
-    prompt: 'Give me creative project ideas for the weekend',
-  },
-  {
-    icon: <BookOpen size={16} color={theme.colors.accent.primary || theme.colors.text.secondary} />,
-    title: 'Learn something',
-    prompt: 'Teach me about machine learning basics',
-  },
-];
-
 interface EmptyStateChatProps {
   onSelectSuggestion: (prompt: string) => void;
 }
@@ -95,7 +72,6 @@ export function EmptyStateChat({ onSelectSuggestion }: EmptyStateChatProps) {
         </Animated.Text>
         <Text style={styles.tagline}>What would you like to explore today?</Text>
       </View>
-
     </View>
   );
 }
@@ -140,7 +116,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     backgroundColor: theme.colors.background.secondary,
-    borderRadius: theme.borderRadius.lg, // Sharp shape
+    borderRadius: theme.borderRadius.md, // Rounded (8)
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
   },

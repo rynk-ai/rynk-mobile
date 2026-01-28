@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from '../src/lib/auth';
 import { theme } from '../src/lib/theme';
+import { ChatBackgroundProvider } from '../src/lib/contexts/ChatBackgroundContext';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,24 +25,26 @@ export default function RootLayout() {
     <KeyboardProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <SafeAreaProvider>
-              <StatusBar style="light" />
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: theme.colors.background.primary },
-                  animation: 'slide_from_right',
-                }}
-              >
-                <Stack.Screen name="index" />
-                <Stack.Screen name="login" />
-                <Stack.Screen name="guest-chat" />
-                <Stack.Screen name="chat" />
-                <Stack.Screen name="conversations" />
-              </Stack>
-            </SafeAreaProvider>
-          </GestureHandlerRootView>
+          <ChatBackgroundProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <SafeAreaProvider>
+                <StatusBar style="light" />
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: theme.colors.background.primary },
+                    animation: 'slide_from_right',
+                  }}
+                >
+                  <Stack.Screen name="index" />
+                  <Stack.Screen name="login" />
+                  <Stack.Screen name="guest-chat" />
+                  <Stack.Screen name="chat" />
+                  <Stack.Screen name="conversations" />
+                </Stack>
+              </SafeAreaProvider>
+            </GestureHandlerRootView>
+          </ChatBackgroundProvider>
         </AuthProvider>
       </QueryClientProvider>
     </KeyboardProvider>

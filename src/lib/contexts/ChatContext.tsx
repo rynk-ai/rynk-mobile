@@ -39,7 +39,7 @@ interface ChatContextValue {
   
   // Actions
   selectConversation: (id: string | null) => void;
-  sendMessage: (content: string, referencedConversations?: { id: string; title: string }[]) => Promise<void>;
+  sendMessage: (content: string, referencedConversations?: { id: string; title: string }[], attachments?: { url: string; name: string; type: string; size: number }[]) => Promise<void>;
   createNewChat: () => void;
   loadConversations: () => Promise<void>;
   deleteConversation: (id: string) => Promise<void>;
@@ -522,7 +522,11 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
 
   // Send message with streaming
 
-  const sendMessage = useCallback(async (content: string, referencedConversations?: { id: string; title: string }[]) => {
+  const sendMessage = useCallback(async (
+    content: string,
+    referencedConversations?: { id: string; title: string }[],
+    attachments?: { url: string; name: string; type: string; size: number }[]
+  ) => {
     if (!content.trim() || isSendingRef.current) return;
     
     isSendingRef.current = true;
@@ -552,7 +556,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
         conversationId: convId,
         role: 'user',
         content: content.trim(),
-        attachments: null,
+        attachments: attachments || null,
         parentMessageId: null,
         versionOf: null,
         versionNumber: 1,
@@ -610,6 +614,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
             useReasoning: 'auto',
             referencedConversations: referencedConversations || [],
             referencedFolders: [],
+            attachments: attachments || [],
           },
           (dataString: string) => {
              if (!dataString) return;

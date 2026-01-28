@@ -3,7 +3,7 @@
  * Full chat experience for logged-in users
  */
 
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -16,7 +16,7 @@ import {
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Menu, Plus, AlertCircle, RotateCcw } from 'lucide-react-native';
+import { Menu, Plus, AlertCircle, RotateCcw, Search } from 'lucide-react-native';
 
 import { ChatProvider, useChatContext } from '../src/lib/contexts/ChatContext';
 import { useAuth } from '../src/lib/auth';
@@ -28,7 +28,10 @@ import {
   SubChatSheet,
   MessageItem,
   EmptyStateChat,
-  type ContextItem 
+  ScrollToBottomButton,
+  type ContextItem,
+  type MessageListRef,
+  ChatBackground,
 } from '../src/components/chat';
 import { AppSidebar } from '../src/components/sidebar/AppSidebar';
 import { useGuestSubChats } from '../src/lib/hooks/useGuestSubChats';
@@ -83,6 +86,8 @@ function ChatContent() {
   const [contextPickerOpen, setContextPickerOpen] = useState(false);
   const [selectedContext, setSelectedContext] = useState<ContextItem[]>([]);
   const [surfaceMode, setSurfaceMode] = useState<any>('chat');
+  const [isScrolledUp, setIsScrolledUp] = useState(false);
+  const messageListRef = useRef<MessageListRef>(null);
   
   // Initialize with prompt from params if available
   const params = useLocalSearchParams<{ conversationId?: string; prompt?: string }>();
@@ -106,7 +111,7 @@ function ChatContent() {
   }, [sendMessage]);
 
   // Handle send
-  const handleSend = useCallback((content: string) => {
+  const handleSend = useCallback((content: string, attachments?: { url: string; name: string; type: string; size: number }[]) => {
 
     let finalContent = content;
     
@@ -119,7 +124,7 @@ function ChatContent() {
     // Referenced conversations
     const referencedConversations = selectedContext.map(item => ({ id: item.id, title: item.title }));
 
-    sendMessage(finalContent, referencedConversations);
+    sendMessage(finalContent, referencedConversations, attachments);
     setQuotedMessage(null);
     setSelectedContext([]);
     setPendingPrompt('');
@@ -176,30 +181,43 @@ function ChatContent() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.colors.background.primary} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <ChatBackground />
 
-      {/* Header */}
+      {/* Header - Floating pill design matching web */}
       <View style={styles.header}>
-        {/* ... header content ... */}
-         <TouchableOpacity
-          style={styles.menuButton}
-          onPress={() => setDrawerOpen(true)}
-          activeOpacity={0.7}
-        >
-          <Menu size={20} color={theme.colors.text.primary} />
-        </TouchableOpacity>
-
-        <Text style={styles.headerTitle}>
-          {currentConversationId ? 'Chat' : 'rynk.'}
-        </Text>
-
-        <View style={styles.headerRight}>
+        <View style={styles.headerButtonGroup}>
+          {/* Menu Button */}
           <TouchableOpacity
-            style={styles.newChatButton}
+            style={styles.headerButton}
+            onPress={() => setDrawerOpen(true)}
+            activeOpacity={0.7}
+          >
+            <Menu size={18} color={theme.colors.text.secondary} />
+          </TouchableOpacity>
+
+          {/* Separator */}
+          <View style={styles.headerSeparator} />
+
+          {/* New Chat Button */}
+          <TouchableOpacity
+            style={styles.headerButton}
             onPress={handleNewChat}
             activeOpacity={0.7}
           >
-            <Plus size={20} color={theme.colors.text.primary} />
+            <Plus size={18} color={theme.colors.text.secondary} />
+          </TouchableOpacity>
+
+          {/* Separator */}
+          <View style={styles.headerSeparator} />
+
+          {/* Search Button (placeholder for future command bar) */}
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => {/* TODO: Open search/command bar */}}
+            activeOpacity={0.7}
+          >
+            <Search size={18} color={theme.colors.text.secondary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -221,7 +239,6 @@ function ChatContent() {
                 isLoading={isSending}
                 quotedMessage={quotedMessage}
                 onClearQuote={() => setQuotedMessage(null)}
-                showContextPicker={conversations.length > 0}
                 onAddContext={() => setContextPickerOpen(true)}
                 contextItems={selectedContext}
                 onRemoveContext={(id: string) => setSelectedContext(prev => prev.filter(p => p.id !== id))}
@@ -231,15 +248,25 @@ function ChatContent() {
           </View>
         ) : (
           <>
-            <MessageList
-              messages={messages}
-              isLoading={isSending}
-              streamingMessageId={streamingMessageId}
-              streamingContent={streamingContent}
-              statusPills={statusPills}
-              searchResults={searchResults}
-              renderMessage={renderMessage}
-            />
+            <View style={styles.messageListContainer}>
+              <MessageList
+                ref={messageListRef}
+                messages={messages}
+                isLoading={isSending}
+                streamingMessageId={streamingMessageId}
+                streamingContent={streamingContent}
+                statusPills={statusPills}
+                searchResults={searchResults}
+                renderMessage={renderMessage}
+                onScrollPositionChange={(isAtBottom) => setIsScrolledUp(!isAtBottom)}
+              />
+              
+              {/* Scroll to Bottom Button */}
+              <ScrollToBottomButton
+                visible={isScrolledUp && messages.length > 0}
+                onPress={() => messageListRef.current?.scrollToEnd(true)}
+              />
+            </View>
 
             {/* Error State */}
             {error && (
@@ -257,7 +284,6 @@ function ChatContent() {
               isLoading={isSending || isSavingEdit}
               quotedMessage={quotedMessage}
               onClearQuote={() => setQuotedMessage(null)}
-              showContextPicker={conversations.length > 0}
               onAddContext={() => setContextPickerOpen(true)}
               contextItems={selectedContext}
               onRemoveContext={(id: string) => setSelectedContext(prev => prev.filter(p => p.id !== id))}
@@ -323,36 +349,29 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border.subtle,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  menuButton: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.background.secondary,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.text.primary,
-  },
-  headerRight: {
+  headerButtonGroup: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: `${theme.colors.background.secondary}CC`, // 80% opacity
+    borderRadius: theme.borderRadius.md,
+    padding: 4,
+    gap: 2,
   },
-  newChatButton: {
+  headerButton: {
     width: 32,
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.background.secondary,
+    borderRadius: theme.borderRadius.sm,
+  },
+  headerSeparator: {
+    width: 1,
+    height: 16,
+    backgroundColor: theme.colors.border.subtle,
+    marginHorizontal: 2,
   },
   keyboardView: {
     flex: 1,
@@ -387,6 +406,10 @@ const styles = StyleSheet.create({
   },
   centeredInputWrapper: {
     paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+  },
+  messageListContainer: {
+    flex: 1,
+    position: 'relative',
   },
 });
 

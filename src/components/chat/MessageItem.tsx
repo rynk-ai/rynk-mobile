@@ -20,6 +20,7 @@ import {
   Animated,
   Easing,
   Pressable,
+  Image,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import Markdown from 'react-native-markdown-display';
@@ -35,6 +36,7 @@ import { MermaidDiagram } from './MermaidDiagram';
 import { SourceImages, type SourceImage } from './SourceImages';
 import { SourcesFooter, type Citation } from './SourcesFooter';
 import { CodeBlock } from './markdown/CodeBlock';
+import { ONBOARDING_IMAGES } from '../../lib/services/onboarding-content';
 
 import { InlineCitation, parseCitationsInText } from './InlineCitation';
 import { useOptionalChatContext } from '../../lib/contexts/ChatContext';
@@ -367,6 +369,24 @@ function MessageItemBase({
           </Animated.View>
         ) : null}
 
+        {/* Onboarding Images (for welcome messages) */}
+        {isAssistant && message.onboardingImages && message.onboardingImages.length > 0 && (
+          <View style={styles.onboardingImagesContainer}>
+            {message.onboardingImages.map((imageKey, idx) => {
+              const imageSource = ONBOARDING_IMAGES[imageKey as keyof typeof ONBOARDING_IMAGES];
+              if (!imageSource) return null;
+              return (
+                <Image
+                  key={`${imageKey}-${idx}`}
+                  source={imageSource}
+                  style={styles.onboardingImage}
+                  resizeMode="contain"
+                />
+              );
+            })}
+          </View>
+        )}
+
         {/* Context Badges (User messages only) */}
         {isUser && ((message.referencedConversations?.length ?? 0) > 0 || (message.referencedFolders?.length ?? 0) > 0) && (
           <View style={styles.contextBadgesContainer}>
@@ -389,9 +409,9 @@ function MessageItemBase({
         {isUser && message.attachments && message.attachments.length > 0 && (
           <View style={styles.attachmentsContainer}>
             {message.attachments.map((file, i) => (
-              <View key={file.id || i} style={styles.attachmentItem}>
+              <View key={file.url || i} style={styles.attachmentItem}>
                 <Paperclip size={12} color={theme.colors.text.tertiary} />
-                <Text style={styles.attachmentName} numberOfLines={1}>{file.fileName}</Text>
+                <Text style={styles.attachmentName} numberOfLines={1}>{file.name}</Text>
               </View>
             ))}
           </View>
@@ -405,14 +425,21 @@ function MessageItemBase({
                 )}
             </>
 
-        {/* Sub-chat indicator */}
+        {/* Sub-chat indicator - Now Clickable */}
         {hasSubChats && !isStreaming && (
-          <View style={styles.subChatIndicator}>
-            <MessageSquare size={12} color={theme.colors.accent.primary} />
+          <TouchableOpacity 
+            style={styles.subChatIndicator}
+            onPress={() => onOpenExistingSubChat && messageSubChats[0] ? onOpenExistingSubChat(messageSubChats[0]) : null}
+            activeOpacity={0.7}
+          >
+            <View style={styles.subChatIconContainer}>
+               <MessageSquare size={12} color={theme.colors.accent.primary} />
+            </View>
             <Text style={styles.subChatCount}>
               {messageSubChats.length} deep dive{messageSubChats.length > 1 ? 's' : ''}
             </Text>
-          </View>
+            <ChevronRight size={12} color={theme.colors.text.tertiary} />
+          </TouchableOpacity>
         )}
 
       </View>
@@ -512,7 +539,7 @@ export const MessageItem = memo(MessageItemBase, (prev, next) => {
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 6, // Very compact
+    marginBottom: 12, // Increased spacing between messages
     maxWidth: '100%',
   },
   userContainer: {
@@ -532,13 +559,13 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background.secondary,
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 0, // Ensure sharp for user too
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: theme.borderRadius.lg, // Rounded (16)
   },
   assistantBubble: {
     backgroundColor: 'transparent',
-    paddingHorizontal: 4, // Slight indent
+    paddingHorizontal: 4, 
     paddingVertical: 4,
   },
   userText: {
@@ -562,27 +589,37 @@ const styles = StyleSheet.create({
   subChatIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 8,
-    paddingVertical: 4,
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: theme.colors.background.tertiary,
+    borderRadius: theme.borderRadius.md,
+    alignSelf: 'flex-start',
+  },
+  subChatIconContainer: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)', // Subtle blue bg
   },
   subChatCount: {
-    fontSize: 11,
-    color: theme.colors.accent.primary,
+    fontSize: 12,
+    color: theme.colors.text.primary,
     fontWeight: '500',
   },
   actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12, // slightly increased gap since padding is removed
-    marginTop: 8, // bit more margin on top
+    gap: 12, // More breathable
+    marginTop: 6, 
   },
 
   assistantActionsRow: {
-    // Inside bubble, so no extra horizontal adjustment needed usually, 
-    // but maybe some top margin
     paddingTop: 4,
-    marginLeft: 4, // Align with text
+    marginLeft: 4,
   },
   userActionsRow: {
     // Outside bubble, align to right
@@ -591,8 +628,8 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     // No padding as requested
-    padding: 0,
-    opacity: 0.8,
+    padding: 4, // Slightly clearer touch target
+    opacity: 0.6,
   },
   // Context Badges
   contextBadgesContainer: {
@@ -606,17 +643,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: theme.colors.background.tertiary,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: theme.borderRadius.full, // Pill shape
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
   },
   contextBadgeText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '500',
-    color: theme.colors.text.tertiary,
-    maxWidth: 100,
+    color: theme.colors.text.secondary,
+    maxWidth: 120,
   },
   // Attachments
   attachmentsContainer: {
@@ -640,6 +678,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: theme.colors.text.secondary,
     maxWidth: 120,
+  },
+  // Onboarding images
+  onboardingImagesContainer: {
+    marginTop: 12,
+    gap: 12,
+  },
+  onboardingImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.background.secondary,
   },
 });
 
@@ -684,15 +733,16 @@ const markdownStyles = StyleSheet.create({
     color: theme.colors.accent.primary,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 0, // Sharp
+    borderRadius: theme.borderRadius.sm, // Rounded (4)
     fontSize: 13,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    overflow: 'hidden',
   },
   code_block: {
     backgroundColor: theme.colors.background.secondary,
     color: theme.colors.text.primary,
     padding: 14,
-    borderRadius: 0, // Sharp
+    borderRadius: theme.borderRadius.md, // Rounded (8)
     fontSize: 13,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     marginVertical: 12,
@@ -704,7 +754,7 @@ const markdownStyles = StyleSheet.create({
     backgroundColor: theme.colors.background.secondary,
     color: theme.colors.text.primary,
     padding: 14,
-    borderRadius: 0, // Sharp
+    borderRadius: theme.borderRadius.md, // Rounded (8)
     fontSize: 13,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     marginVertical: 12,
@@ -719,7 +769,7 @@ const markdownStyles = StyleSheet.create({
     paddingLeft: 14,
     paddingVertical: 10,
     marginVertical: 12,
-    borderRadius: 0, // Sharp
+    borderRadius: theme.borderRadius.md, // Rounded (8)
   },
   bullet_list: {
     marginVertical: 8,

@@ -8,41 +8,41 @@
 export const colors = {
   // Backgrounds
   background: {
-    primary: '#0A0A0A',      // True Black
-    card: '#0F0F0F',         // Surface / Card
-    secondary: '#1A1A1A',    // Secondary elements
-    elevated: '#242424',     // Modals / Elevated surfaces
-    tertiary: '#242424',     // Tertiary
+    primary: '#131315',      // True Black -> Deep Charcoal (Web: 240 5% 8%)
+    card: '#1A1A1C',         // Surface / Card (Web: 240 5% 10%)
+    secondary: '#262629',    // Secondary elements (Web: 240 5% 14%)
+    elevated: '#2B2B2E',     // Modals / Elevated surfaces (Web: 240 4% 16%)
+    tertiary: '#2B2B2E',     // Tertiary
   },
   
   // Foreground - Text Colors
   text: {
-    primary: '#F0F0F0',      // Primary Text
-    secondary: '#A1A1AA',    // Muted Text
-    tertiary: '#71717A',     // Tertiary Text
-    inverse: '#0A0A0A',      // Inverse Text (for primary buttons)
+    primary: '#F2F2F2',      // Primary Text (Web: 0 0% 95%)
+    secondary: '#999999',    // Muted Text (Web: 240 5% 60%)
+    tertiary: '#666666',     // Tertiary Text
+    inverse: '#131315',      // Inverse Text (for primary buttons)
   },
   
   // Accent - Monochrome Action
   accent: {
-    primary: '#F5F5F5',      // White (Primary Action)
-    secondary: '#242424',    // Dark Grey (Secondary Action)
+    primary: '#F2F2F2',      // White (Primary Action)
+    secondary: '#262629',    // Dark Grey (Secondary Action)
     success: '#10B981',      // Emerald Green (Keep for functional states)
     warning: '#F59E0B',      // Amber
-    error: '#EF4444',        // Red
+    error: '#7C2D2D',        // Red (Web: 0 62% 30% - Desaturated Red)
   },
   
   // Borders
   border: {
-    default: '#242424',      // Default Border
-    subtle: '#1A1A1A',       // Subtle Border
-    focus: '#F5F5F5',        // Focus ring (White)
+    default: '#2E2E33',      // Default Border (Web: 240 5% 18%)
+    subtle: '#262629',       // Subtle Border
+    focus: '#F2F2F2',        // Focus ring (White)
   },
   
   // Surface overlays
   surface: {
     overlay: 'rgba(0, 0, 0, 0.8)',
-    glassBg: 'rgba(10, 10, 10, 0.95)',
+    glassBg: 'rgba(19, 19, 21, 0.85)', // Updated for new bg
   },
 };
 
@@ -57,13 +57,14 @@ export const spacing = {
   xxxl: 48,
 };
 
-// Border radius scale - Sharp (Swiss)
+// Border radius scale - Rounded (Modern)
 export const borderRadius = {
-  sm: 0,
-  md: 0,
-  lg: 0,
-  xl: 0,
-  full: 0, // Enforce sharp even for "pills" where possible, or use specific component overrides if needed
+  sm: 4,
+  md: 8,
+  lg: 12,
+  xl: 16,
+  xxl: 24,
+  full: 9999, // Pill shape
 };
 
 // Typography

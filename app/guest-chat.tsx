@@ -3,7 +3,7 @@
  * Chat experience for unauthenticated users with quote reply support
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,14 +16,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Menu, Plus, AlertCircle, RotateCcw } from 'lucide-react-native';
+import { Menu, Plus, AlertCircle, RotateCcw, Search } from 'lucide-react-native';
 
 import { GuestChatProvider, useGuestChatContext } from '../src/lib/contexts/GuestChatContext';
-import { MessageItem, ChatInput, EmptyStateChat, SubChatSheet, ContextPickerSheet, type StatusPill, type QuotedMessage, type ContextItem } from '../src/components/chat';
+import { MessageItem, ChatInput, EmptyStateChat, SubChatSheet, ContextPickerSheet, ScrollToBottomButton, ChatBackground, type StatusPill, type QuotedMessage, type ContextItem } from '../src/components/chat';
 import { useGuestSubChats } from '../src/lib/hooks/useGuestSubChats';
 import { GuestDrawer } from '../src/components/GuestDrawer';
 import { SignInModal } from '../src/components/SignInModal';
 import { theme } from '../src/lib/theme';
+import { ONBOARDING_MESSAGES } from '../src/lib/services/onboarding-content';
 import type { Message, SurfaceMode } from '../src/lib/types';
 
 function GuestChatContent() {
@@ -66,6 +67,7 @@ function GuestChatContent() {
   const [quotedMessage, setQuotedMessage] = useState<QuotedMessage | null>(null);
   const [contextPickerOpen, setContextPickerOpen] = useState(false);
   const [selectedContext, setSelectedContext] = useState<ContextItem[]>([]);
+  const [isScrolledUp, setIsScrolledUp] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   // Sub-chat hook
@@ -82,8 +84,26 @@ function GuestChatContent() {
     handleSubChatSendMessage,
   } = useGuestSubChats(currentConversationId);
 
-  // Determine if we're in empty state
+  // Determine if we're in empty state (no messages and not sending)
   const isEmptyState = messages.length === 0 && !isSending;
+  
+  // Onboarding messages - shown when no conversation is selected
+  const onboardingMessages = useMemo(() => {
+    const now = Date.now();
+    return ONBOARDING_MESSAGES.map((msg, index) => ({
+      id: `onboarding-${index}`,
+      conversationId: 'preview',
+      role: msg.role,
+      content: msg.content,
+      createdAt: new Date(now + (index * 100)).toISOString(),
+      versionNumber: 1,
+      // Include onboarding images for mobile rendering
+      onboardingImages: msg.images,
+    })) as Message[];
+  }, []);
+  
+  // Show onboarding instead of empty state when no conversation selected
+  const showOnboarding = !currentConversationId && isEmptyState;
 
   // Show sign in modal when credits exhausted
   React.useEffect(() => {
@@ -187,52 +207,66 @@ function GuestChatContent() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.colors.background.primary} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <ChatBackground />
 
-      {/* Header */}
+      {/* Header - Floating pill design matching web */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.menuButton}
-          onPress={() => setDrawerOpen(true)}
-          activeOpacity={0.7}
-        >
-          <Menu size={20} color={theme.colors.text.primary} />
-        </TouchableOpacity>
-        
-        <Text style={styles.headerTitle}>
-          {currentConversationId ? 'Chat' : 'rynk.'}
-        </Text>
-        
-        <View style={styles.headerRight}>
+        <View style={styles.headerButtonGroup}>
+          {/* Menu Button */}
           <TouchableOpacity
-            style={styles.newChatButton}
+            style={styles.headerButton}
+            onPress={() => setDrawerOpen(true)}
+            activeOpacity={0.7}
+          >
+            <Menu size={18} color={theme.colors.text.secondary} />
+          </TouchableOpacity>
+
+          {/* Separator */}
+          <View style={styles.headerSeparator} />
+
+          {/* New Chat Button */}
+          <TouchableOpacity
+            style={styles.headerButton}
             onPress={handleNewChat}
             activeOpacity={0.7}
           >
-            <Plus size={20} color={theme.colors.text.primary} />
+            <Plus size={18} color={theme.colors.text.secondary} />
+          </TouchableOpacity>
+
+          {/* Separator */}
+          <View style={styles.headerSeparator} />
+
+          {/* Search Button (placeholder) */}
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => {/* TODO: Open search */}}
+            activeOpacity={0.7}
+          >
+            <Search size={18} color={theme.colors.text.secondary} />
           </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Credits indicator */}
-      {creditsRemaining !== null && (
-        <View style={styles.creditsBar}>
-          <Text style={[
-            styles.creditsText,
-            isCreditsExhausted && styles.creditsExhausted
-          ]}>
-            {isCreditsExhausted ? 'Credits exhausted' : `${creditsRemaining} credits left`}
-          </Text>
-        </View>
-      )}
+        {/* Credits indicator in header */}
+        {creditsRemaining !== null && (
+          <View style={styles.creditsIndicator}>
+            <Text style={[
+              styles.creditsText,
+              isCreditsExhausted && styles.creditsExhausted
+            ]}>
+              {isCreditsExhausted ? 'No credits' : `${creditsRemaining} messages left`}
+            </Text>
+          </View>
+        )}
+      </View>
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-        {/* Empty State - Centered layout with brand and input */}
-        {isEmptyState ? (
+        {/* Empty State with branding - only when explicitly empty (not onboarding) */}
+        {isEmptyState && !showOnboarding ? (
           <View style={styles.emptyStateContainer}>
             <View style={styles.emptyStateContent}>
               <EmptyStateChat onSelectSuggestion={handleSelectSuggestion} />
@@ -246,8 +280,7 @@ function GuestChatContent() {
                 initialValue={pendingPrompt}
                 quotedMessage={quotedMessage}
                 onClearQuote={handleClearQuote}
-                showContextPicker={conversations.length > 0}
-                onAddContext={() => setContextPickerOpen(true)}
+                onAddContext={conversations.length > 0 ? () => setContextPickerOpen(true) : undefined}
                 contextItems={selectedContext}
                 onRemoveContext={(id: string) => setSelectedContext(prev => prev.filter(item => item.id !== id))}
                 isGuest={true}
@@ -258,17 +291,24 @@ function GuestChatContent() {
           </View>
         ) : (
           <>
-            {/* Messages list */}
+            {/* Messages list - shows onboarding or real messages */}
             <View style={styles.contentArea}>
               <FlatList
                 ref={flatListRef}
-                data={messages}
+                data={showOnboarding ? onboardingMessages : messages}
                 renderItem={renderMessage}
                 keyExtractor={item => item.id}
                 contentContainerStyle={styles.messagesList}
                 showsVerticalScrollIndicator={false}
+                onScroll={(event) => {
+                  const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+                  const paddingToBottom = 100;
+                  const isAtBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - paddingToBottom;
+                  setIsScrolledUp(!isAtBottom);
+                }}
+                scrollEventThrottle={16}
                 onContentSizeChange={() => {
-                  if (isStreaming || isSending) {
+                  if ((isStreaming || isSending) && !isScrolledUp) {
                     flatListRef.current?.scrollToEnd({ animated: true });
                   }
                 }}
@@ -283,6 +323,12 @@ function GuestChatContent() {
                     </View>
                   ) : null
                 }
+              />
+              
+              {/* Scroll to Bottom Button */}
+              <ScrollToBottomButton
+                visible={isScrolledUp && messages.length > 0}
+                onPress={() => flatListRef.current?.scrollToEnd({ animated: true })}
               />
             </View>
 
@@ -307,9 +353,7 @@ function GuestChatContent() {
               onValueChange={setInputText}
               quotedMessage={quotedMessage}
               onClearQuote={handleClearQuote}
-              showContextPicker={conversations.length > 1}
-              onAddContext={() => setContextPickerOpen(true)}
-
+              onAddContext={conversations.length > 1 ? () => setContextPickerOpen(true) : undefined}
               contextItems={selectedContext}
               onRemoveContext={(id: string) => setSelectedContext(prev => prev.filter(item => item.id !== id))}
               isGuest={true}
@@ -344,6 +388,10 @@ function GuestChatContent() {
         isBlocking={isCreditsExhausted}
         creditsRemaining={creditsRemaining}
         pendingPrompt={inputText} // Pass current input
+        guestConversationData={{
+          messages: messages.map(m => ({ role: m.role, content: m.content })),
+          messageCount: messages.length,
+        }}
       />
 
       {/* Sub-Chat Sheet */}
@@ -392,47 +440,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border.subtle,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  menuButton: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.background.secondary,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.text.primary,
-    letterSpacing: -0.3,
-  },
-  headerRight: {
+  headerButtonGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    backgroundColor: `${theme.colors.background.secondary}CC`, // 80% opacity
+    borderRadius: theme.borderRadius.md,
+    padding: 4,
+    gap: 2,
   },
-  newChatButton: {
+  headerButton: {
     width: 32,
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.background.secondary,
+    borderRadius: theme.borderRadius.sm,
   },
-  creditsBar: {
-    paddingHorizontal: 16,
-    paddingVertical: 6, // Compact
-    backgroundColor: theme.colors.background.secondary,
+  headerSeparator: {
+    width: 1,
+    height: 16,
+    backgroundColor: theme.colors.border.subtle,
+    marginHorizontal: 2,
+  },
+  creditsIndicator: {
+    backgroundColor: theme.colors.background.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 100, // Pill shape
+    borderWidth: 1,
+    borderColor: theme.colors.border.default,
   },
   creditsText: {
-    fontSize: 11,
+    fontSize: 12,
+    fontWeight: '500',
     color: theme.colors.text.tertiary,
-    textAlign: 'center',
   },
   creditsExhausted: {
     color: theme.colors.accent.error,

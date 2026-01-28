@@ -51,14 +51,15 @@ export interface Message {
   // Context references
   referencedConversations?: { id: string; title: string }[] | null;
   referencedFolders?: { id: string; name: string }[] | null;
+  // Onboarding images for mobile (keys from ONBOARDING_IMAGES)
+  onboardingImages?: string[];
 }
 
 export interface Attachment {
-  id: string;
-  fileName: string;
-  fileType: string;
-  fileSize: number;
-  url?: string;
+  url: string;
+  name: string;
+  type: string;
+  size: number;
 }
 
 export interface ReasoningMetadata {

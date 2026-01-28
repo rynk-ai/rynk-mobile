@@ -1,10 +1,11 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, forwardRef, useImperativeHandle, useCallback, useState } from 'react';
 import {
   View,
   FlatList,
   StyleSheet,
   ActivityIndicator,
-  Text,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { theme } from '../../lib/theme';
 import { MessageItem } from './MessageItem';
@@ -22,9 +23,15 @@ interface MessageListProps {
   isGuest?: boolean;
   // Allow custom rendering (e.g. from app/chat.tsx which has callbacks)
   renderMessage?: (props: { item: Message; index: number }) => React.ReactElement | null;
+  // Scroll position callback
+  onScrollPositionChange?: (isAtBottom: boolean) => void;
 }
 
-export function MessageList({
+export interface MessageListRef {
+  scrollToEnd: (animated?: boolean) => void;
+}
+
+export const MessageList = forwardRef<MessageListRef, MessageListProps>(function MessageList({
   messages,
   isLoading,
   streamingMessageId,
@@ -34,15 +41,37 @@ export function MessageList({
   onRetry,
   isGuest = false,
   renderMessage,
-}: MessageListProps) {
+  onScrollPositionChange,
+}, ref) {
   const listRef = useRef<FlatList>(null);
+  const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
+  const contentHeight = useRef(0);
+  const scrollViewHeight = useRef(0);
 
-  // Scroll to bottom when new messages arrive
+  // Expose scrollToEnd to parent via ref
+  useImperativeHandle(ref, () => ({
+    scrollToEnd: (animated = true) => {
+      listRef.current?.scrollToEnd({ animated });
+      setIsUserScrolledUp(false);
+    },
+  }), []);
+
+  // Auto-scroll to bottom when streaming or new messages (only if not scrolled up)
   useEffect(() => {
-    if (messages.length > 0 || streamingContent) {
+    if ((messages.length > 0 || streamingContent) && !isUserScrolledUp) {
       listRef.current?.scrollToEnd({ animated: true });
     }
-  }, [messages.length, streamingContent]);
+  }, [messages.length, streamingContent, isUserScrolledUp]);
+
+  // Track scroll position
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    const paddingToBottom = 100; // Threshold for "at bottom"
+    const isAtBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - paddingToBottom;
+    
+    setIsUserScrolledUp(!isAtBottom);
+    onScrollPositionChange?.(isAtBottom);
+  }, [onScrollPositionChange]);
 
   const defaultRenderItem = ({ item, index }: { item: Message; index: number }) => {
     // Check if this is the message currently being streamed
@@ -81,12 +110,24 @@ export function MessageList({
           </View>
         ) : <View style={{ height: 20 }} /> // Spacer
       }
-      onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
-      onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
+      onScroll={handleScroll}
+      scrollEventThrottle={16}
+      onContentSizeChange={(_, height) => {
+        contentHeight.current = height;
+        if (!isUserScrolledUp) {
+          listRef.current?.scrollToEnd({ animated: true });
+        }
+      }}
+      onLayout={(e) => {
+        scrollViewHeight.current = e.nativeEvent.layout.height;
+        if (!isUserScrolledUp) {
+          listRef.current?.scrollToEnd({ animated: false });
+        }
+      }}
       extraData={{ streamingMessageId, streamingContent, statusPills, searchResults }}
     />
   );
-}
+});
 
 const styles = StyleSheet.create({
   listContent: {
@@ -99,3 +140,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+

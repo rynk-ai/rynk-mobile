@@ -145,6 +145,44 @@ class ApiClient {
     return this.request<T>(endpoint, { ...options, method: 'DELETE' });
   }
 
+  /**
+   * Upload a file using multipart form data
+   */
+  async uploadFile(uri: string, name: string, type: string): Promise<{
+    url: string;
+    name: string;
+    type: string;
+    size: number;
+  }> {
+    const token = await this.getAuthToken();
+    if (!token) {
+      throw new Error('Authentication required for file upload');
+    }
+
+    const formData = new FormData();
+    formData.append('file', {
+      uri,
+      name,
+      type,
+    } as any);
+
+    const response = await fetch(`${this.baseUrl}/mobile/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        // Don't set Content-Type - let fetch set it with boundary for multipart
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Upload failed: ${errorText}`);
+    }
+
+    return response.json();
+  }
+
   // Streaming request for chat responses using SSE
   // Returns a Promise that resolves when stream is closed or rejects on error.
   async stream(
