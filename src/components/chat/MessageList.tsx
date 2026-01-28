@@ -25,6 +25,11 @@ interface MessageListProps {
   renderMessage?: (props: { item: Message; index: number }) => React.ReactElement | null;
   // Scroll position callback
   onScrollPositionChange?: (isAtBottom: boolean) => void;
+  contentContainerStyle?: any;
+  // Pagination
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }
 
 export interface MessageListRef {
@@ -42,6 +47,10 @@ export const MessageList = forwardRef<MessageListRef, MessageListProps>(function
   isGuest = false,
   renderMessage,
   onScrollPositionChange,
+  contentContainerStyle,
+  onLoadMore,
+  hasMore,
+  isLoadingMore,
 }, ref) {
   const listRef = useRef<FlatList>(null);
   const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
@@ -71,7 +80,13 @@ export const MessageList = forwardRef<MessageListRef, MessageListProps>(function
     
     setIsUserScrolledUp(!isAtBottom);
     onScrollPositionChange?.(isAtBottom);
-  }, [onScrollPositionChange]);
+
+    // Detect top for pagination (load more)
+    // Using a threshold of 50px from top
+    if (contentOffset.y <= 50 && hasMore && !isLoadingMore && onLoadMore) {
+        onLoadMore();
+    }
+  }, [onScrollPositionChange, hasMore, isLoadingMore, onLoadMore]);
 
   const defaultRenderItem = ({ item, index }: { item: Message; index: number }) => {
     // Check if this is the message currently being streamed
@@ -101,8 +116,15 @@ export const MessageList = forwardRef<MessageListRef, MessageListProps>(function
       ref={listRef}
       data={messages}
       keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.listContent}
+      contentContainerStyle={[styles.listContent, contentContainerStyle]}
       renderItem={renderMessage || defaultRenderItem}
+      ListHeaderComponent={() => 
+        isLoadingMore ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
+          </View>
+        ) : null
+      }
       ListFooterComponent={() => 
         isLoading && !streamingMessageId ? (
           <View style={styles.loadingContainer}>

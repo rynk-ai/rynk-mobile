@@ -12,9 +12,10 @@ import {
   Text,
   KeyboardAvoidingView as RNKeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Menu, Plus, AlertCircle, RotateCcw, Search } from 'lucide-react-native';
 
@@ -41,6 +42,7 @@ import type { Message, Conversation, SurfaceMode } from '../src/lib/types';
 function ChatContent() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
+  const insets = useSafeAreaInsets();
   
   const {
     conversations,
@@ -65,6 +67,10 @@ function ChatContent() {
     cancelEdit,
     saveEdit,
     isSavingEdit,
+    // Pagination
+    loadMoreMessages,
+    hasMoreMessages,
+    isLoadingMore,
   } = useChatContext();
 
   // Sub-chats (reuse guest hook for now as logic is similar)
@@ -97,6 +103,9 @@ function ChatContent() {
 
   // Determine if we're in empty state
   const isEmptyState = messages.length === 0 && !isSending;
+
+  // Get active conversation for tags
+  const activeConversation = conversations.find(c => c.id === currentConversationId);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -185,43 +194,63 @@ function ChatContent() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <ChatBackground />
+      
+      <View style={[styles.floatingHeaderWrapper, { top: insets.top }]} pointerEvents="box-none">
+        {/* Header - Floating pill design matching web */}
+        <View style={styles.header} pointerEvents="box-none">
+          <View style={styles.headerButtonGroup}>
+            {/* Menu Button */}
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => setDrawerOpen(true)}
+              activeOpacity={0.7}
+            >
+              <Menu size={18} color={theme.colors.text.secondary} />
+            </TouchableOpacity>
 
-      {/* Header - Floating pill design matching web */}
-      <View style={styles.header}>
-        <View style={styles.headerButtonGroup}>
-          {/* Menu Button */}
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => setDrawerOpen(true)}
-            activeOpacity={0.7}
-          >
-            <Menu size={18} color={theme.colors.text.secondary} />
-          </TouchableOpacity>
+            {/* Separator */}
+            <View style={styles.headerSeparator} />
 
-          {/* Separator */}
-          <View style={styles.headerSeparator} />
+            {/* New Chat Button */}
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={handleNewChat}
+              activeOpacity={0.7}
+            >
+              <Plus size={18} color={theme.colors.text.secondary} />
+            </TouchableOpacity>
 
-          {/* New Chat Button */}
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={handleNewChat}
-            activeOpacity={0.7}
-          >
-            <Plus size={18} color={theme.colors.text.secondary} />
-          </TouchableOpacity>
+            {/* Separator */}
+            <View style={styles.headerSeparator} />
 
-          {/* Separator */}
-          <View style={styles.headerSeparator} />
-
-          {/* Search Button (placeholder for future command bar) */}
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => setSearchOpen(true)}
-            activeOpacity={0.7}
-          >
-            <Search size={18} color={theme.colors.text.secondary} />
-          </TouchableOpacity>
+            {/* Search Button (placeholder for future command bar) */}
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => setSearchOpen(true)}
+              activeOpacity={0.7}
+            >
+              <Search size={18} color={theme.colors.text.secondary} />
+            </TouchableOpacity>
+          </View>
         </View>
+
+        {/* Tags Section */}
+        {activeConversation?.tags && activeConversation.tags.length > 0 && (
+          <View style={styles.tagContainer}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false} 
+              contentContainerStyle={styles.tagContent}
+              pointerEvents="auto"
+            >
+              {activeConversation.tags.map((tag, index) => (
+                <View key={index} style={styles.tagPill}>
+                  <Text style={styles.tagText}>#{tag}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </View>
 
       <KeyboardAvoidingView
@@ -261,6 +290,12 @@ function ChatContent() {
                 searchResults={searchResults}
                 renderMessage={renderMessage}
                 onScrollPositionChange={(isAtBottom) => setIsScrolledUp(!isAtBottom)}
+                contentContainerStyle={{
+                  paddingTop: activeConversation?.tags && activeConversation.tags.length > 0 ? 100 : 60
+                }}
+                onLoadMore={loadMoreMessages}
+                hasMore={hasMoreMessages}
+                isLoadingMore={isLoadingMore}
               />
               
               {/* Scroll to Bottom Button */}
@@ -429,6 +464,34 @@ const styles = StyleSheet.create({
   messageListContainer: {
     flex: 1,
     position: 'relative',
+  },
+  tagContainer: {
+    height: 32,
+    marginBottom: 8,
+  },
+  tagContent: {
+    paddingHorizontal: 12,
+    gap: 8,
+    alignItems: 'center',
+  },
+  tagPill: {
+    backgroundColor: theme.colors.background.secondary,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: theme.borderRadius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
+  },
+  tagText: {
+    fontSize: 11,
+    color: theme.colors.text.secondary,
+    fontWeight: '500',
+  },
+  floatingHeaderWrapper: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
 });
 

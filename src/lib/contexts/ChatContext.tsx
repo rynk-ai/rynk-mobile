@@ -49,6 +49,9 @@ interface ChatContextValue {
   getMessageVersions: (messageId: string) => Promise<Message[]>;
   switchToMessageVersion: (versionId: string) => Promise<void>;
   reloadMessages: () => Promise<Message[]>;
+  loadMoreMessages: () => Promise<void>;
+  hasMoreMessages: boolean;
+  isLoadingMore: boolean;
   
   // Edit state
   isEditing: boolean;
@@ -111,6 +114,13 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     updateMessage,
     replaceMessage,
     clearMessages,
+    prependMessages,
+    nextCursor,
+    setNextCursor,
+    hasMoreMessages,
+    setHasMoreMessages,
+    isLoadingMore,
+    setIsLoadingMore,
   } = useMessages();
   
   const {
@@ -118,6 +128,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     streamingContent,
     statusPills,
     searchResults,
+    // ... rest of streaming hook
     isStreaming,
     startStreaming,
     updateStreamingMessageId,
@@ -128,21 +139,8 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     clearStatus,
   } = useStreaming();
 
-  // Safety Net: Ensure isSending doesn't get stuck if streaming finishes/fails weirdly
-  useEffect(() => {
-    if (!isStreaming && isSending) {
-      const timeout = setTimeout(() => {
-        if (isSendingRef.current) {
-          console.warn('[ChatContext] Safety net: Force clearing stuck isSending state');
-          setIsSending(false);
-          isSendingRef.current = false;
-        }
-      }, 1000); // 1s grace period for post-processing
-      return () => clearTimeout(timeout);
-    }
-  }, [isStreaming, isSending]);
-  
-  // Refs
+  // ... (Safety Net useEffect) ...
+
   const isSendingRef = useRef(false);
   
   // Computed
@@ -198,8 +196,8 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
       }
       
       try {
-        const response = await api.get<{ messages: Message[] }>(
-          `/mobile/conversations/${currentConversationId}/messages`
+        const response = await api.get<{ messages: Message[], nextCursor?: string | null }>(
+          `/mobile/conversations/${currentConversationId}/messages?limit=20`
         );
         
         // Final check before setting - don't overwrite optimistic messages
@@ -210,6 +208,8 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
         
         if (response.messages) {
           setMessages(response.messages);
+          setNextCursor(response.nextCursor || null);
+          setHasMoreMessages(!!response.nextCursor);
         }
       } catch (err) {
         console.error('Failed to load messages:', err);
@@ -217,7 +217,32 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     };
     
     loadMessages();
-  }, [currentConversationId, clearMessages, clearStatus, setMessages, isStreaming]);
+  }, [currentConversationId, clearMessages, clearStatus, setMessages, isStreaming, setNextCursor, setHasMoreMessages]);
+
+
+  // Load older messages (Pagination)
+  const loadMoreMessages = useCallback(async () => {
+    if (!currentConversationId || isLoadingMore || !nextCursor) return;
+
+    try {
+      setIsLoadingMore(true);
+      const response = await api.get<{ messages: Message[], nextCursor?: string | null }>(
+        `/mobile/conversations/${currentConversationId}/messages?cursor=${nextCursor}&limit=20`
+      );
+
+      if (response.messages && response.messages.length > 0) {
+        prependMessages(response.messages);
+        setNextCursor(response.nextCursor || null);
+        setHasMoreMessages(!!response.nextCursor);
+      } else {
+        setHasMoreMessages(false);
+      }
+    } catch (err) {
+      console.error('Failed to load more messages:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [currentConversationId, isLoadingMore, nextCursor, prependMessages, setNextCursor, setHasMoreMessages, setIsLoadingMore]);
   
   // Debug Messages State
   useEffect(() => {
@@ -759,6 +784,9 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     getMessageVersions,
     switchToMessageVersion,
     reloadMessages,
+    loadMoreMessages,
+    hasMoreMessages,
+    isLoadingMore,
     // Edit state
     isEditing,
     editingMessageId,
