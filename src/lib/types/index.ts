@@ -120,6 +120,7 @@ export interface CreateConversationResponse {
 export interface Folder {
   id: string;
   name: string;
+  description?: string | null;
   conversationIds: string[];
   createdAt: string;
   updatedAt: string;

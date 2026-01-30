@@ -10,6 +10,7 @@ interface FolderListItemProps {
   itemCount: number;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
+  onLongPress?: () => void;
 }
 
 export function FolderListItem({
@@ -18,11 +19,14 @@ export function FolderListItem({
   itemCount,
   isExpanded,
   onToggleExpand,
+  onLongPress,
 }: FolderListItemProps) {
   return (
     <TouchableOpacity
       style={[styles.container, isActive && styles.activeContainer]}
       onPress={onToggleExpand}
+      onLongPress={onLongPress}
+      delayLongPress={500}
       activeOpacity={0.7}
     >
       <View style={styles.iconRow}>

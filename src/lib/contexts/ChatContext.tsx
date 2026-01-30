@@ -43,6 +43,7 @@ interface ChatContextValue {
   createNewChat: () => void;
   loadConversations: () => Promise<void>;
   deleteConversation: (id: string) => Promise<void>;
+  renameConversation: (id: string, title: string) => Promise<void>;
   togglePin: (id: string) => Promise<void>;
   branchConversation: (messageId: string) => Promise<string>;
   deleteMessage: (messageId: string) => Promise<void>;
@@ -64,6 +65,11 @@ interface ChatContextValue {
   isSavingEdit: boolean;
   
   clearError: () => void;
+  
+  // Folders
+  createFolder: (name: string, description?: string, conversationIds?: string[]) => Promise<void>;
+  updateFolder: (id: string, updates: { name?: string; description?: string; conversationIds?: string[] }) => Promise<void>;
+  deleteFolder: (id: string) => Promise<void>;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -278,6 +284,19 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
       throw err;
     }
   }, [currentConversationId, createNewChat]);
+
+  // Rename conversation
+  const renameConversation = useCallback(async (id: string, title: string) => {
+    try {
+      await api.patch(`/mobile/conversations/${id}`, { title });
+      setConversations(prev => prev.map(c => 
+        c.id === id ? { ...c, title, updatedAt: new Date().toISOString() } : c
+      ));
+    } catch (err) {
+      console.error('Failed to rename conversation:', err);
+      throw err;
+    }
+  }, []);
 
   // Toggle pin
   const togglePin = useCallback(async (id: string) => {
@@ -755,6 +774,48 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
   ]);
   
   const clearError = useCallback(() => setError(null), []);
+
+  // Folder actions
+  const createFolder = useCallback(async (name: string, description?: string, conversationIds?: string[]) => {
+    console.log('[ChatContext] creating folder:', { name, description, conversationIdsCount: conversationIds?.length, conversationIds });
+    try {
+      const response = await api.post<{ folder: Folder }>('/mobile/folders', { 
+        name, 
+        description, 
+        conversationIds 
+      });
+      console.log('[ChatContext] createFolder response:', response);
+      if (response.folder) {
+        console.log('[ChatContext] createFolder adding to state:', response.folder);
+        setFolders(prev => [response.folder, ...prev]);
+      }
+    } catch (err) {
+      console.error('Failed to create folder:', err);
+      throw err;
+    }
+  }, []);
+
+  const updateFolder = useCallback(async (id: string, updates: { name?: string; description?: string; conversationIds?: string[] }) => {
+    try {
+      const response = await api.patch<{ folder: Folder }>(`/mobile/folders/${id}`, updates);
+      if (response.folder) {
+        setFolders(prev => prev.map(f => f.id === id ? response.folder : f));
+      }
+    } catch (err) {
+      console.error('Failed to update folder:', err);
+      throw err;
+    }
+  }, []);
+
+  const deleteFolder = useCallback(async (id: string) => {
+    try {
+      await api.delete(`/mobile/folders/${id}`);
+      setFolders(prev => prev.filter(f => f.id !== id));
+    } catch (err) {
+      console.error('Failed to delete folder:', err);
+      throw err;
+    }
+  }, []);
   
   // Memoize value
   const value = useMemo<ChatContextValue>(() => ({
@@ -778,6 +839,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     createNewChat,
     loadConversations: loadData,
     deleteConversation,
+    renameConversation,
     togglePin,
     branchConversation,
     deleteMessage,
@@ -797,6 +859,9 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     saveEdit,
     isSavingEdit,
     clearError,
+    createFolder,
+    updateFolder,
+    deleteFolder,
   }), [
     conversations,
     folders,
@@ -833,6 +898,9 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     saveEdit,
     isSavingEdit,
     clearError,
+    createFolder,
+    updateFolder,
+    deleteFolder,
   ]);
   
   return (

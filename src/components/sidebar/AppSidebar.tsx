@@ -30,8 +30,10 @@ import {
   Search,
   FolderPlus,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Folder
 } from 'lucide-react-native';
+import { TextInput, Keyboard } from 'react-native';
 import { theme } from '../../lib/theme';
 import { useAuth } from '../../lib/auth';
 import { useChatContext } from '../../lib/contexts/ChatContext';
@@ -41,6 +43,9 @@ import { FolderListItem } from './FolderListItem';
 import { ProjectListItem } from './ProjectListItem';
 import { UserMenu } from './UserMenu';
 import { ConversationMenu } from './ConversationMenu';
+import { FolderCreationModal } from './FolderCreationModal';
+import { RenameConversationModal } from './RenameConversationModal';
+import { AddToFolderModal } from './AddToFolderModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.85, 320);
@@ -133,36 +138,43 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
   }, [togglePin]);
 
   const handleDeleteConversation = useCallback((id: string) => {
-     Alert.alert(
-      "Delete Conversation",
-      "Are you sure you want to delete this conversation?",
+    // Show confirmation
+    Alert.alert(
+      'Delete Conversation',
+      'Are you sure you want to delete this conversation?',
       [
-        { text: "Cancel", style: "cancel" },
+        { text: 'Cancel', style: 'cancel' },
         { 
-          text: "Delete", 
-          style: "destructive", 
-          onPress: () => {
-             deleteConversation(id);
-             if (currentConversationId === id) {
-                // Navigate away or clear? user navigates usually
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+             try {
+               await deleteConversation(id);
+               // Close menu if open
+               setMenuConversation(null);
+             } catch (error) {
+               console.error('Failed to delete', error);
              }
           }
         }
       ]
     );
-  }, [deleteConversation, currentConversationId]);
+  }, [deleteConversation]);
 
-  const handleRename = (id: string) => {
-      Alert.alert("Coming Soon", "Rename feature is under development.");
-  };
+  const handleRename = useCallback((id: string) => {
+    setActionConversationId(id);
+    setIsRenameModalVisible(true);
+  }, []);
 
-  const handleAddToFolder = (id: string) => {
-      Alert.alert("Coming Soon", "Add to Folder feature is under development.");
-  };
+  const handleAddToFolder = useCallback((id: string) => {
+    setActionConversationId(id);
+    setIsAddToFolderModalVisible(true);
+  }, []);
 
-  const handleEditTags = (id: string) => {
-      Alert.alert("Coming Soon", "Edit Tags feature is under development.");
-  };
+  const handleEditTags = useCallback((id: string) => {
+    // Placeholder
+    console.log('Edit tags for', id);
+  }, []);
 
   // Filter conversations
   const pinnedConversations = useMemo(() => 
@@ -213,9 +225,62 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
      }, 300);
   }
   
+  
+  // Folder Modal State
+  const { deleteFolder } = useChatContext();
+  const [isFolderModalVisible, setIsFolderModalVisible] = useState(false);
+  const [folderToEdit, setFolderToEdit] = useState<any>(null); // Replace any with proper type
+  
+  // New States
+  const [isRenameModalVisible, setIsRenameModalVisible] = useState(false);
+  const [isAddToFolderModalVisible, setIsAddToFolderModalVisible] = useState(false);
+  const [actionConversationId, setActionConversationId] = useState<string | null>(null);
+
+  // Search
+  const [searchQuery, setSearchQuery] = useState('');
+
   const handleNewFolder = () => {
-     Alert.alert("Coming Soon", "Folder creation is under development.");
+     setFolderToEdit(null);
+     setIsFolderModalVisible(true);
+     setFoldersExpanded(true); 
   }
+
+  const handleEditFolder = (folder: any) => {
+    setFolderToEdit(folder);
+    setIsFolderModalVisible(true);
+  }
+
+  const handleFolderContextMenu = (folder: any) => {
+    Alert.alert(
+      folder.name,
+      'Choose an action',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Edit', 
+          onPress: () => handleEditFolder(folder)
+        },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Delete Folder',
+              `Are you sure you want to delete "${folder.name}"?`,
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                  text: 'Delete', 
+                  style: 'destructive',
+                  onPress: () => deleteFolder(folder.id)
+                }
+              ]
+            );
+          }
+        }
+      ]
+    );
+  };
 
   if (!isOpen) return null;
 
@@ -289,6 +354,14 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
           <View style={styles.actionIcons}>
             <TouchableOpacity 
               style={styles.actionIconButton}
+              onPress={handleNewFolder}
+              activeOpacity={0.7}
+            >
+              <FolderPlus size={16} color={theme.colors.text.primary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionIconButton}
               onPress={handleNewChat}
             >
                <Plus size={18} color={theme.colors.text.secondary} />
@@ -331,15 +404,14 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
                   expanded={foldersExpanded} 
                   onToggle={() => toggleSection(setFoldersExpanded)}
                 >
-                   {folders.map(f => (
-                     <FolderListItem
-                       key={f.id}
-                       folder={f}
-                       itemCount={f.conversationIds.length}
-                       isExpanded={true}
-                       onToggleExpand={() => {}} 
-                     />
-                   ))}
+                  {folders.map(folder => (
+                    <FolderListItem 
+                      key={folder.id}
+                      folder={folder} 
+                      itemCount={folder.conversationIds?.length || 0}
+                      onLongPress={() => handleFolderContextMenu(folder)}
+                    />
+                  ))}
                 </CollapsibleSection>
               )}
               
@@ -413,6 +485,34 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
           onRename={handleRename}
           onAddToFolder={handleAddToFolder}
           onEditTags={handleEditTags}
+        />
+
+        {/* Folder Modal */}
+        <FolderCreationModal 
+          visible={isFolderModalVisible}
+          onClose={() => setIsFolderModalVisible(false)}
+          folder={folderToEdit}
+        />
+
+        {/* Rename Modal */}
+        <RenameConversationModal
+          visible={isRenameModalVisible}
+          onClose={() => {
+            setIsRenameModalVisible(false);
+            setActionConversationId(null);
+          }}
+          conversationId={actionConversationId}
+          currentTitle={conversations.find(c => c.id === actionConversationId)?.title || ''}
+        />
+
+        {/* Add To Folder Modal */}
+        <AddToFolderModal
+          visible={isAddToFolderModalVisible}
+          onClose={() => {
+            setIsAddToFolderModalVisible(false);
+            setActionConversationId(null);
+          }}
+          conversationId={actionConversationId}
         />
 
       </SafeAreaView>
@@ -563,5 +663,23 @@ const styles = StyleSheet.create({
     color: theme.colors.text.tertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  folderItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginHorizontal: 8,
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.background.secondary,
+    marginBottom: 4,
+  },
+  emptyState: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 12,
+    color: theme.colors.text.tertiary,
+    fontStyle: 'italic',
   },
 });
