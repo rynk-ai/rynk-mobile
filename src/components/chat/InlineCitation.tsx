@@ -13,6 +13,19 @@ interface InlineCitationProps {
   citation: Citation;
 }
 
+const styles = StyleSheet.create({
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: theme.colors.accent.primary,
+    backgroundColor: 'rgba(59, 130, 246, 0.15)', // Light blue bg
+    overflow: 'hidden',
+    lineHeight: 16,
+    // Negative offset to act as superscript over baseline
+    top: Platform.OS === 'ios' ? -3 : -2,
+  },
+});
+
 export function InlineCitation({ id, citation }: InlineCitationProps) {
   const handlePress = () => {
     if (citation.url) {
@@ -22,16 +35,14 @@ export function InlineCitation({ id, citation }: InlineCitationProps) {
     }
   };
 
-  // Use Text with onPress for better compatibility nested inside other Text nodes
+  // Render highly compact non-breaking inline block
   return (
     <Text
       onPress={handlePress}
-      style={styles.badgeContainer}
+      style={styles.badgeText}
       suppressHighlighting={true}
     >
-      <Text style={styles.badgeText}>
-        {` ${id} `}
-      </Text>
+      {"\u00A0"}{id}{"\u00A0"}
     </Text>
   );
 }
@@ -53,7 +64,6 @@ export function parseCitationsInText(
   let keyIndex = 0;
 
   while ((match = citationRegex.exec(text)) !== null) {
-    // Add text before citation
     if (match.index > lastIndex) {
       parts.push(text.slice(lastIndex, match.index));
     }
@@ -62,6 +72,10 @@ export function parseCitationsInText(
     const citation = citations.find(c => c.id === citationId);
 
     if (citation) {
+      // Add a small space before the citation if the preceding character isn't a space
+      if (match.index > 0 && text[match.index - 1] !== ' ') {
+        parts.push(' ');
+      }
       parts.push(
         <InlineCitation
           key={`citation-${keyIndex++}`}
@@ -70,34 +84,16 @@ export function parseCitationsInText(
         />
       );
     } else {
-      // Keep original if citation not found
       parts.push(match[0]);
     }
 
     lastIndex = match.index + match[0].length;
   }
 
-  // Add remaining text
   if (lastIndex < text.length) {
     parts.push(text.slice(lastIndex));
   }
 
   return parts.length > 0 ? parts : [text];
 }
-
-const styles = StyleSheet.create({
-  badgeContainer: {
-    backgroundColor: 'rgba(59, 130, 246, 0.15)', // Light blue bg to match web bg-primary/15
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: theme.colors.accent.primary,
-    lineHeight: 18, // Adjusted height to not clip pill
-    // Lift the pill slightly to match superscript feel
-    top: Platform.OS === 'ios' ? -3 : -2,
-  },
-});
 

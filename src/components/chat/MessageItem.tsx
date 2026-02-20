@@ -300,19 +300,20 @@ function MessageItemBase({
       },
     };
 
-    // Enable citation parsing
+    // Enable citation parsing without breaking inheritance
     rules.text = (node: any, children: any, parent: any, styles: any) => {
       try {
-        // Parse content for [n] patterns
         const parts = parseCitationsInText(node.content, citations || []);
+        // NO explicit style passed here means it will cleanly inherit fontWeight/fontFamily
+        // from parent parent nodes like `strong` or `em`.
         return (
-          <Text key={node.key} style={[styles.text, { color: theme.colors.text.primary }]}>
+          <Text key={node.key} style={{ color: theme.colors.text.primary }}>
             {parts}
           </Text>
         );
       } catch (e) {
         return (
-          <Text key={node.key} style={styles.text}>
+          <Text key={node.key} style={{ color: theme.colors.text.primary }}>
             {node.content}
           </Text>
         );
@@ -702,39 +703,44 @@ const styles = StyleSheet.create({
 const markdownStyles = StyleSheet.create({
   body: {
     color: theme.colors.text.primary,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 17, // Bumped base font size
+    lineHeight: 28,
+    letterSpacing: -0.2,
   },
   heading1: {
     color: theme.colors.text.primary,
-    fontSize: 22,
+    fontSize: 24, // Bumped proportionally
     fontWeight: '700',
-    marginTop: 16,
+    marginTop: 18,
     marginBottom: 8,
-    lineHeight: 28,
+    lineHeight: 34,
+    letterSpacing: -0.3,
   },
   heading2: {
     color: theme.colors.text.primary,
-    fontSize: 20,
+    fontSize: 22, // Bumped proportionally
     fontWeight: '600',
-    marginTop: 14,
-    marginBottom: 6,
-    lineHeight: 26,
+    marginTop: 16,
+    marginBottom: 8,
+    lineHeight: 32,
+    letterSpacing: -0.3,
   },
   heading3: {
     color: theme.colors.text.primary,
-    fontSize: 18,
+    fontSize: 20, // Bumped proportionally
     fontWeight: '600',
-    marginTop: 12,
-    marginBottom: 4,
-    lineHeight: 24,
+    marginTop: 14,
+    marginBottom: 6,
+    lineHeight: 30,
+    letterSpacing: -0.2,
   },
   paragraph: {
     color: theme.colors.text.primary,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 17, // Bumped base font size
+    lineHeight: 28,
+    letterSpacing: -0.2,
     marginTop: 0,
-    marginBottom: 10,
+    marginBottom: 14, // Slightly more gap for larger text
   },
   code_inline: {
     backgroundColor: theme.colors.background.tertiary,
@@ -744,7 +750,7 @@ const markdownStyles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
-    fontSize: 14,
+    fontSize: 15, // Bumped slightly
     fontWeight: '500',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     overflow: 'hidden',
@@ -756,7 +762,7 @@ const markdownStyles = StyleSheet.create({
     borderRadius: 8,
     fontSize: 14,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    marginVertical: 8,
+    marginVertical: 10,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
@@ -768,7 +774,7 @@ const markdownStyles = StyleSheet.create({
     borderRadius: 8,
     fontSize: 14,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    marginVertical: 8,
+    marginVertical: 10,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
@@ -777,24 +783,39 @@ const markdownStyles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderLeftWidth: 3,
     borderLeftColor: theme.colors.text.tertiary,
-    paddingLeft: 12,
-    paddingVertical: 4,
-    marginVertical: 8,
+    paddingLeft: 14,
+    paddingVertical: 6,
+    marginVertical: 12, // More gap for larger text
   },
   bullet_list: {
     marginTop: 4,
-    marginBottom: 8,
+    marginBottom: 14, // More gap
   },
   ordered_list: {
     marginTop: 4,
-    marginBottom: 8,
+    marginBottom: 14, // More gap
   },
   list_item: {
     flexDirection: 'row',
-    marginVertical: 2,
+    marginVertical: 4,
+    alignItems: 'flex-start',
+  },
+  bullet_list_icon: {
+    marginTop: Platform.OS === 'ios' ? 9 : 10,
+    marginRight: 8, // More gap after bullet
+    color: theme.colors.text.primary,
+    fontSize: 15, // Slightly larger bullet
+  },
+  ordered_list_icon: {
+    marginTop: Platform.OS === 'ios' ? 0 : 2,
+    marginRight: 8, // More gap after number
+    color: theme.colors.text.primary,
+    fontSize: 17, // Match new body size
+    lineHeight: 28,
+    letterSpacing: -0.2,
   },
   strong: {
-    fontWeight: '600',
+    fontWeight: '700',
     color: theme.colors.text.primary,
   },
   em: {
