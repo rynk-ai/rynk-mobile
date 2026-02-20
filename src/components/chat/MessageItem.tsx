@@ -87,22 +87,22 @@ function formatCitationsFromSearchResults(
 
 // Helper: Extract images from citations
 function extractImagesFromCitations(citations: Citation[]): SourceImage[] {
-    const images: SourceImage[] = [];
-    for (const citation of citations) {
-      // If citation has explicit image field (depends on backend)
-      // For now, let's assume `citation` object might have `image` or `images` prop if passed from SearchResult
-      // We cast to any to safely check
-      const c = citation as any;
-      if (c.image) {
-        images.push({ url: c.image, sourceUrl: c.url, sourceTitle: c.title });
-      }
-      if (c.images && Array.isArray(c.images)) {
-        for (const imgUrl of c.images) {
-           images.push({ url: imgUrl, sourceUrl: c.url, sourceTitle: c.title });
-        }
+  const images: SourceImage[] = [];
+  for (const citation of citations) {
+    // If citation has explicit image field (depends on backend)
+    // For now, let's assume `citation` object might have `image` or `images` prop if passed from SearchResult
+    // We cast to any to safely check
+    const c = citation as any;
+    if (c.image) {
+      images.push({ url: c.image, sourceUrl: c.url, sourceTitle: c.title });
+    }
+    if (c.images && Array.isArray(c.images)) {
+      for (const imgUrl of c.images) {
+        images.push({ url: imgUrl, sourceUrl: c.url, sourceTitle: c.title });
       }
     }
-    return images;
+  }
+  return images;
 }
 
 
@@ -126,13 +126,13 @@ function MessageItemBase({
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
   const [showCopied, setShowCopied] = useState(false);
-  
+
   // Streaming dots animation
   const chatContext = useOptionalChatContext();
   const { branchConversation, loadConversations, deleteMessage, switchToMessageVersion, getMessageVersions } = chatContext || {};
   const router = useRouter();
   const dotsAnim = useRef(new Animated.Value(0)).current;
-  
+
   // Versions State
   const [localVersions, setLocalVersions] = useState<Message[]>([]);
   const effectiveVersions = versions.length > 0 ? versions : localVersions;
@@ -167,10 +167,10 @@ function MessageItemBase({
 
   // Parse reasoning metadata
   const parsedMetadata = useMemo(() => {
-      const raw = message.reasoningMetadata;
-      if (!raw) return undefined;
-      // If it's stored as JSON object already in mobile types (Message interface)
-      return raw; 
+    const raw = message.reasoningMetadata;
+    if (!raw) return undefined;
+    // If it's stored as JSON object already in mobile types (Message interface)
+    return raw;
   }, [message.reasoningMetadata]);
 
   // Determine effective data
@@ -184,8 +184,8 @@ function MessageItemBase({
 
   // Prepare Citations & Images
   const citations = useMemo(() => {
-      if (!isAssistant) return [];
-      return formatCitationsFromSearchResults(effectiveSearchResults);
+    if (!isAssistant) return [];
+    return formatCitationsFromSearchResults(effectiveSearchResults);
   }, [effectiveSearchResults, isAssistant]);
 
   const sourceImages = useMemo(() => extractImagesFromCitations(citations), [citations]);
@@ -273,7 +273,6 @@ function MessageItemBase({
   const canSelect = !isStreaming && displayContent;
 
   const markdownRules = useMemo(() => {
-    // Base rules always available
     const rules: any = {
       fence: (node: any, children: any, parent: any, styles: any) => {
         const info = node.sourceInfo || '';
@@ -287,32 +286,41 @@ function MessageItemBase({
           <CodeBlock key={node.key} code={node.content} language={info} />
         );
       },
+      image: (node: any, children: any, parent: any, styles: any) => {
+        const { key, ...otherProps } = node.attributes || {};
+        return (
+          <Image
+            key={node.key}
+            source={{ uri: node.attributes?.src }}
+            style={styles.image}
+            resizeMode="contain"
+            {...otherProps}
+          />
+        );
+      },
     };
 
-    // Only enable expensive citation parsing when NOT streaming
-    // This prevents layout thrashing and flicker during high-speed updates
-    if (!isStreaming) {
-        rules.text = (node: any, children: any, parent: any, styles: any) => {
-            try {
-              // Parse content for [n] patterns
-              const parts = parseCitationsInText(node.content, citations || []);
-              return (
-                <Text key={node.key} style={[styles.text, { color: theme.colors.text.primary }]}>
-                  {parts}
-                </Text>
-              );
-            } catch (e) {
-              return (
-                <Text key={node.key} style={styles.text}>
-                  {node.content}
-                </Text>
-              );
-            }
-        };
-    }
+    // Enable citation parsing
+    rules.text = (node: any, children: any, parent: any, styles: any) => {
+      try {
+        // Parse content for [n] patterns
+        const parts = parseCitationsInText(node.content, citations || []);
+        return (
+          <Text key={node.key} style={[styles.text, { color: theme.colors.text.primary }]}>
+            {parts}
+          </Text>
+        );
+      } catch (e) {
+        return (
+          <Text key={node.key} style={styles.text}>
+            {node.content}
+          </Text>
+        );
+      }
+    };
 
     return rules;
-  }, [citations, isStreaming]);
+  }, [citations]);
 
   return (
     <View style={[
@@ -323,25 +331,25 @@ function MessageItemBase({
         styles.bubble,
         isUser ? styles.userBubble : styles.assistantBubble
       ]}>
-        
+
         {/* Assistant-only Header Components */}
         {isAssistant && (
-            <>
-                {/* 1. Reasoning Display */}
-                {(effectiveStatusPills && effectiveStatusPills.length > 0) || (isStreaming && isLastMessage) ? (
-                <ReasoningDisplay 
-                    statuses={isLastMessage && isStreaming ? (statusPills || []) : (effectiveStatusPills || [])}
-                    searchResults={isLastMessage && isStreaming ? searchResults : effectiveSearchResults}
-                    isStreaming={isStreaming && isLastMessage}
-                    hasContent={!!displayContent}
-                />
-                ) : null}
+          <>
+            {/* 1. Reasoning Display */}
+            {(effectiveStatusPills && effectiveStatusPills.length > 0) || (isStreaming && isLastMessage) ? (
+              <ReasoningDisplay
+                statuses={isLastMessage && isStreaming ? (statusPills || []) : (effectiveStatusPills || [])}
+                searchResults={isLastMessage && isStreaming ? searchResults : effectiveSearchResults}
+                isStreaming={isStreaming && isLastMessage}
+                hasContent={!!displayContent}
+              />
+            ) : null}
 
-                {/* 2. Source Images (Hero) */}
-                {sourceImages.length > 0 && (
-                    <SourceImages images={sourceImages} />
-                )}
-            </>
+            {/* 2. Source Images (Hero) */}
+            {sourceImages.length > 0 && (
+              <SourceImages images={sourceImages} />
+            )}
+          </>
         )}
 
         {/* Message Content */}
@@ -417,22 +425,22 @@ function MessageItemBase({
         )}
 
         {/* Assistant-only Footer Components */}
-            <>
-                {/* 4. Sources Footer */}
-                {citations.length > 0 && (
-                    <SourcesFooter citations={citations} />
-                )}
-            </>
+        <>
+          {/* 4. Sources Footer */}
+          {citations.length > 0 && (
+            <SourcesFooter citations={citations} />
+          )}
+        </>
 
         {/* Sub-chat indicator - Now Clickable */}
         {hasSubChats && !isStreaming && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.subChatIndicator}
             onPress={() => onOpenExistingSubChat && messageSubChats[0] ? onOpenExistingSubChat(messageSubChats[0]) : null}
             activeOpacity={0.7}
           >
             <View style={styles.subChatIconContainer}>
-               <MessageSquare size={12} color={theme.colors.accent.primary} />
+              <MessageSquare size={12} color={theme.colors.accent.primary} />
             </View>
             <Text style={styles.subChatCount}>
               {messageSubChats.length} deep dive{messageSubChats.length > 1 ? 's' : ''}
@@ -492,7 +500,7 @@ function MessageItemBase({
           )}
 
           {/* Copy Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.actionButton}
             onPress={handleCopy}
             activeOpacity={0.6}
@@ -514,24 +522,24 @@ function MessageItemBase({
 export const MessageItem = memo(MessageItemBase, (prev, next) => {
   if (prev.isStreaming !== next.isStreaming) return false;
   if (prev.isStreaming && prev.streamingContent !== next.streamingContent) return false;
-  
+
   // Deep check statusPills length
   if ((prev.statusPills?.length ?? 0) !== (next.statusPills?.length ?? 0)) return false;
   // Check last status message
   if (prev.statusPills?.length && next.statusPills?.length) {
-      if (prev.statusPills[prev.statusPills.length-1].message !== next.statusPills[next.statusPills.length-1].message) return false;
+    if (prev.statusPills[prev.statusPills.length - 1].message !== next.statusPills[next.statusPills.length - 1].message) return false;
   }
 
   if (prev.message.content !== next.message.content) return false;
   if (prev.message.id !== next.message.id) return false;
-  
+
   // Check search results change
   if (prev.searchResults !== next.searchResults) return false;
   // Deep check search results count
   if (prev.searchResults?.sources?.length !== next.searchResults?.sources?.length) return false;
 
   if (prev.messageSubChats?.length !== next.messageSubChats?.length) return false;
-  
+
   return true;
 });
 
@@ -550,8 +558,8 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   bubble: {
-    paddingHorizontal: 0, 
-    paddingVertical: 2,    
+    paddingHorizontal: 0,
+    paddingVertical: 2,
     // borderRadius: 0, // Swiss Sharp
   },
   userBubble: {
@@ -564,7 +572,7 @@ const styles = StyleSheet.create({
   },
   assistantBubble: {
     backgroundColor: 'transparent',
-    paddingHorizontal: 4, 
+    paddingHorizontal: 4,
     paddingVertical: 4,
   },
   userText: {
@@ -582,7 +590,7 @@ const styles = StyleSheet.create({
   dot: {
     width: 6,
     height: 6,
-    borderRadius: 3, 
+    borderRadius: 3,
     backgroundColor: theme.colors.text.tertiary,
   },
   subChatIndicator: {
@@ -613,7 +621,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12, // More breathable
-    marginTop: 6, 
+    marginTop: 6,
   },
 
   assistantActionsRow: {
@@ -694,97 +702,104 @@ const styles = StyleSheet.create({
 const markdownStyles = StyleSheet.create({
   body: {
     color: theme.colors.text.primary,
-    fontSize: 15,
+    fontSize: 16,
     lineHeight: 24,
   },
   heading1: {
     color: theme.colors.text.primary,
     fontSize: 22,
     fontWeight: '700',
-    marginTop: 20,
-    marginBottom: 10,
+    marginTop: 16,
+    marginBottom: 8,
     lineHeight: 28,
   },
   heading2: {
     color: theme.colors.text.primary,
-    fontSize: 19,
+    fontSize: 20,
     fontWeight: '600',
-    marginTop: 18,
-    marginBottom: 8,
+    marginTop: 14,
+    marginBottom: 6,
     lineHeight: 26,
   },
   heading3: {
     color: theme.colors.text.primary,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '600',
-    marginTop: 16,
-    marginBottom: 6,
+    marginTop: 12,
+    marginBottom: 4,
     lineHeight: 24,
   },
   paragraph: {
     color: theme.colors.text.primary,
-    fontSize: 15,
+    fontSize: 16,
     lineHeight: 24,
-    marginBottom: 12,
+    marginTop: 0,
+    marginBottom: 10,
   },
   code_inline: {
-    backgroundColor: theme.colors.background.secondary,
-    color: theme.colors.accent.primary,
+    backgroundColor: theme.colors.background.tertiary,
+    color: theme.colors.text.primary,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: theme.borderRadius.sm, // Rounded (4)
-    fontSize: 13,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
+    fontSize: 14,
+    fontWeight: '500',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     overflow: 'hidden',
   },
   code_block: {
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: theme.colors.background.tertiary,
     color: theme.colors.text.primary,
-    padding: 14,
-    borderRadius: theme.borderRadius.md, // Rounded (8)
-    fontSize: 13,
+    padding: 12,
+    borderRadius: 8,
+    fontSize: 14,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    marginVertical: 12,
+    marginVertical: 8,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
   },
   fence: {
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: theme.colors.background.tertiary,
     color: theme.colors.text.primary,
-    padding: 14,
-    borderRadius: theme.borderRadius.md, // Rounded (8)
-    fontSize: 13,
+    padding: 12,
+    borderRadius: 8,
+    fontSize: 14,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    marginVertical: 12,
+    marginVertical: 8,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
   },
   blockquote: {
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: 'transparent',
     borderLeftWidth: 3,
-    borderLeftColor: theme.colors.accent.primary,
-    paddingLeft: 14,
-    paddingVertical: 10,
-    marginVertical: 12,
-    borderRadius: theme.borderRadius.md, // Rounded (8)
+    borderLeftColor: theme.colors.text.tertiary,
+    paddingLeft: 12,
+    paddingVertical: 4,
+    marginVertical: 8,
   },
   bullet_list: {
-    marginVertical: 8,
+    marginTop: 4,
+    marginBottom: 8,
   },
   ordered_list: {
-    marginVertical: 8,
+    marginTop: 4,
+    marginBottom: 8,
   },
   list_item: {
     flexDirection: 'row',
-    marginVertical: 4,
+    marginVertical: 2,
   },
   strong: {
     fontWeight: '600',
+    color: theme.colors.text.primary,
   },
   em: {
     fontStyle: 'italic',
+    color: theme.colors.text.primary,
   },
   link: {
     color: theme.colors.accent.primary,

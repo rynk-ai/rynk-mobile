@@ -4,18 +4,18 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
+  SectionList,
   Dimensions,
   Image,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { 
-  Plus, 
-  LogIn, 
-  LogOut, 
-  MessageSquare, 
+import {
+  Plus,
+  LogIn,
+  LogOut,
+  MessageSquare,
   User,
 } from 'lucide-react-native';
 import { theme } from '../lib/theme';
@@ -114,6 +114,8 @@ export function GuestDrawer({
     ];
 
     conversations.forEach((conv) => {
+      if (conv.isPinned) return; // Skip pinned conversations
+
       const convDate = new Date(conv.updatedAt || conv.createdAt);
       if (convDate >= today) {
         groups[0].data.push(conv);
@@ -139,12 +141,12 @@ export function GuestDrawer({
   return (
     <View style={styles.overlay}>
       {/* Backdrop */}
-      <TouchableOpacity 
-        style={styles.backdrop} 
-        activeOpacity={1} 
+      <TouchableOpacity
+        style={styles.backdrop}
+        activeOpacity={1}
         onPress={onClose}
       />
-      
+
       {/* Drawer */}
       <SafeAreaView style={styles.drawer} edges={['top', 'bottom']}>
         {/* Header - Auth Aware */}
@@ -174,8 +176,8 @@ export function GuestDrawer({
                   </View>
                 </View>
               </View>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.signOutButton}
                 onPress={handleSignOut}
                 activeOpacity={0.8}
@@ -201,8 +203,8 @@ export function GuestDrawer({
                   )}
                 </Text>
               </View>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.signInButton}
                 onPress={handleSignIn}
                 activeOpacity={0.8}
@@ -216,7 +218,7 @@ export function GuestDrawer({
 
         {/* New Chat Button */}
         <View style={styles.newChatSection}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.newChatButton}
             onPress={handleNewChat}
             activeOpacity={0.7}
@@ -230,40 +232,40 @@ export function GuestDrawer({
         {/* Pinned Conversations */}
         {conversations.some(c => c.isPinned) && (
           <View style={styles.pinnedSection}>
-             <Text style={styles.sectionHeader}>Pinned</Text>
-             {conversations.filter(c => c.isPinned).map(conv => (
-                <TouchableOpacity
-                  key={conv.id}
+            <Text style={styles.sectionHeader}>Pinned</Text>
+            {conversations.filter(c => c.isPinned).map(conv => (
+              <TouchableOpacity
+                key={conv.id}
+                style={[
+                  styles.conversationItem,
+                  currentConversationId === conv.id && styles.conversationItemActive,
+                ]}
+                onPress={() => handleSelectConversation(conv.id)}
+              >
+                <View style={[
+                  styles.conversationIcon,
+                  currentConversationId === conv.id && styles.conversationIconActive,
+                ]}>
+                  <Pin size={12} color={theme.colors.accent.primary} fill={theme.colors.accent.primary} />
+                </View>
+                <Text
                   style={[
-                    styles.conversationItem,
-                    currentConversationId === conv.id && styles.conversationItemActive,
+                    styles.conversationTitle,
+                    currentConversationId === conv.id && styles.conversationTitleActive,
                   ]}
-                  onPress={() => handleSelectConversation(conv.id)}
+                  numberOfLines={1}
                 >
-                  <View style={[
-                    styles.conversationIcon,
-                    currentConversationId === conv.id && styles.conversationIconActive,
-                  ]}>
-                    <Pin size={12} color={theme.colors.accent.primary} fill={theme.colors.accent.primary} />
-                  </View>
-                  <Text
-                    style={[
-                      styles.conversationTitle,
-                      currentConversationId === conv.id && styles.conversationTitleActive,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {conv.title || 'Untitled Chat'}
-                  </Text>
-                </TouchableOpacity>
-             ))}
+                  {conv.title || 'Untitled Chat'}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
 
         {/* Folders Section */}
         <View style={styles.foldersSection}>
-          <TouchableOpacity 
-            style={styles.foldersHeader} 
+          <TouchableOpacity
+            style={styles.foldersHeader}
             onPress={() => setFoldersExpanded(!foldersExpanded)}
             activeOpacity={0.7}
           >
@@ -275,24 +277,24 @@ export function GuestDrawer({
               )}
               <Text style={styles.sectionHeader}>Folders</Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => setIsFolderDialogOpen(true)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Plus size={14} color={theme.colors.text.tertiary} />
             </TouchableOpacity>
           </TouchableOpacity>
-          
+
           {foldersExpanded && (
             <View style={styles.foldersList}>
               {folders.length === 0 ? (
-                 <Text style={styles.emptyFoldersText}>No folders yet</Text>
+                <Text style={styles.emptyFoldersText}>No folders yet</Text>
               ) : (
                 folders.map(folder => (
                   <TouchableOpacity
                     key={folder.id}
                     style={styles.folderItem}
-                    // onPress={() => handleSelectFolder(folder.id)} // TODO: Implement folder selection/view
+                  // onPress={() => handleSelectFolder(folder.id)} // TODO: Implement folder selection/view
                   >
                     <FolderIcon size={14} color={theme.colors.text.tertiary} />
                     <Text style={styles.folderName} numberOfLines={1}>{folder.name}</Text>
@@ -305,50 +307,47 @@ export function GuestDrawer({
         </View>
 
         {/* Conversation List */}
-        <FlatList
-          data={groupedConversations}
-          keyExtractor={(item) => item.title}
+        <SectionList
+          sections={groupedConversations}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           onRefresh={onRefresh}
           refreshing={isLoading}
-          renderItem={({ item: group }) => (
-            <View style={styles.group}>
-              <Text style={styles.groupTitle}>{group.title}</Text>
-              {group.data.filter(c => !c.isPinned).map((conv) => (
-                <TouchableOpacity
-                  key={conv.id}
-                  style={[
-                    styles.conversationItem,
-                    currentConversationId === conv.id && styles.conversationItemActive,
-                  ]}
-                  onPress={() => handleSelectConversation(conv.id)}
-                  activeOpacity={0.6}
-                >
-                  <View style={[
-                    styles.conversationIcon,
-                    currentConversationId === conv.id && styles.conversationIconActive,
-                  ]}>
-                    <MessageSquare 
-                      size={14} 
-                      color={currentConversationId === conv.id 
-                        ? theme.colors.text.primary 
-                        : theme.colors.text.tertiary
-                      } 
-                    />
-                  </View>
-                  <Text
-                    style={[
-                      styles.conversationTitle,
-                      currentConversationId === conv.id && styles.conversationTitleActive,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {conv.title || 'Untitled Chat'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+          renderSectionHeader={({ section: { title } }) => (
+            <Text style={styles.groupTitle}>{title}</Text>
+          )}
+          renderItem={({ item: conv }) => (
+            <TouchableOpacity
+              style={[
+                styles.conversationItem,
+                currentConversationId === conv.id && styles.conversationItemActive,
+              ]}
+              onPress={() => handleSelectConversation(conv.id)}
+              activeOpacity={0.6}
+            >
+              <View style={[
+                styles.conversationIcon,
+                currentConversationId === conv.id && styles.conversationIconActive,
+              ]}>
+                <MessageSquare
+                  size={14}
+                  color={currentConversationId === conv.id
+                    ? theme.colors.text.primary
+                    : theme.colors.text.tertiary
+                  }
+                />
+              </View>
+              <Text
+                style={[
+                  styles.conversationTitle,
+                  currentConversationId === conv.id && styles.conversationTitleActive,
+                ]}
+                numberOfLines={1}
+              >
+                {conv.title || 'Untitled Chat'}
+              </Text>
+            </TouchableOpacity>
           )}
           ListEmptyComponent={
             <View style={styles.emptyState}>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking, Image } from 'react-native';
 import { theme } from '../../lib/theme';
-import { ExternalLink, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { ChevronDown, ChevronUp } from 'lucide-react-native';
 
 // Citation interface matching web app
 export interface Citation {
@@ -39,22 +39,22 @@ function getHostname(url: string): string {
   }
 }
 
-export function SourcesFooter({ 
-  citations, 
+export function SourcesFooter({
+  citations,
   onSourcePress,
-  maxVisible = 4
+  maxVisible = 8 // Match web default for pills
 }: SourcesFooterProps) {
   const [expanded, setExpanded] = useState(false);
-  
+
   if (!citations || citations.length === 0) return null;
 
   // Deduplicate citations by URL
-  const uniqueCitations = citations.filter((v, i, a) => 
+  const uniqueCitations = citations.filter((v, i, a) =>
     a.findIndex(t => t.url === v.url) === i
   );
-  
-  const visibleCitations = expanded 
-    ? uniqueCitations 
+
+  const visibleCitations = expanded
+    ? uniqueCitations
     : uniqueCitations.slice(0, maxVisible);
   const hasMore = uniqueCitations.length > maxVisible;
 
@@ -76,55 +76,51 @@ export function SourcesFooter({
             <Text style={styles.countText}>{uniqueCitations.length}</Text>
           </View>
         </View>
-        
+
         {hasMore && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.expandButton}
             onPress={() => setExpanded(!expanded)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             {expanded ? (
               <>
-                <ChevronUp size={12} color={theme.colors.text.tertiary} />
-                <Text style={styles.expandText}>Less</Text>
+                <ChevronUp size={12} color={theme.colors.text.primary} />
+                <Text style={styles.expandText}>Show less</Text>
               </>
             ) : (
               <>
-                <ChevronDown size={12} color={theme.colors.text.tertiary} />
-                <Text style={styles.expandText}>All ({uniqueCitations.length})</Text>
+                <ChevronDown size={12} color={theme.colors.text.primary} />
+                <Text style={styles.expandText}>Show all</Text>
               </>
             )}
           </TouchableOpacity>
         )}
       </View>
-      
-      {/* Source cards grid */}
-      <View style={styles.grid}>
+
+      {/* Source pills flex layout */}
+      <View style={styles.pillsContainer}>
         {visibleCitations.map((citation, index) => (
-          <TouchableOpacity 
+          <TouchableOpacity
             key={`${citation.url}-${index}`}
-            style={styles.sourceCard}
+            style={styles.sourcePill}
             onPress={() => handlePress(citation.url)}
             activeOpacity={0.7}
           >
-            {/* Numbered badge */}
+            {/* Number indicator circle */}
             <View style={styles.numberBadge}>
               <Text style={styles.numberText}>{citation.id || index + 1}</Text>
             </View>
-            
-            {/* Favicon + Title */}
-            <View style={styles.cardContent}>
-              <Image
-                source={{ uri: citation.favicon || getFaviconUrl(citation.url) }}
-                style={styles.favicon}
-                resizeMode="contain"
-              />
-              <Text style={styles.sourceTitle} numberOfLines={1}>
-                {citation.title || getHostname(citation.url)}
-              </Text>
-            </View>
-            
-            {/* External link indicator */}
-            <ExternalLink size={10} color={theme.colors.text.tertiary} style={styles.externalIcon} />
+
+            <Image
+              source={{ uri: citation.favicon || getFaviconUrl(citation.url) }}
+              style={styles.favicon}
+              resizeMode="contain"
+            />
+
+            <Text style={styles.sourceTitle} numberOfLines={1}>
+              {getHostname(citation.url)}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -137,14 +133,14 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: theme.colors.border.subtle,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)', // Subtle divider
     width: '100%',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   labelRow: {
     flexDirection: 'row',
@@ -152,21 +148,20 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   label: {
-    fontSize: 11,
-    color: theme.colors.text.tertiary,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontSize: 12,
+    color: theme.colors.text.secondary,
+    fontWeight: '500',
   },
   countBadge: {
-    backgroundColor: theme.colors.background.tertiary,
+    backgroundColor: 'rgba(59, 130, 246, 0.15)', // Light blue match web
     paddingHorizontal: 6,
     paddingVertical: 2,
+    borderRadius: 12,
   },
   countText: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
-    color: theme.colors.text.tertiary,
+    color: theme.colors.accent.primary,
   },
   expandButton: {
     flexDirection: 'row',
@@ -174,58 +169,54 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingVertical: 4,
     paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: theme.colors.background.tertiary,
   },
   expandText: {
-    fontSize: 11,
-    color: theme.colors.text.tertiary,
+    fontSize: 12,
+    color: theme.colors.text.primary,
   },
-  grid: {
+  pillsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  sourceCard: {
+  sourcePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)', // Match secondary/50 on web
+    borderRadius: 20, // Fully rounded pills
+    paddingVertical: 6,
+    paddingLeft: 6,
+    paddingRight: 12,
+    gap: 6,
     borderWidth: 1,
-    borderColor: theme.colors.border.subtle,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    maxWidth: '48%',
-    flex: 1,
-    minWidth: 140,
-    gap: 8,
+    borderColor: 'transparent',
   },
   numberBadge: {
-    width: 18,
-    height: 18,
-    backgroundColor: theme.colors.accent.primary + '20', // 20% opacity
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: theme.colors.background.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   numberText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
-    color: theme.colors.accent.primary,
-  },
-  cardContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    color: theme.colors.text.secondary,
   },
   favicon: {
     width: 14,
     height: 14,
-    opacity: 0.9,
+    borderRadius: 2,
+    opacity: 0.8,
   },
   sourceTitle: {
-    flex: 1,
-    fontSize: 11,
+    fontSize: 12,
     color: theme.colors.text.secondary,
-  },
-  externalIcon: {
-    opacity: 0.5,
+    maxWidth: 160,
   },
 });

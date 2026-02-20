@@ -20,7 +20,8 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "appleTeamId": "6YR89Y84JM"
     },
     "android": {
       "adaptiveIcon": {

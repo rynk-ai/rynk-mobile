@@ -87,7 +87,7 @@ function GuestChatContent() {
 
   // Determine if we're in empty state (no messages and not sending)
   const isEmptyState = messages.length === 0 && !isSending;
-  
+
   // Onboarding messages - shown when no conversation is selected
   const onboardingMessages = useMemo(() => {
     const now = Date.now();
@@ -102,7 +102,7 @@ function GuestChatContent() {
       onboardingImages: msg.images,
     })) as Message[];
   }, []);
-  
+
   // Show onboarding instead of empty state when no conversation selected
   const showOnboarding = !currentConversationId && isEmptyState;
 
@@ -126,17 +126,17 @@ function GuestChatContent() {
       setShowSignInModal(true);
       return;
     }
-    
+
     // Prepend quote as markdown if present
     let finalContent = content;
     if (quotedMessage) {
       const quoteLines = quotedMessage.quotedText.split('\n').map(line => `> ${line}`).join('\n');
       finalContent = `${quoteLines}\n\n${content}`;
     }
-    
+
     // Build referencedConversations with id and title
-    const referencedConversations = selectedContext.length > 0 
-      ? selectedContext.map(item => ({ id: item.id, title: item.title })) 
+    const referencedConversations = selectedContext.length > 0
+      ? selectedContext.map(item => ({ id: item.id, title: item.title }))
       : undefined;
 
     console.log('[handleSend] Calling sendMessage with referencedConversations:', referencedConversations?.length || 0);
@@ -296,6 +296,7 @@ function GuestChatContent() {
             <View style={styles.contentArea}>
               <FlatList
                 ref={flatListRef}
+                style={{ flex: 1 }}
                 data={showOnboarding ? onboardingMessages : messages}
                 renderItem={renderMessage}
                 keyExtractor={item => item.id}
@@ -325,7 +326,7 @@ function GuestChatContent() {
                   ) : null
                 }
               />
-              
+
               {/* Scroll to Bottom Button */}
               <ScrollToBottomButton
                 visible={isScrolledUp && messages.length > 0}
@@ -379,7 +380,7 @@ function GuestChatContent() {
         onCreateFolder={() => createFolder("New Folder")} // TODO: Add dialog
         isAuthenticated={false}
         user={null}
-        onSignOut={() => {}}
+        onSignOut={() => { }}
       />
 
       {/* Sign In Modal */}

@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Image,
-  FlatList,
+  SectionList,
   Platform,
   Alert,
   LayoutAnimation,
@@ -21,9 +21,9 @@ if (Platform.OS === 'android') {
 }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { 
-  Plus, 
-  LogOut, 
+import {
+  Plus,
+  LogOut,
   User,
   Settings,
   X,
@@ -59,12 +59,12 @@ interface AppSidebarProps {
 export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const { 
-    conversations, 
+  const {
+    conversations,
     folders,
     projects,
-    currentConversationId, 
-    selectConversation, 
+    currentConversationId,
+    selectConversation,
     createNewChat,
     togglePin,
     deleteConversation,
@@ -72,16 +72,16 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
   } = useChatContext();
 
   // Section Header Component with Animation
-  function CollapsibleSection({ 
-    title, 
-    expanded, 
-    onToggle, 
-    children 
-  }: { 
-    title: string; 
-    expanded: boolean; 
-    onToggle: () => void; 
-    children: React.ReactNode 
+  function CollapsibleSection({
+    title,
+    expanded,
+    onToggle,
+    children
+  }: {
+    title: string;
+    expanded: boolean;
+    onToggle: () => void;
+    children?: React.ReactNode
   }) {
     const rotateAnim = useRef(new Animated.Value(expanded ? 1 : 0)).current;
 
@@ -100,7 +100,7 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
 
     return (
       <View style={styles.section}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.sectionHeader}
           onPress={onToggle}
           activeOpacity={0.7}
@@ -144,17 +144,17 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
       'Are you sure you want to delete this conversation?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
+        {
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-             try {
-               await deleteConversation(id);
-               // Close menu if open
-               setMenuConversation(null);
-             } catch (error) {
-               console.error('Failed to delete', error);
-             }
+            try {
+              await deleteConversation(id);
+              // Close menu if open
+              setMenuConversation(null);
+            } catch (error) {
+              console.error('Failed to delete', error);
+            }
           }
         }
       ]
@@ -177,9 +177,9 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
   }, []);
 
   // Filter conversations
-  const pinnedConversations = useMemo(() => 
-    conversations.filter(c => c.isPinned), 
-  [conversations]);
+  const pinnedConversations = useMemo(() =>
+    conversations.filter(c => c.isPinned),
+    [conversations]);
 
   const recentConversations = useMemo(() => {
     const today = new Date();
@@ -212,25 +212,25 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
     selectConversation(id);
     onClose();
   };
-  
+
   const handleSelectProject = () => {
     Alert.alert("Coming Soon", "Project view is under development.");
   };
 
   const handleSearch = () => {
-     onClose();
-     // Small delay to allow drawer to close smoothy
-     setTimeout(() => {
-        onSearch();
-     }, 300);
+    onClose();
+    // Small delay to allow drawer to close smoothy
+    setTimeout(() => {
+      onSearch();
+    }, 300);
   }
-  
-  
+
+
   // Folder Modal State
   const { deleteFolder } = useChatContext();
   const [isFolderModalVisible, setIsFolderModalVisible] = useState(false);
   const [folderToEdit, setFolderToEdit] = useState<any>(null); // Replace any with proper type
-  
+
   // New States
   const [isRenameModalVisible, setIsRenameModalVisible] = useState(false);
   const [isAddToFolderModalVisible, setIsAddToFolderModalVisible] = useState(false);
@@ -240,9 +240,9 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleNewFolder = () => {
-     setFolderToEdit(null);
-     setIsFolderModalVisible(true);
-     setFoldersExpanded(true); 
+    setFolderToEdit(null);
+    setIsFolderModalVisible(true);
+    setFoldersExpanded(true);
   }
 
   const handleEditFolder = (folder: any) => {
@@ -256,12 +256,12 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
       'Choose an action',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Edit', 
+        {
+          text: 'Edit',
           onPress: () => handleEditFolder(folder)
         },
-        { 
-          text: 'Delete', 
+        {
+          text: 'Delete',
           style: 'destructive',
           onPress: () => {
             Alert.alert(
@@ -269,8 +269,8 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
               `Are you sure you want to delete "${folder.name}"?`,
               [
                 { text: 'Cancel', style: 'cancel' },
-                { 
-                  text: 'Delete', 
+                {
+                  text: 'Delete',
                   style: 'destructive',
                   onPress: () => deleteFolder(folder.id)
                 }
@@ -282,27 +282,63 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
     );
   };
 
-  if (!isOpen) return null;
-
   const userDisplayName = user?.name || user?.email?.split('@')[0] || 'User';
   const tierLabel = user?.subscriptionTier === 'pro' ? 'Pro' : 'Free';
 
+  const sections = useMemo(() => {
+    const s = [];
+    if (pinnedConversations.length > 0) {
+      s.push({
+        title: 'Pinned',
+        data: pinnedExpanded ? pinnedConversations : [],
+        expanded: pinnedExpanded,
+        onToggle: () => toggleSection(setPinnedExpanded)
+      });
+    }
+    if (recentConversations.length > 0) {
+      s.push({
+        title: 'Today',
+        data: recentExpanded ? recentConversations : [],
+        expanded: recentExpanded,
+        onToggle: () => toggleSection(setRecentExpanded)
+      });
+    }
+    if (olderConversations.length > 0) {
+      s.push({
+        title: 'Previous 7 Days',
+        data: olderExpanded ? olderConversations : [],
+        expanded: olderExpanded,
+        onToggle: () => toggleSection(setOlderExpanded)
+      });
+    }
+    return s;
+  }, [
+    pinnedConversations,
+    recentConversations,
+    olderConversations,
+    pinnedExpanded,
+    recentExpanded,
+    olderExpanded
+  ]);
+
+  if (!isOpen) return null;
+
   return (
     <View style={styles.overlay}>
-      <TouchableOpacity 
-        style={styles.backdrop} 
-        activeOpacity={1} 
+      <TouchableOpacity
+        style={styles.backdrop}
+        activeOpacity={1}
         onPress={() => {
-           if (isUserDropdownOpen) setIsUserDropdownOpen(false);
-           else onClose();
+          if (isUserDropdownOpen) setIsUserDropdownOpen(false);
+          else onClose();
         }}
       />
-      
+
       <SafeAreaView style={styles.drawer} edges={['top', 'bottom']}>
         {/* User Profile Header */}
         <View style={[styles.header, { zIndex: 201 }]}>
-          <TouchableOpacity 
-            style={styles.userSection} 
+          <TouchableOpacity
+            style={styles.userSection}
             activeOpacity={0.8}
             onPress={() => {
               LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -328,18 +364,18 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
             </View>
           </TouchableOpacity>
         </View>
-        
+
         {/* User Menu (Accordion) - Pushes content down */}
         {isUserDropdownOpen && (
-           <UserMenu 
-             user={user} 
-             onSignOut={handleSignOut}
-           />
+          <UserMenu
+            user={user}
+            onSignOut={handleSignOut}
+          />
         )}
 
         {/* Action Toolbar (Search + New) */}
         <View style={styles.actionToolbar}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.searchButton}
             onPress={handleSearch}
             activeOpacity={0.7}
@@ -347,12 +383,12 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
             <Search size={14} color={theme.colors.text.tertiary} />
             <Text style={styles.searchText}>Search</Text>
             <View style={styles.commandShortcut}>
-               <Text style={styles.commandText}>⌘K</Text>
+              <Text style={styles.commandText}>⌘K</Text>
             </View>
           </TouchableOpacity>
-          
+
           <View style={styles.actionIcons}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionIconButton}
               onPress={handleNewFolder}
               activeOpacity={0.7}
@@ -360,27 +396,42 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
               <FolderPlus size={16} color={theme.colors.text.primary} />
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionIconButton}
               onPress={handleNewChat}
             >
-               <Plus size={18} color={theme.colors.text.secondary} />
+              <Plus size={18} color={theme.colors.text.secondary} />
             </TouchableOpacity>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={styles.actionIconButton}
-               onPress={handleNewFolder}
+              onPress={handleNewFolder}
             >
-               <FolderPlus size={16} color={theme.colors.text.secondary} />
+              <FolderPlus size={16} color={theme.colors.text.secondary} />
             </TouchableOpacity>
           </View>
         </View>
 
-        <FlatList
+        <SectionList
           style={styles.list}
           contentContainerStyle={styles.listContent}
-          data={[]} 
-          renderItem={() => null} 
+          sections={sections}
+          keyExtractor={(item) => item.id}
+          renderSectionHeader={({ section }) => (
+            <CollapsibleSection
+              title={section.title}
+              expanded={section.expanded}
+              onToggle={section.onToggle}
+            />
+          )}
+          renderItem={({ item: c }) => (
+            <ConversationListItem
+              conversation={c}
+              isActive={currentConversationId === c.id}
+              onSelect={handleSelectConversation}
+              onShowMenu={handleShowMenu}
+            />
+          )}
           ListHeaderComponent={
             <>
               {/* Projects */}
@@ -388,9 +439,9 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
                 <View style={styles.section}>
                   {/* <Text style={styles.sectionTitle}>Projects</Text> */}
                   {projects.map(p => (
-                    <ProjectListItem 
-                      key={p.id} 
-                      project={p} 
+                    <ProjectListItem
+                      key={p.id}
+                      project={p}
                       onSelect={handleSelectProject}
                     />
                   ))}
@@ -399,74 +450,17 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
 
               {/* Folders */}
               {folders.length > 0 && (
-                <CollapsibleSection 
-                  title="Folders" 
-                  expanded={foldersExpanded} 
+                <CollapsibleSection
+                  title="Folders"
+                  expanded={foldersExpanded}
                   onToggle={() => toggleSection(setFoldersExpanded)}
                 >
                   {folders.map(folder => (
-                    <FolderListItem 
+                    <FolderListItem
                       key={folder.id}
-                      folder={folder} 
+                      folder={folder}
                       itemCount={folder.conversationIds?.length || 0}
                       onLongPress={() => handleFolderContextMenu(folder)}
-                    />
-                  ))}
-                </CollapsibleSection>
-              )}
-              
-              {/* Pinned */}
-              {pinnedConversations.length > 0 && (
-                <CollapsibleSection 
-                  title="Pinned" 
-                  expanded={pinnedExpanded} 
-                  onToggle={() => toggleSection(setPinnedExpanded)}
-                >
-                  {pinnedConversations.map(c => (
-                    <ConversationListItem 
-                      key={c.id} 
-                      conversation={c} 
-                      isActive={currentConversationId === c.id}
-                      onSelect={handleSelectConversation}
-                      onShowMenu={handleShowMenu}
-                    />
-                  ))}
-                </CollapsibleSection>
-              )}
-              
-              {/* Recent */}
-              {recentConversations.length > 0 && (
-                <CollapsibleSection 
-                  title="Today" 
-                  expanded={recentExpanded} 
-                  onToggle={() => toggleSection(setRecentExpanded)}
-                >
-                  {recentConversations.map(c => (
-                    <ConversationListItem 
-                      key={c.id} 
-                      conversation={c} 
-                      isActive={currentConversationId === c.id}
-                      onSelect={handleSelectConversation}
-                      onShowMenu={handleShowMenu}
-                    />
-                  ))}
-                </CollapsibleSection>
-              )}
-
-              {/* Older */}
-              {olderConversations.length > 0 && (
-                <CollapsibleSection 
-                  title="Previous 7 Days" 
-                  expanded={olderExpanded} 
-                  onToggle={() => toggleSection(setOlderExpanded)}
-                >
-                  {olderConversations.map(c => (
-                    <ConversationListItem 
-                      key={c.id} 
-                      conversation={c} 
-                      isActive={currentConversationId === c.id}
-                      onSelect={handleSelectConversation}
-                      onShowMenu={handleShowMenu}
                     />
                   ))}
                 </CollapsibleSection>
@@ -474,7 +468,7 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
             </>
           }
         />
-        
+
         {/* Conversation Menu Overlay */}
         <ConversationMenu
           visible={!!menuConversation}
@@ -488,7 +482,7 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
         />
 
         {/* Folder Modal */}
-        <FolderCreationModal 
+        <FolderCreationModal
           visible={isFolderModalVisible}
           onClose={() => setIsFolderModalVisible(false)}
           folder={folderToEdit}
@@ -593,7 +587,7 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 4,
   },
-  
+
   // Action Toolbar Styles
   actionToolbar: {
     flexDirection: 'row',
@@ -640,7 +634,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.lg, // Sharp
     backgroundColor: 'transparent', // Ghost
   },
-  
+
   list: {
     flex: 1,
   },

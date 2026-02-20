@@ -77,14 +77,14 @@ export const MessageList = forwardRef<MessageListRef, MessageListProps>(function
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
     const paddingToBottom = 100; // Threshold for "at bottom"
     const isAtBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - paddingToBottom;
-    
+
     setIsUserScrolledUp(!isAtBottom);
     onScrollPositionChange?.(isAtBottom);
 
     // Detect top for pagination (load more)
     // Using a threshold of 50px from top
     if (contentOffset.y <= 50 && hasMore && !isLoadingMore && onLoadMore) {
-        onLoadMore();
+      onLoadMore();
     }
   }, [onScrollPositionChange, hasMore, isLoadingMore, onLoadMore]);
 
@@ -93,7 +93,7 @@ export const MessageList = forwardRef<MessageListRef, MessageListProps>(function
     const isStreaming = item.id === streamingMessageId;
     const isLastMessage = index === messages.length - 1;
     const previousMessage = index > 0 ? messages[index - 1] : undefined;
-    
+
     // Grouping logic (simplified)
     const showAvatar = item.role === 'assistant' && (
       !previousMessage || previousMessage.role !== 'assistant'
@@ -114,18 +114,19 @@ export const MessageList = forwardRef<MessageListRef, MessageListProps>(function
   return (
     <FlatList
       ref={listRef}
+      style={{ flex: 1 }}
       data={messages}
       keyExtractor={(item) => item.id}
       contentContainerStyle={[styles.listContent, contentContainerStyle]}
       renderItem={renderMessage || defaultRenderItem}
-      ListHeaderComponent={() => 
+      ListHeaderComponent={() =>
         isLoadingMore ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
           </View>
         ) : null
       }
-      ListFooterComponent={() => 
+      ListFooterComponent={() =>
         isLoading && !streamingMessageId ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color={theme.colors.text.tertiary} />

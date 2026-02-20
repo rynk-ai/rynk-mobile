@@ -16,6 +16,7 @@ interface RequestOptions extends RequestInit {
 
 class ApiClient {
   private baseUrl: string;
+  private refreshPromise: Promise<string | null> | null = null;
 
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
@@ -28,8 +29,16 @@ class ApiClient {
 
       // Check if access token is expired or expiring soon (within 60s)
       if (Date.now() > session.accessTokenExpiresAt - 60000) {
+        if (this.refreshPromise) {
+          console.log('[ApiClient] Refresh already in progress, waiting for existing promise...');
+          return this.refreshPromise;
+        }
+
         console.log('[ApiClient] Access token expired/expiring, refreshing...');
-        return await this.refreshAccessToken(session.refreshToken);
+        this.refreshPromise = this.refreshAccessToken(session.refreshToken).finally(() => {
+          this.refreshPromise = null;
+        });
+        return await this.refreshPromise;
       }
 
       return session.accessToken;
@@ -53,7 +62,7 @@ class ApiClient {
       }
 
       const data = await response.json();
-      
+
       const newSession: Session = {
         user: data.user,
         accessToken: data.accessToken,
@@ -93,7 +102,7 @@ class ApiClient {
     }
 
     const url = `${this.baseUrl}${endpoint}`;
-    
+
     const response = await fetch(url, {
       ...fetchOptions,
       headers,
@@ -109,7 +118,7 @@ class ApiClient {
         // Use raw text if not JSON
         if (errorText.length > 0) errorMessage = errorText.substring(0, 100);
       }
-      
+
       console.log(`[ApiClient] Request failed: ${fetchOptions.method || 'GET'} ${url} -> ${response.status} ${errorMessage}`);
       throw new ApiError(response.status, errorMessage);
     }
@@ -117,7 +126,7 @@ class ApiClient {
     // Handle empty responses
     const text = await response.text();
     if (!text) return {} as T;
-    
+
     return JSON.parse(text) as T;
   }
 
@@ -224,14 +233,14 @@ class ApiClient {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', url, true);
-      
+
       // Set headers
       Object.keys(headers).forEach(key => {
         xhr.setRequestHeader(key, headers[key]);
       });
-      
+
       xhr.setRequestHeader('Cache-Control', 'no-cache');
-      
+
       let seenBytes = 0;
       let buffer = '';
       let headersEmitted = false;
@@ -239,13 +248,13 @@ class ApiClient {
       const processBuffer = () => {
         // We assume structured messages (JSON or SSE) always end with a newline
         // Raw content might not.
-        
+
         while (buffer.length > 0) {
           // Heuristic: Is this likely a structured message?
           // We check trimmed version to handle leading newlines from previous SSE double-newlines
           const trimmed = buffer.trimStart();
           const isStructured = trimmed.startsWith('{') || trimmed.startsWith('data: ');
-          
+
           if (isStructured) {
             // If we detected structured message, consume the leading whitespace first
             if (buffer.length !== trimmed.length) {
@@ -255,88 +264,88 @@ class ApiClient {
             // Find delimiter
             // SSE uses \n\n, JSON-lines uses \n. safe to look for \n
             const newlineIdx = buffer.indexOf('\n');
-            
+
             if (newlineIdx === -1) {
               // Incomplete structured message, wait for more data
               return;
             }
-            
+
             const line = buffer.substring(0, newlineIdx).trim();
             buffer = buffer.substring(newlineIdx + 1); // Advance buffer
-            
+
             if (!line) continue;
-            
+
             // Try to parse as SSE or JSON
             let jsonStr = line;
             if (line.startsWith('data: ')) {
-               jsonStr = line.substring(6).trim();
+              jsonStr = line.substring(6).trim();
             }
-            
+
             if (!jsonStr) continue;
 
             try {
-               const parsed = JSON.parse(jsonStr);
-               if (parsed.type === 'status' && parsed.status === 'complete') {
-                  console.log(`[ApiClient] Stream complete (${requestId})`);
-                  onMessage(jsonStr);
-                  xhr.abort();
-                  resolve();
-                  return true; // Stop processing
-               }
-               onMessage(jsonStr);
+              const parsed = JSON.parse(jsonStr);
+              if (parsed.type === 'status' && parsed.status === 'complete') {
+                console.log(`[ApiClient] Stream complete (${requestId})`);
+                onMessage(jsonStr);
+                xhr.abort();
+                resolve();
+                return true; // Stop processing
+              }
+              onMessage(jsonStr);
             } catch (e) {
-               // If it looked like JSON but failed, it might be raw text starting with {?
-               // Highly unlikely for our schema, but let's log and treat as content fallback?
-               // No, safer to ignore likely-malformed system messages to avoid showing code to user
-               console.warn(`[ApiClient] Parse error (${requestId}):`, e);
+              // If it looked like JSON but failed, it might be raw text starting with {?
+              // Highly unlikely for our schema, but let's log and treat as content fallback?
+              // No, safer to ignore likely-malformed system messages to avoid showing code to user
+              console.warn(`[ApiClient] Parse error (${requestId}):`, e);
             }
-            
+
           } else {
-             // It's raw content (Text Stream)
-             
-             // Check for functionality: content immediately followed by JSON control message
-             // (e.g. "Some text{"type":"status"...)
-             const jsonPatterns = [
-               '{"type":"status"',
-               '{"type":"search_results"',
-               '{"type":"context_cards"'
-             ];
-             
-             let jsonIdx = -1;
-             for (const pattern of jsonPatterns) {
-               const idx = buffer.indexOf(pattern);
-               if (idx !== -1 && (jsonIdx === -1 || idx < jsonIdx)) {
-                 jsonIdx = idx;
-               }
-             }
-             
-             if (jsonIdx !== -1) {
-               // Found embedded JSON!
-               // 1. Emit content up to the JSON
-               if (jsonIdx > 0) {
-                 const contentChunk = buffer.substring(0, jsonIdx);
-                 onMessage(JSON.stringify({ type: 'content', content: contentChunk }));
-               }
-               
-               // 2. Keep the JSON part in the buffer for the next loop iteration
-               // (where isStructured will be true)
-               buffer = buffer.substring(jsonIdx);
-               continue;
-             }
-             
-             // Normal content handling
-             const newlineIdx = buffer.indexOf('\n');
-             if (newlineIdx === -1) {
-                // No newline. Flush ALL as content
-                // Wrap in JSON content event for UI
-                onMessage(JSON.stringify({ type: 'content', content: buffer }));
-                buffer = '';
-             } else {
-                // Flush line
-                const contentChunk = buffer.substring(0, newlineIdx + 1); // keep newline
+            // It's raw content (Text Stream)
+
+            // Check for functionality: content immediately followed by JSON control message
+            // (e.g. "Some text{"type":"status"...)
+            const jsonPatterns = [
+              '{"type":"status"',
+              '{"type":"search_results"',
+              '{"type":"context_cards"'
+            ];
+
+            let jsonIdx = -1;
+            for (const pattern of jsonPatterns) {
+              const idx = buffer.indexOf(pattern);
+              if (idx !== -1 && (jsonIdx === -1 || idx < jsonIdx)) {
+                jsonIdx = idx;
+              }
+            }
+
+            if (jsonIdx !== -1) {
+              // Found embedded JSON!
+              // 1. Emit content up to the JSON
+              if (jsonIdx > 0) {
+                const contentChunk = buffer.substring(0, jsonIdx);
                 onMessage(JSON.stringify({ type: 'content', content: contentChunk }));
-                buffer = buffer.substring(newlineIdx + 1);
-             }
+              }
+
+              // 2. Keep the JSON part in the buffer for the next loop iteration
+              // (where isStructured will be true)
+              buffer = buffer.substring(jsonIdx);
+              continue;
+            }
+
+            // Normal content handling
+            const newlineIdx = buffer.indexOf('\n');
+            if (newlineIdx === -1) {
+              // No newline. Flush ALL as content
+              // Wrap in JSON content event for UI
+              onMessage(JSON.stringify({ type: 'content', content: buffer }));
+              buffer = '';
+            } else {
+              // Flush line
+              const contentChunk = buffer.substring(0, newlineIdx + 1); // keep newline
+              onMessage(JSON.stringify({ type: 'content', content: contentChunk }));
+              buffer = buffer.substring(newlineIdx + 1);
+            }
           }
         }
         return false;
@@ -361,37 +370,37 @@ class ApiClient {
           console.log(`[ApiClient] XHR readyState: ${xhr.readyState} (${requestId})`);
           const newData = xhr.responseText.substring(seenBytes);
           if (newData.length === 0) return;
-          
+
           seenBytes = xhr.responseText.length;
-          
+
           console.log(`[ApiClient] XHR Chunk (${requestId}):`, newData.substring(0, 50));
-          
+
           buffer += newData;
-          
+
           const done = processBuffer();
           if (done) return;
         }
-        
+
         if (xhr.readyState === 4) {
-           console.log(`[ApiClient] XHR Done (${requestId}) status: ${xhr.status}`);
-           // Flush remaining buffer as content if any
-           if (buffer.length > 0) {
-              onMessage(JSON.stringify({ type: 'content', content: buffer }));
-           }
-           
-           if (xhr.status >= 200 && xhr.status < 300) {
-             resolve();
-           } else {
-             reject(new Error(`Stream failed with status ${xhr.status}`));
-           }
+          console.log(`[ApiClient] XHR Done (${requestId}) status: ${xhr.status}`);
+          // Flush remaining buffer as content if any
+          if (buffer.length > 0) {
+            onMessage(JSON.stringify({ type: 'content', content: buffer }));
+          }
+
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`Stream failed with status ${xhr.status}`));
+          }
         }
       };
-      
+
       xhr.onerror = () => {
-         console.error(`[ApiClient] XHR Error (${requestId})`);
-         reject(new Error('Network request failed'));
+        console.error(`[ApiClient] XHR Error (${requestId})`);
+        reject(new Error('Network request failed'));
       };
-      
+
       xhr.send(JSON.stringify(data));
     });
   }
@@ -402,30 +411,30 @@ class ApiClient {
     intervalMs = 1500
   ): Promise<any> {
     for (let i = 0; i < maxAttempts; i++) {
-        await new Promise(r => setTimeout(r, intervalMs));
-        try {
-            const data = await this.get<{
-                status: 'queued' | 'processing' | 'complete' | 'error';
-                result?: { surfaceState: any };
-                error?: string;
-            }>(`/jobs/${jobId}`);
+      await new Promise(r => setTimeout(r, intervalMs));
+      try {
+        const data = await this.get<{
+          status: 'queued' | 'processing' | 'complete' | 'error';
+          result?: { surfaceState: any };
+          error?: string;
+        }>(`/jobs/${jobId}`);
 
-            console.log(`[ApiClient] Poll job ${jobId}: ${data.status}`);
+        console.log(`[ApiClient] Poll job ${jobId}: ${data.status}`);
 
-            if (data.status === 'complete' && data.result?.surfaceState) {
-                return { surfaceState: data.result.surfaceState };
-            }
-
-            if (data.status === 'error') {
-                throw new Error(data.error || 'Job failed');
-            }
-        } catch (error) {
-            console.log(`[ApiClient] Polling error (attempt ${i + 1}):`, error);
-             if (error instanceof ApiError && error.status === 401) {
-                 throw error;
-             }
-             // Continue polling on other errors (e.g. network glitch)
+        if (data.status === 'complete' && data.result?.surfaceState) {
+          return { surfaceState: data.result.surfaceState };
         }
+
+        if (data.status === 'error') {
+          throw new Error(data.error || 'Job failed');
+        }
+      } catch (error) {
+        console.log(`[ApiClient] Polling error (attempt ${i + 1}):`, error);
+        if (error instanceof ApiError && error.status === 401) {
+          throw error;
+        }
+        // Continue polling on other errors (e.g. network glitch)
+      }
     }
     throw new Error('Job timed out');
   }
@@ -444,11 +453,19 @@ class ApiClient {
     });
 
     if (response.async && response.jobId) {
-        console.log(`[ApiClient] Surface generation is async, polling job: ${response.jobId}`);
-        return this.pollForJobCompletion(response.jobId);
+      console.log(`[ApiClient] Surface generation is async, polling job: ${response.jobId}`);
+      return this.pollForJobCompletion(response.jobId);
     }
 
     return response;
+  }
+
+  async fixMermaidDiagram(code: string, messageId?: string, conversationId?: string): Promise<{ fixed: boolean; code?: string }> {
+    return this.post<{ fixed: boolean; code?: string }>('/mermaid/fix', {
+      code,
+      messageId,
+      conversationId
+    });
   }
 }
 
