@@ -19,24 +19,24 @@ interface ChatContextValue {
   currentConversationId: string | null;
   currentConversation: Conversation | null;
   isLoadingConversations: boolean;
-  
+
   // Messages
   messages: Message[];
-  
+
   // Streaming
   streamingMessageId: string | null;
   streamingContent: string;
   statusPills: StatusPill[];
   searchResults: SearchResult | null;
   isStreaming: boolean;
-  
+
   // Loading states
   isSending: boolean;
   error: string | null;
-  
+
   // User
   userCredits: number | null;
-  
+
   // Actions
   selectConversation: (id: string | null) => void;
   sendMessage: (content: string, referencedConversations?: { id: string; title: string }[], attachments?: { url: string; name: string; type: string; size: number }[]) => Promise<void>;
@@ -53,7 +53,8 @@ interface ChatContextValue {
   loadMoreMessages: () => Promise<void>;
   hasMoreMessages: boolean;
   isLoadingMore: boolean;
-  
+  createShareLink: (conversationId: string) => Promise<string>;
+
   // Edit state
   isEditing: boolean;
   editingMessageId: string | null;
@@ -63,9 +64,9 @@ interface ChatContextValue {
   updateEditContent: (content: string) => void;
   saveEdit: () => Promise<void>;
   isSavingEdit: boolean;
-  
+
   clearError: () => void;
-  
+
   // Folders
   createFolder: (name: string, description?: string, conversationIds?: string[]) => Promise<void>;
   updateFolder: (id: string, updates: { name?: string; description?: string; conversationIds?: string[] }) => Promise<void>;
@@ -93,7 +94,7 @@ interface ChatProviderProps {
 
 export function ChatProvider({ children, initialConversationId }: ChatProviderProps) {
   const { user } = useAuth();
-  
+
   // State
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -109,9 +110,17 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
-  
 
-  
+  // Sync initialConversationId from props (deep links)
+  useEffect(() => {
+    if (initialConversationId !== undefined && initialConversationId !== currentConversationId) {
+      console.log('[ChatContext] initialConversationId changed, updating currentConversationId:', initialConversationId);
+      setCurrentConversationId(initialConversationId);
+    }
+  }, [initialConversationId]);
+
+
+
   // Hooks
   const {
     messages,
@@ -128,7 +137,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     isLoadingMore,
     setIsLoadingMore,
   } = useMessages();
-  
+
   const {
     streamingMessageId,
     streamingContent,
@@ -148,13 +157,13 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
   // ... (Safety Net useEffect) ...
 
   const isSendingRef = useRef(false);
-  
+
   // Computed
   const currentConversation = useMemo(
     () => conversations.find(c => c.id === currentConversationId) ?? null,
     [conversations, currentConversationId]
   );
-  
+
   // Load data
   const loadData = useCallback(async () => {
     try {
@@ -165,7 +174,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
         api.get<{ folders: Folder[] }>('/mobile/folders').catch(() => ({ folders: [] })),
         api.get<{ projects: Project[] }>('/mobile/projects').catch(() => ({ projects: [] })),
       ]);
-      
+
       setConversations(convRes.conversations || []);
       setFolders(foldRes.folders || []);
       setProjects(projRes.projects || []);
@@ -175,11 +184,11 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
       setIsLoadingConversations(false);
     }
   }, []);
-  
+
   useEffect(() => {
     loadData();
   }, [loadData]);
-  
+
   // Load messages when conversation changes
   useEffect(() => {
     if (!currentConversationId) {
@@ -187,31 +196,31 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
       clearStatus();
       return;
     }
-    
+
     // Skip loading if we're in the middle of sending or streaming
     if (isSendingRef.current || isStreaming) {
       console.log('[ChatContext] Skipping loadMessages - sending or streaming in progress');
       return;
     }
-    
+
     const loadMessages = async () => {
       // Double-check we're still not sending (async race condition guard)
       if (isSendingRef.current || isStreaming) {
         console.log('[ChatContext] loadMessages aborted - sending started');
         return;
       }
-      
+
       try {
         const response = await api.get<{ messages: Message[], nextCursor?: string | null }>(
           `/mobile/conversations/${currentConversationId}/messages?limit=20`
         );
-        
+
         // Final check before setting - don't overwrite optimistic messages
         if (isSendingRef.current || isStreaming) {
           console.log('[ChatContext] loadMessages result discarded - sending in progress');
           return;
         }
-        
+
         if (response.messages) {
           setMessages(response.messages);
           setNextCursor(response.nextCursor || null);
@@ -221,7 +230,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
         console.error('Failed to load messages:', err);
       }
     };
-    
+
     loadMessages();
   }, [currentConversationId, clearMessages, clearStatus, setMessages, isStreaming, setNextCursor, setHasMoreMessages]);
 
@@ -249,19 +258,19 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
       setIsLoadingMore(false);
     }
   }, [currentConversationId, isLoadingMore, nextCursor, prependMessages, setNextCursor, setHasMoreMessages, setIsLoadingMore]);
-  
+
   // Debug Messages State
   useEffect(() => {
-     console.log('[ChatContext] Messages state:', messages.length, messages.map(m => m.id));
+    console.log('[ChatContext] Messages state:', messages.length, messages.map(m => m.id));
   }, [messages]);
-  
+
   // Select conversation
   const selectConversation = useCallback((id: string | null) => {
     setCurrentConversationId(id);
     setError(null);
     clearStatus();
   }, [clearStatus]);
-  
+
   // Create new chat
   const createNewChat = useCallback(() => {
     console.log('[ChatContext] createNewChat called - clearing messages');
@@ -270,7 +279,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     clearStatus();
     setError(null);
   }, [clearMessages, clearStatus]);
-  
+
   // Delete conversation
   const deleteConversation = useCallback(async (id: string) => {
     try {
@@ -289,7 +298,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
   const renameConversation = useCallback(async (id: string, title: string) => {
     try {
       await api.patch(`/mobile/conversations/${id}`, { title });
-      setConversations(prev => prev.map(c => 
+      setConversations(prev => prev.map(c =>
         c.id === id ? { ...c, title, updatedAt: new Date().toISOString() } : c
       ));
     } catch (err) {
@@ -303,31 +312,31 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     try {
       setConversations(prev => {
         return prev.map(c => {
-           if (c.id === id) {
-             return { ...c, isPinned: !c.isPinned };
-           }
-           return c;
+          if (c.id === id) {
+            return { ...c, isPinned: !c.isPinned };
+          }
+          return c;
         });
       });
-      
+
       const conversation = conversations.find(c => c.id === id);
       const newIsPinned = !conversation?.isPinned;
-      
+
       await api.put(`/mobile/conversations/${id}/pin`, { isPinned: newIsPinned });
     } catch (err) {
-       console.error('Failed to toggle pin:', err);
-       // Revert on error
-       setConversations(prev => {
+      console.error('Failed to toggle pin:', err);
+      // Revert on error
+      setConversations(prev => {
         return prev.map(c => {
-           if (c.id === id) {
-             return { ...c, isPinned: !c.isPinned };
-           }
-           return c;
+          if (c.id === id) {
+            return { ...c, isPinned: !c.isPinned };
+          }
+          return c;
         });
       });
     }
   }, [conversations]);
-  
+
   // Branch conversation
   const branchConversation = useCallback(async (messageId: string) => {
     try {
@@ -344,6 +353,19 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
       throw err;
     }
   }, [currentConversationId]);
+
+  // Create share link
+  const createShareLink = useCallback(async (conversationId: string) => {
+    try {
+      const response = await api.post<{ share: { id: string } }>('/mobile/share', {
+        conversationId
+      });
+      return response.share.id;
+    } catch (err) {
+      console.error('Failed to create share link:', err);
+      throw err;
+    }
+  }, []);
 
 
 
@@ -366,7 +388,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
       await api.post(`/mobile/messages/${versionId}/versions`, {
         conversationId: currentConversationId
       });
-      
+
       // Reload messages to show the switched version
       const response = await api.get<{ messages: Message[] }>(
         `/mobile/conversations/${currentConversationId}/messages`
@@ -404,7 +426,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
       if (!currentConversationId) throw new Error("No active conversation");
 
       await api.delete(`/mobile/conversations/${currentConversationId}/messages/${messageId}`);
-      
+
       // Reload messages to reflect server-side cascading deletion
       await reloadMessages();
     } catch (err) {
@@ -462,13 +484,13 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
       // Check if edited message (new version) is the last user message -> generate AI response
       const lastUserMessage = [...freshMessages].reverse().find(m => m.role === 'user');
       const isEditedMessageLast = lastUserMessage?.id === result.newMessage.id;
-      
+
       if (isEditedMessageLast) {
         // The edited message was the last user message, trigger AI response
         // The server will create the assistant message - we just need to stream the content
-        
+
         startStreaming('pending'); // Generic streaming indicator
-        
+
         addStatusPill({
           status: 'analyzing',
           message: 'Thinking...',
@@ -480,8 +502,8 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
 
         // Create a dedicated completion handler for this stream execution
         const handleStreamCompletion = async (finalContent: string) => {
-             finishStreaming(finalContent);
-             await reloadMessages();
+          finishStreaming(finalContent);
+          await reloadMessages();
         };
 
         try {
@@ -493,52 +515,52 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
               useReasoning: 'auto',
             },
             (dataString: string) => {
-               if (!dataString) return;
-               try {
-                 const parsed = JSON.parse(dataString);
-                 
-                 if (parsed.type === 'status') {
-                   if (parsed.status === 'complete') {
-                     // Server says complete
-                     return; 
-                   }
-                   addStatusPill({
-                     status: parsed.status,
-                     message: parsed.message,
-                     timestamp: Date.now(),
-                   });
-                   return;
-                 }
-                 
-                 if (parsed.type === 'content') {
-                   fullContent += parsed.content;
-                   updateStreamContent(fullContent);
-                   return;
-                 }
-                 
-                 if (parsed.type === 'search_results') {
-                   updateSearchResults(parsed);
-                   return;
-                 }
-               } catch (e) {
-                 // Fallback
-                 fullContent += dataString;
-                 updateStreamContent(fullContent);
-               }
+              if (!dataString) return;
+              try {
+                const parsed = JSON.parse(dataString);
+
+                if (parsed.type === 'status') {
+                  if (parsed.status === 'complete') {
+                    // Server says complete
+                    return;
+                  }
+                  addStatusPill({
+                    status: parsed.status,
+                    message: parsed.message,
+                    timestamp: Date.now(),
+                  });
+                  return;
+                }
+
+                if (parsed.type === 'content') {
+                  fullContent += parsed.content;
+                  updateStreamContent(fullContent);
+                  return;
+                }
+
+                if (parsed.type === 'search_results') {
+                  updateSearchResults(parsed);
+                  return;
+                }
+              } catch (e) {
+                // Fallback
+                fullContent += dataString;
+                updateStreamContent(fullContent);
+              }
             },
             {
               onHeaders: (headers: Headers) => {
-                 realAssistantMsgId = headers.get('X-Assistant-Message-Id');
-                 console.log('[saveEdit] Got real assistant ID from headers:', realAssistantMsgId);
+                realAssistantMsgId = headers.get('X-Assistant-Message-Id');
+                console.log('[saveEdit] Got real assistant ID from headers:', realAssistantMsgId);
               }
             }
           );
         } catch (e) {
-           console.error('[saveEdit] Stream error:', e);
+          console.error('[saveEdit] Stream error:', e);
         } finally {
-           // ALWAYS ensure streaming is finished, even on error or hang
-           console.log('[saveEdit] Stream finished/closed, cleaning up');
-           await handleStreamCompletion(fullContent);
+          // ALWAYS ensure streaming is finished, even on error or hang
+          console.log('[saveEdit] Stream finished/closed, cleaning up');
+          await handleStreamCompletion(fullContent);
         }
       }
     } catch (err) {
@@ -572,11 +594,11 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     attachments?: { url: string; name: string; type: string; size: number }[]
   ) => {
     if (!content.trim() || isSendingRef.current) return;
-    
+
     isSendingRef.current = true;
     setIsSending(true);
     setError(null);
-    
+
     try {
       // Create conversation if needed
       let convId = currentConversationId;
@@ -584,16 +606,16 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
       if (!convId) {
         const response = await api.post<{ conversationId: string }>('/mobile/conversations', {});
         if (!response?.conversationId) {
-           throw new Error('Failed to create conversation: No ID returned');
+          throw new Error('Failed to create conversation: No ID returned');
         }
         convId = response.conversationId;
         setCurrentConversationId(convId);
       }
-      
+
       // Generate temp IDs
       const tempUserMsgId = `temp_user_${Date.now()}`;
       const tempAssistantMsgId = `temp_assistant_${Date.now()}`;
-      
+
       // Optimistic user message
       const userMessage: Message = {
         id: tempUserMsgId,
@@ -611,7 +633,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
         modelUsed: null,
         createdAt: new Date().toISOString(),
       };
-      
+
       // Optimistic assistant placeholder
       const assistantMessage: Message = {
         id: tempAssistantMsgId,
@@ -629,13 +651,13 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
         modelUsed: null,
         createdAt: new Date().toISOString(),
       };
-      
+
       console.log('[sendMessage] Adding optimistic messages:', { tempUserMsgId, tempAssistantMsgId });
-      
+
       console.log('[sendMessage] Adding optimistic messages:', { tempUserMsgId, tempAssistantMsgId });
       addMessages([userMessage, assistantMessage]);
       startStreaming(tempAssistantMsgId);
-      
+
       addStatusPill({
         status: 'analyzing',
         message: 'Thinking...',
@@ -645,10 +667,10 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
       // Track effective IDs
       let effectiveUserMsgId = tempUserMsgId;
       let effectiveAssistantMsgId = tempAssistantMsgId;
-      
+
       // Stream response
       let fullContent = '';
-      
+
       try {
         await api.stream(
           '/mobile/chat',
@@ -661,88 +683,88 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
             attachments: attachments || [],
           },
           (dataString: string) => {
-             if (!dataString) return;
-             try {
-               const parsed = JSON.parse(dataString);
-               
-               if (parsed.type === 'meta') {
-                  // Update specific IDs from server
-                  if (parsed.userMessageId && parsed.userMessageId !== effectiveUserMsgId) {
-                     effectiveUserMsgId = parsed.userMessageId;
-                  }
-                  if (parsed.assistantMessageId && parsed.assistantMessageId !== effectiveAssistantMsgId) {
-                     effectiveAssistantMsgId = parsed.assistantMessageId;
-                  }
-                  return;
-               }
-  
-               if (parsed.type === 'status') {
-                 if (parsed.status === 'complete') return;
-                 addStatusPill({
-                   status: parsed.status,
-                   message: parsed.message,
-                   timestamp: Date.now(),
-                 });
-                 return;
-               }
-               
-               if (parsed.type === 'content') {
-                 fullContent += parsed.content;
-                 updateStreamContent(fullContent); 
-                 return;
-               }
-               
-               if (parsed.type === 'search_results') {
-                 updateSearchResults(parsed);
-                 return;
-               }
-             } catch (e) {
-               fullContent += dataString;
-               updateStreamContent(fullContent);
-             }
+            if (!dataString) return;
+            try {
+              const parsed = JSON.parse(dataString);
+
+              if (parsed.type === 'meta') {
+                // Update specific IDs from server
+                if (parsed.userMessageId && parsed.userMessageId !== effectiveUserMsgId) {
+                  effectiveUserMsgId = parsed.userMessageId;
+                }
+                if (parsed.assistantMessageId && parsed.assistantMessageId !== effectiveAssistantMsgId) {
+                  effectiveAssistantMsgId = parsed.assistantMessageId;
+                }
+                return;
+              }
+
+              if (parsed.type === 'status') {
+                if (parsed.status === 'complete') return;
+                addStatusPill({
+                  status: parsed.status,
+                  message: parsed.message,
+                  timestamp: Date.now(),
+                });
+                return;
+              }
+
+              if (parsed.type === 'content') {
+                fullContent += parsed.content;
+                updateStreamContent(fullContent);
+                return;
+              }
+
+              if (parsed.type === 'search_results') {
+                updateSearchResults(parsed);
+                return;
+              }
+            } catch (e) {
+              fullContent += dataString;
+              updateStreamContent(fullContent);
+            }
           },
           {
-             onHeaders: (headers: Headers) => {
-               const realUserMsgId = headers.get('X-User-Message-Id');
-               const realAssistantMsgId = headers.get('X-Assistant-Message-Id');
-               
-               if (realUserMsgId && realUserMsgId !== tempUserMsgId) {
-                  replaceMessage(tempUserMsgId, { ...userMessage, id: realUserMsgId });
-                  effectiveUserMsgId = realUserMsgId;
-               }
-               if (realAssistantMsgId && realAssistantMsgId !== tempAssistantMsgId) {
-                  replaceMessage(tempAssistantMsgId, { ...assistantMessage, id: realAssistantMsgId });
-                  effectiveAssistantMsgId = realAssistantMsgId;
-                  // Update streaming message ID to match the real ID
-                  updateStreamingMessageId(realAssistantMsgId);
-               }
-             }
+            onHeaders: (headers: Headers) => {
+              const realUserMsgId = headers.get('X-User-Message-Id');
+              const realAssistantMsgId = headers.get('X-Assistant-Message-Id');
+
+              if (realUserMsgId && realUserMsgId !== tempUserMsgId) {
+                replaceMessage(tempUserMsgId, { ...userMessage, id: realUserMsgId });
+                effectiveUserMsgId = realUserMsgId;
+              }
+              if (realAssistantMsgId && realAssistantMsgId !== tempAssistantMsgId) {
+                replaceMessage(tempAssistantMsgId, { ...assistantMessage, id: realAssistantMsgId });
+                effectiveAssistantMsgId = realAssistantMsgId;
+                // Update streaming message ID to match the real ID
+                updateStreamingMessageId(realAssistantMsgId);
+              }
+            }
           }
         );
       } catch (err) {
-         console.error('[sendMessage] inner stream error', err);
-         throw err;
+        console.error('[sendMessage] inner stream error', err);
+        throw err;
       } finally {
-         console.log('[sendMessage] Stream finished/closed, cleaning up');
-         // Update message with final content using correct ID
-         updateMessage(effectiveAssistantMsgId, { content: fullContent });
-         finishStreaming(fullContent);
+        console.log('[sendMessage] Stream finished/closed, cleaning up');
+        // Update message with final content using correct ID
+        updateMessage(effectiveAssistantMsgId, { content: fullContent });
+        finishStreaming(fullContent);
       }
 
       // For new conversations, generate a title (Fire and forget)
       if (isNewConversation) {
-        api.post<{ title: string }>('/mobile/chat/title', { 
-          conversationId: convId, 
-          messageContent: content.trim() 
+        api.post<{ title: string }>('/mobile/chat/title', {
+          conversationId: convId,
+          messageContent: content.trim()
         })
-        .then(() => {
-          // Reload conversations to reflect the new title
-          // We don't need to await this
-          loadData();
-        })
-        .catch(err => {
-          console.error('Failed to generate title:', err);
-        });
+          .then(() => {
+            // Reload conversations to reflect the new title
+            // We don't need to await this
+            loadData();
+          })
+          .catch(err => {
+            console.error('Failed to generate title:', err);
+          });
       }
 
       // Reload actual messages from server to ensure we have real IDs
@@ -772,17 +794,17 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     loadData,
     reloadMessages,
   ]);
-  
+
   const clearError = useCallback(() => setError(null), []);
 
   // Folder actions
   const createFolder = useCallback(async (name: string, description?: string, conversationIds?: string[]) => {
     console.log('[ChatContext] creating folder:', { name, description, conversationIdsCount: conversationIds?.length, conversationIds });
     try {
-      const response = await api.post<{ folder: Folder }>('/mobile/folders', { 
-        name, 
-        description, 
-        conversationIds 
+      const response = await api.post<{ folder: Folder }>('/mobile/folders', {
+        name,
+        description,
+        conversationIds
       });
       console.log('[ChatContext] createFolder response:', response);
       if (response.folder) {
@@ -816,7 +838,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
       throw err;
     }
   }, []);
-  
+
   // Memoize value
   const value = useMemo<ChatContextValue>(() => ({
     conversations,
@@ -862,6 +884,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     createFolder,
     updateFolder,
     deleteFolder,
+    createShareLink,
   }), [
     conversations,
     folders,
@@ -902,7 +925,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     updateFolder,
     deleteFolder,
   ]);
-  
+
   return (
     <ChatContext.Provider value={value}>
       {children}

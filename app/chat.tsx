@@ -13,11 +13,12 @@ import {
   KeyboardAvoidingView as RNKeyboardAvoidingView,
   Platform,
   ScrollView,
+  Share as RNShare,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Menu, Plus, AlertCircle, RotateCcw, Search } from 'lucide-react-native';
+import { Menu, Plus, AlertCircle, RotateCcw, Search, Share as ShareIcon } from 'lucide-react-native';
 
 import { ChatProvider, useChatContext } from '../src/lib/contexts/ChatContext';
 import { useAuth } from '../src/lib/auth';
@@ -71,6 +72,7 @@ function ChatContent() {
     loadMoreMessages,
     hasMoreMessages,
     isLoadingMore,
+    createShareLink,
   } = useChatContext();
 
   // Sub-chats (reuse guest hook for now as logic is similar)
@@ -223,7 +225,7 @@ function ChatContent() {
             {/* Separator */}
             <View style={styles.headerSeparator} />
 
-            {/* Search Button (placeholder for future command bar) */}
+            {/* Search Button */}
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => setSearchOpen(true)}
@@ -231,6 +233,38 @@ function ChatContent() {
             >
               <Search size={18} color={theme.colors.text.secondary} />
             </TouchableOpacity>
+
+            {/* Separator */}
+            {currentConversationId && (
+              <>
+                <View style={styles.headerSeparator} />
+
+                {/* Share Button */}
+                <TouchableOpacity
+                  style={styles.headerButton}
+                  onPress={async () => {
+                    try {
+                      // Only share if there's an active conversation and messages
+                      if (!currentConversationId || messages.length === 0) return;
+
+                      const shareId = await createShareLink(currentConversationId);
+                      const shareUrl = `https://rynk.io/share/${shareId}`;
+
+                      await RNShare.share({
+                        message: shareUrl,
+                        url: shareUrl, // iOS uses this separate field well
+                        title: 'Share Conversation', // Android uses this
+                      });
+                    } catch (error) {
+                      console.error('Failed to share:', error);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <ShareIcon size={18} color={theme.colors.text.secondary} />
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
 
