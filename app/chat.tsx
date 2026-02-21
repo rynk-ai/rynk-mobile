@@ -250,11 +250,17 @@ function ChatContent() {
                       const shareId = await createShareLink(currentConversationId);
                       const shareUrl = `https://rynk.io/share/${shareId}`;
 
-                      await RNShare.share({
-                        message: shareUrl,
-                        url: shareUrl, // iOS uses this separate field well
-                        title: 'Share Conversation', // Android uses this
+                      const shareOptions = Platform.select({
+                        ios: {
+                          url: shareUrl,
+                        },
+                        default: {
+                          title: 'Share Conversation',
+                          message: shareUrl,
+                        }
                       });
+
+                      await RNShare.share(shareOptions);
                     } catch (error) {
                       console.error('Failed to share:', error);
                     }

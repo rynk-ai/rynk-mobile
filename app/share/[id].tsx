@@ -15,7 +15,7 @@ import { theme } from '../../src/lib/theme';
 import { useAuth } from '../../src/lib/auth';
 import { MessageItem, ChatBackground } from '../../src/components/chat';
 import type { Message } from '../../src/lib/types';
-import { useChatContext } from '../../src/lib/contexts/ChatContext';
+import { useOptionalChatContext } from '../../src/lib/contexts/ChatContext';
 
 interface ShareData {
     share: {
@@ -37,7 +37,8 @@ export default function ShareScreen() {
     const params = useLocalSearchParams<{ id: string; action?: string }>();
     const router = useRouter();
     const { isAuthenticated } = useAuth();
-    const { loadConversations } = useChatContext();
+    const chatContext = useOptionalChatContext();
+    const loadConversations = chatContext?.loadConversations;
 
     const [shareData, setShareData] = useState<ShareData | null>(null);
     const [loading, setLoading] = useState(true);
