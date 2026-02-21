@@ -6,14 +6,16 @@ import {
   StyleSheet,
   Animated,
   Platform,
+  Modal,
+  TouchableWithoutFeedback
 } from 'react-native';
-import { 
-  Paperclip, 
-  MessageSquare, 
-  Folder, 
-  Camera, 
-  Image as ImageIcon, 
-  FileText 
+import {
+  Paperclip,
+  MessageSquare,
+  Folder,
+  Camera,
+  Image as ImageIcon,
+  FileText
 } from 'lucide-react-native';
 import { theme } from '../../lib/theme';
 
@@ -72,120 +74,122 @@ export function ChatInputActionMenu({
     }
   }, [visible]);
 
-  if (!visible && (fadeAnim as any)._value === 0) return null;
-
   return (
-    <View style={styles.container} pointerEvents="box-none">
-      {/* Backdrop */}
-      <TouchableOpacity 
-        style={StyleSheet.absoluteFill} 
-        activeOpacity={1} 
-        onPress={onClose} 
-      />
-      
-      {/* Menu */}
-      <Animated.View 
-        style={[
-          styles.menu,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }]
-          }
-        ]}
-      >
-        {/* Attach Files Group */}
-        {(onPickImage || onAttachFiles || onTakePhoto || onPickDocument) && (
-          <View style={styles.group}>
-            <Text style={styles.groupTitle}>Attachments</Text>
-            
-            {(onPickImage || onAttachFiles) && (
-              <TouchableOpacity 
-                style={styles.menuItem} 
-                onPress={() => {
-                  onPickImage ? onPickImage() : onAttachFiles?.();
-                  onClose();
-                }}
-              >
-                <ImageIcon size={18} color={theme.colors.text.secondary} />
-                <Text style={styles.menuItemText}>Photo Library</Text>
-              </TouchableOpacity>
-            )}
+    <Modal
+      transparent={true}
+      visible={visible}
+      animationType="none"
+      onRequestClose={onClose}
+    >
+      <View style={styles.container} pointerEvents="box-none">
+        {/* Backdrop */}
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={StyleSheet.absoluteFill} />
+        </TouchableWithoutFeedback>
 
-            {onTakePhoto && (
-              <TouchableOpacity 
-                style={styles.menuItem} 
-                onPress={() => {
-                  onTakePhoto();
-                  onClose();
-                }}
-              >
-                <Camera size={18} color={theme.colors.text.secondary} />
-                <Text style={styles.menuItemText}>Take Photo</Text>
-              </TouchableOpacity>
-            )}
+        {/* Menu */}
+        <Animated.View
+          style={[
+            styles.menu,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          {/* Attach Files Group */}
+          {(onPickImage || onAttachFiles || onTakePhoto || onPickDocument) && (
+            <View style={styles.group}>
+              <Text style={styles.groupTitle}>Attachments</Text>
 
-            {(onPickDocument || onAttachFiles) && (
-               <TouchableOpacity 
-                style={styles.menuItem} 
-                onPress={() => {
-                  onPickDocument ? onPickDocument() : onAttachFiles?.();
-                  onClose();
-                }}
-              >
-                <Paperclip size={18} color={theme.colors.text.secondary} />
-                <Text style={styles.menuItemText}>Document</Text>
-              </TouchableOpacity>
-            )}
-            
-            {/* Separator if we have context items too */}
-            {(onAddContext || onAddFolder) && <View style={styles.separator} />}
-          </View>
-        )}
+              {(onPickImage || onAttachFiles) && (
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    onPickImage ? onPickImage() : onAttachFiles?.();
+                    onClose();
+                  }}
+                >
+                  <ImageIcon size={18} color={theme.colors.text.secondary} />
+                  <Text style={styles.menuItemText}>Photo Library</Text>
+                </TouchableOpacity>
+              )}
 
-        {/* Context Group */}
-        {(onAddContext || onAddFolder) && (
-          <View style={styles.group}>
-            <Text style={styles.groupTitle}>Context</Text>
-            
-            {onAddContext && (
-              <TouchableOpacity 
-                style={styles.menuItem} 
-                onPress={() => {
-                  onAddContext();
-                  onClose();
-                }}
-              >
-                <MessageSquare size={18} color={theme.colors.text.secondary} />
-                <Text style={styles.menuItemText}>Add Conversation</Text>
-              </TouchableOpacity>
-            )}
+              {onTakePhoto && (
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    onTakePhoto();
+                    onClose();
+                  }}
+                >
+                  <Camera size={18} color={theme.colors.text.secondary} />
+                  <Text style={styles.menuItemText}>Take Photo</Text>
+                </TouchableOpacity>
+              )}
 
-            {onAddFolder && (
-              <TouchableOpacity 
-                style={styles.menuItem} 
-                 onPress={() => {
-                  onAddFolder();
-                  onClose();
-                }}
-              >
-                <Folder size={18} color={theme.colors.text.secondary} />
-                <Text style={styles.menuItemText}>Add Folder</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+              {(onPickDocument || onAttachFiles) && (
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    onPickDocument ? onPickDocument() : onAttachFiles?.();
+                    onClose();
+                  }}
+                >
+                  <Paperclip size={18} color={theme.colors.text.secondary} />
+                  <Text style={styles.menuItemText}>Document</Text>
+                </TouchableOpacity>
+              )}
 
-      </Animated.View>
-    </View>
+              {/* Separator if we have context items too */}
+              {(onAddContext || onAddFolder) && <View style={styles.separator} />}
+            </View>
+          )}
+
+          {/* Context Group */}
+          {(onAddContext || onAddFolder) && (
+            <View style={styles.group}>
+              <Text style={styles.groupTitle}>Context</Text>
+
+              {onAddContext && (
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    onAddContext();
+                    onClose();
+                  }}
+                >
+                  <MessageSquare size={18} color={theme.colors.text.secondary} />
+                  <Text style={styles.menuItemText}>Add Conversation</Text>
+                </TouchableOpacity>
+              )}
+
+              {onAddFolder && (
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    onAddFolder();
+                    onClose();
+                  }}
+                >
+                  <Folder size={18} color={theme.colors.text.secondary} />
+                  <Text style={styles.menuItemText}>Add Folder</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+        </Animated.View>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 1000,
     justifyContent: 'flex-end',
-    paddingBottom: 60, // Align roughly above input bar
+    paddingBottom: 110, // increased padding to ensure it places above the chat input completely
     paddingLeft: 10,
   },
   menu: {

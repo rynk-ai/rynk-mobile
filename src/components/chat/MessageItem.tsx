@@ -702,44 +702,44 @@ const styles = StyleSheet.create({
 const markdownStyles = StyleSheet.create({
   body: {
     color: theme.colors.text.primary,
-    fontSize: 17, // Bumped base font size
+    fontSize: 18, // increased font size
     lineHeight: 28,
     letterSpacing: -0.2,
   },
   heading1: {
     color: theme.colors.text.primary,
-    fontSize: 24, // Bumped proportionally
+    fontSize: 28, // increased
     fontWeight: '700',
-    marginTop: 18,
-    marginBottom: 8,
-    lineHeight: 34,
-    letterSpacing: -0.3,
+    marginTop: 24, // increased margin
+    marginBottom: 12, // increased
+    lineHeight: 38, // increased
+    letterSpacing: -0.4,
   },
   heading2: {
     color: theme.colors.text.primary,
-    fontSize: 22, // Bumped proportionally
+    fontSize: 24, // increased
     fontWeight: '600',
-    marginTop: 16,
-    marginBottom: 8,
-    lineHeight: 32,
+    marginTop: 20, // increased
+    marginBottom: 10,
+    lineHeight: 34,
     letterSpacing: -0.3,
   },
   heading3: {
     color: theme.colors.text.primary,
-    fontSize: 20, // Bumped proportionally
+    fontSize: 22, // increased
     fontWeight: '600',
-    marginTop: 14,
-    marginBottom: 6,
-    lineHeight: 30,
+    marginTop: 16,
+    marginBottom: 8,
+    lineHeight: 32,
     letterSpacing: -0.2,
   },
   paragraph: {
     color: theme.colors.text.primary,
-    fontSize: 17, // Bumped base font size
+    fontSize: 18, // increased font size
     lineHeight: 28,
     letterSpacing: -0.2,
     marginTop: 0,
-    marginBottom: 14, // Slightly more gap for larger text
+    marginBottom: 16, // slightly more gap
   },
   code_inline: {
     backgroundColor: theme.colors.background.tertiary,
