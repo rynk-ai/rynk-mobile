@@ -41,6 +41,7 @@ export default function RootLayout() {
                   <Stack.Screen name="guest-chat" />
                   <Stack.Screen name="chat" />
                   <Stack.Screen name="conversations" />
+                  <Stack.Screen name="share/[id]" />
                 </Stack>
               </SafeAreaProvider>
             </GestureHandlerRootView>

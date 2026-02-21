@@ -44,13 +44,13 @@ export function AddToFolderModal({ visible, onClose, conversationId }: AddToFold
 
   const handleSave = async () => {
     if (!conversationId) return;
-    
+
     setIsSubmitting(true);
     try {
       // We need to update *each* folder to add/remove this conversation.
       // This is slightly inefficient but given folder count is small, it's fine.
       // Ideally backend would have "updateConversationFolders", but we have "updateFolder".
-      
+
       const promises = folders.map(async (folder) => {
         const isCurrentlyIn = folder.conversationIds.includes(conversationId);
         const shouldBeIn = selectedFolderIds.has(folder.id);
@@ -90,10 +90,10 @@ export function AddToFolderModal({ visible, onClose, conversationId }: AddToFold
             <View style={styles.container}>
               <View style={styles.header}>
                 <Text style={styles.title}>Add to Folder</Text>
-                <TouchableOpacity 
-                   onPress={handleSave} 
-                   disabled={isSubmitting}
-                   style={styles.saveButton}
+                <TouchableOpacity
+                  onPress={handleSave}
+                  disabled={isSubmitting}
+                  style={styles.saveButton}
                 >
                   <Text style={[styles.saveText, isSubmitting && { opacity: 0.7 }]}>
                     {isSubmitting ? 'Saving...' : 'Done'}
@@ -114,19 +114,19 @@ export function AddToFolderModal({ visible, onClose, conversationId }: AddToFold
                         onPress={() => toggleFolder(folder.id)}
                       >
                         <View style={styles.folderInfo}>
-                          <FolderIcon 
-                            size={20} 
-                            color={isSelected ? theme.colors.primary : theme.colors.text.tertiary} 
+                          <FolderIcon
+                            size={20}
+                            color={isSelected ? theme.colors.accent.primary : theme.colors.text.tertiary}
                           />
                           <Text style={[
-                            styles.folderName, 
-                            isSelected && { color: theme.colors.primary, fontWeight: '500' }
+                            styles.folderName,
+                            isSelected && { color: theme.colors.accent.primary, fontWeight: '500' }
                           ]}>
                             {folder.name}
                           </Text>
                         </View>
                         {isSelected && (
-                          <Check size={18} color={theme.colors.primary} />
+                          <Check size={18} color={theme.colors.accent.primary} />
                         )}
                       </TouchableOpacity>
                     );
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   saveText: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.primary,
+    color: theme.colors.accent.primary,
   },
   content: {
     padding: 8,

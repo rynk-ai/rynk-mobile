@@ -15,7 +15,7 @@ interface FolderCreationModalProps {
 
 export const FolderCreationModal: React.FC<FolderCreationModalProps> = ({ visible, onClose, onSuccess, folder }) => {
   const { conversations, createFolder, updateFolder } = useChatContext();
-  
+
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedConversationIds, setSelectedConversationIds] = useState<Set<string>>(new Set());
@@ -53,7 +53,7 @@ export const FolderCreationModal: React.FC<FolderCreationModalProps> = ({ visibl
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
-    
+
     setIsSubmitting(true);
     try {
       if (folder) {
@@ -75,7 +75,7 @@ export const FolderCreationModal: React.FC<FolderCreationModalProps> = ({ visibl
     }
   };
 
-  const filteredConversations = conversations.filter(c => 
+  const filteredConversations = conversations.filter(c =>
     c.title?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -90,27 +90,27 @@ export const FolderCreationModal: React.FC<FolderCreationModalProps> = ({ visibl
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: theme.colors.border.subtle }]}>
           <TouchableOpacity onPress={onClose} style={styles.headerButton}>
-            <Text style={{ color: theme.colors.primary, fontSize: 17 }}>Cancel</Text>
+            <Text style={{ color: theme.colors.accent.primary, fontSize: 17 }}>Cancel</Text>
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.colors.text.primary }]}>
             {folder ? 'Edit Folder' : 'New Folder'}
           </Text>
-          <TouchableOpacity 
-            onPress={handleSubmit} 
+          <TouchableOpacity
+            onPress={handleSubmit}
             disabled={!name.trim() || isSubmitting}
             style={styles.headerButton}
           >
-            <Text style={{ 
-              color: !name.trim() || isSubmitting ? theme.colors.text.secondary : theme.colors.primary, 
-              fontSize: 17, 
-              fontWeight: '600' 
+            <Text style={{
+              color: !name.trim() || isSubmitting ? theme.colors.text.secondary : theme.colors.accent.primary,
+              fontSize: 17,
+              fontWeight: '600'
             }}>
               {isSubmitting ? 'Saving...' : (folder ? 'Save' : 'Create')}
             </Text>
           </TouchableOpacity>
         </View>
 
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
@@ -119,43 +119,43 @@ export const FolderCreationModal: React.FC<FolderCreationModalProps> = ({ visibl
             <View style={styles.section}>
               <Text style={[styles.label, { color: theme.colors.text.secondary }]}>FOLDER NAME</Text>
               <TextInput
-                 style={[styles.input, { 
-                   backgroundColor: theme.colors.background.secondary, 
-                   color: theme.colors.text.primary,
-                   borderColor: theme.colors.border.default
-                 }]}
-                 placeholder="Name"
-                 placeholderTextColor={theme.colors.text.secondary}
-                 value={name}
-                 onChangeText={setName}
-                 autoFocus
+                style={[styles.input, {
+                  backgroundColor: theme.colors.background.secondary,
+                  color: theme.colors.text.primary,
+                  borderColor: theme.colors.border.default
+                }]}
+                placeholder="Name"
+                placeholderTextColor={theme.colors.text.secondary}
+                value={name}
+                onChangeText={setName}
+                autoFocus
               />
             </View>
 
             <View style={styles.section}>
               <Text style={[styles.label, { color: theme.colors.text.secondary }]}>DESCRIPTION (OPTIONAL)</Text>
               <TextInput
-                 style={[styles.input, { 
-                   backgroundColor: theme.colors.background.secondary, 
-                   color: theme.colors.text.primary,
-                   borderColor: theme.colors.border.default,
-                   minHeight: 80,
-                   paddingTop: 12
-                 }]}
-                 placeholder="Description"
-                 placeholderTextColor={theme.colors.text.secondary}
-                 value={description}
-                 onChangeText={setDescription}
-                 multiline
-                 numberOfLines={3}
-                 textAlignVertical="top"
+                style={[styles.input, {
+                  backgroundColor: theme.colors.background.secondary,
+                  color: theme.colors.text.primary,
+                  borderColor: theme.colors.border.default,
+                  minHeight: 80,
+                  paddingTop: 12
+                }]}
+                placeholder="Description"
+                placeholderTextColor={theme.colors.text.secondary}
+                value={description}
+                onChangeText={setDescription}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
               />
             </View>
 
             {/* Conversation Selection */}
             <View style={styles.section}>
               <Text style={[styles.label, { color: theme.colors.text.secondary }]}>ADD CHATS ({selectedConversationIds.size})</Text>
-              
+
               {/* Search input for chats */}
               <View style={[styles.searchContainer, { backgroundColor: theme.colors.background.secondary, borderColor: theme.colors.border.default }]}>
                 <Ionicons name="search" size={16} color={theme.colors.text.secondary} />
@@ -177,17 +177,17 @@ export const FolderCreationModal: React.FC<FolderCreationModalProps> = ({ visibl
                   filteredConversations.map((conv, index) => {
                     const isSelected = selectedConversationIds.has(conv.id);
                     return (
-                      <TouchableOpacity 
-                        key={conv.id} 
+                      <TouchableOpacity
+                        key={conv.id}
                         style={[
-                          styles.chatItem, 
+                          styles.chatItem,
                           { borderBottomColor: theme.colors.border.subtle },
                           index === filteredConversations.length - 1 && { borderBottomWidth: 0 }
                         ]}
                         onPress={() => toggleConversation(conv.id)}
                       >
                         <View style={styles.chatInfo}>
-                          <Text 
+                          <Text
                             style={[styles.chatTitle, { color: theme.colors.text.primary }]}
                             numberOfLines={1}
                           >
@@ -198,11 +198,11 @@ export const FolderCreationModal: React.FC<FolderCreationModalProps> = ({ visibl
                           </Text>
                         </View>
                         <View style={[
-                          styles.checkbox, 
-                          { borderColor: isSelected ? theme.colors.primary : theme.colors.border.default },
-                          isSelected && { backgroundColor: theme.colors.primary }
+                          styles.checkbox,
+                          { borderColor: isSelected ? theme.colors.accent.primary : theme.colors.border.default },
+                          isSelected && { backgroundColor: theme.colors.accent.primary }
                         ]}>
-                          {isSelected && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                          {isSelected && <Ionicons name="checkmark" size={14} color={theme.colors.text.inverse} />}
                         </View>
                       </TouchableOpacity>
                     );

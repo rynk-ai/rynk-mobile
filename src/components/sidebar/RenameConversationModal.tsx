@@ -24,7 +24,7 @@ export function RenameConversationModal({ visible, onClose, conversationId, curr
 
   const handleSave = async () => {
     if (!conversationId || !title.trim()) return;
-    
+
     setIsSubmitting(true);
     try {
       await renameConversation(conversationId, title.trim());
@@ -43,13 +43,13 @@ export function RenameConversationModal({ visible, onClose, conversationId, curr
       animationType="fade"
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.overlay}
       >
         <View style={styles.container}>
           <Text style={styles.headerTitle}>Rename Conversation</Text>
-          
+
           <TextInput
             style={styles.input}
             value={title}
@@ -64,8 +64,8 @@ export function RenameConversationModal({ visible, onClose, conversationId, curr
             <TouchableOpacity onPress={onClose} style={styles.button}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={handleSave} 
+            <TouchableOpacity
+              onPress={handleSave}
               style={[styles.button, styles.saveButton]}
               disabled={!title.trim() || isSubmitting}
             >
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveButton: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.accent.primary,
   },
   cancelText: {
     color: theme.colors.text.secondary,
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   saveText: {
-    color: '#FFF',
+    color: theme.colors.text.inverse,
     fontSize: 16,
     fontWeight: '600',
   },
