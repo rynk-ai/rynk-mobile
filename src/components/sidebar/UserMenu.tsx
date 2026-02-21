@@ -9,7 +9,8 @@ import {
   LogOut,
   Twitter,
   Gamepad2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Wrench
 } from 'lucide-react-native';
 import { useChatBackground } from '../../lib/contexts/ChatBackgroundContext';
 
@@ -62,10 +63,10 @@ export function UserMenu({ user, onSignOut }: UserMenuProps) {
 
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() => handleLink('https://rynk.io/humanizer')}
+          onPress={() => handleLink('https://rynk.io/tools')}
         >
-          <Type size={18} color={theme.colors.text.secondary} />
-          <Text style={styles.menuText}>AI Humanizer</Text>
+          <Wrench size={18} color={theme.colors.text.secondary} />
+          <Text style={styles.menuText}>More Tools</Text>
         </TouchableOpacity>
 
         <View style={styles.separator} />
