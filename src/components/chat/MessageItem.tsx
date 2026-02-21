@@ -37,7 +37,6 @@ import { SourceImages, type SourceImage } from './SourceImages';
 import { SourcesFooter, type Citation } from './SourcesFooter';
 import { CodeBlock } from './markdown/CodeBlock';
 import { ONBOARDING_IMAGES } from '../../lib/services/onboarding-content';
-
 import { InlineCitation, parseCitationsInText } from './InlineCitation';
 import { useOptionalChatContext } from '../../lib/contexts/ChatContext';
 import { useRouter } from 'expo-router';

@@ -21,7 +21,10 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "appleTeamId": "6YR89Y84JM"
+      "appleTeamId": "6YR89Y84JM",
+      "associatedDomains": [
+        "applinks:rynk.io"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -30,7 +33,24 @@
       },
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
-      "package": "io.rynk.mobile"
+      "package": "io.rynk.mobile",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "rynk.io",
+              "pathPrefix": "/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",

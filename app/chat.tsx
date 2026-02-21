@@ -22,7 +22,7 @@ import { Menu, Plus, AlertCircle, RotateCcw, Search } from 'lucide-react-native'
 import { ChatProvider, useChatContext } from '../src/lib/contexts/ChatContext';
 import { useAuth } from '../src/lib/auth';
 import { theme } from '../src/lib/theme';
-import { 
+import {
   AuthenticatedChatInput,
   MessageList,
   ContextPickerSheet,
@@ -43,7 +43,7 @@ function ChatContent() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
   const insets = useSafeAreaInsets();
-  
+
   const {
     conversations,
     currentConversationId,
@@ -96,7 +96,7 @@ function ChatContent() {
   const [surfaceMode, setSurfaceMode] = useState<any>('chat');
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const messageListRef = useRef<MessageListRef>(null);
-  
+
   // Initialize with prompt from params if available
   const params = useLocalSearchParams<{ conversationId?: string; prompt?: string }>();
   const [pendingPrompt, setPendingPrompt] = useState(params.prompt || '');
@@ -125,13 +125,13 @@ function ChatContent() {
   const handleSend = useCallback((content: string, attachments?: { url: string; name: string; type: string; size: number }[]) => {
 
     let finalContent = content;
-    
+
     // Prepend quote if present
     if (quotedMessage) {
       const quoteLines = quotedMessage.quotedText.split('\n').map((line: string) => `> ${line}`).join('\n');
       finalContent = `${quoteLines}\n\n${content}`;
     }
-    
+
     // Referenced conversations
     const referencedConversations = selectedContext.map(item => ({ id: item.id, title: item.title }));
 
@@ -174,7 +174,7 @@ function ChatContent() {
         onDeepDive={handleDeepDive}
         messageSubChats={messageSubChats}
         onOpenExistingSubChat={(sc) => {
-           handleOpenExistingSubChat(sc);
+          handleOpenExistingSubChat(sc);
         }}
         conversationId={currentConversationId}
         onStartEdit={handleStartEdit}
@@ -194,7 +194,7 @@ function ChatContent() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <ChatBackground />
-      
+
       <View style={[styles.floatingHeaderWrapper, { top: insets.top }]} pointerEvents="box-none">
         {/* Header - Floating pill design matching web */}
         <View style={styles.header} pointerEvents="box-none">
@@ -237,9 +237,9 @@ function ChatContent() {
         {/* Tags Section */}
         {activeConversation?.tags && activeConversation.tags.length > 0 && (
           <View style={styles.tagContainer}>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false} 
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.tagContent}
               pointerEvents="auto"
             >
@@ -256,7 +256,7 @@ function ChatContent() {
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior="padding"
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0} 
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
 
         {isEmptyState ? (
@@ -297,7 +297,7 @@ function ChatContent() {
                 hasMore={hasMoreMessages}
                 isLoadingMore={isLoadingMore}
               />
-              
+
               {/* Scroll to Bottom Button */}
               <ScrollToBottomButton
                 visible={isScrolledUp && messages.length > 0}
@@ -353,15 +353,15 @@ function ChatContent() {
         onSelectionChange={setSelectedContext}
         currentConversationId={currentConversationId}
       />
-      
+
       {/* Sub-Chat Sheet */}
-      <SubChatSheet 
-         open={subChatSheetOpen}
-         onOpenChange={setSubChatSheetOpen}
-         subChat={activeSubChat}
-         onSendMessage={handleSubChatSendMessage}
-         isLoading={subChatLoading}
-         streamingContent={subChatStreamingContent}
+      <SubChatSheet
+        open={subChatSheetOpen}
+        onOpenChange={setSubChatSheetOpen}
+        subChat={activeSubChat}
+        onSendMessage={handleSubChatSendMessage}
+        isLoading={subChatLoading}
+        streamingContent={subChatStreamingContent}
       />
 
       {/* Search Sheet */}
@@ -370,27 +370,27 @@ function ChatContent() {
         onOpenChange={setSearchOpen}
         conversations={conversations}
         onSelectConversation={(conv: Conversation) => {
-           // Handle select (navigate if different)
-           if (conv.id !== currentConversationId) {
-             // We can just use selectConversation exposed via Context -> but router push is cleaner if URL updates
-             // Actually, we use Context selectConversation usually.
-             // But wait, router logic:
-             router.push({ pathname: '/chat', params: { conversationId: conv.id } });
-           }
-           setSearchOpen(false);
+          // Handle select (navigate if different)
+          if (conv.id !== currentConversationId) {
+            // We can just use selectConversation exposed via Context -> but router push is cleaner if URL updates
+            // Actually, we use Context selectConversation usually.
+            // But wait, router logic:
+            router.push({ pathname: '/chat', params: { conversationId: conv.id } });
+          }
+          setSearchOpen(false);
         }}
       />
-      
+
     </SafeAreaView>
   );
 }
 
 
 export default function ChatScreen() {
-  const params = useLocalSearchParams<{ conversationId?: string }>();
+  const params = useLocalSearchParams<{ conversationId?: string; id?: string }>();
 
   return (
-    <ChatProvider initialConversationId={params.conversationId}>
+    <ChatProvider initialConversationId={params.id || params.conversationId}>
       <ChatContent />
     </ChatProvider>
   );
