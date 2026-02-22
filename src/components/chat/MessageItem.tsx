@@ -328,18 +328,6 @@ function MessageItemBase({
           <CodeBlock key={node.key} code={node.content} language={info} />
         );
       },
-      image: (node: any, children: any, parent: any, styles: any) => {
-        const { key, ...otherProps } = node.attributes || {};
-        return (
-          <Image
-            key={node.key}
-            source={{ uri: node.attributes?.src }}
-            style={styles.image}
-            resizeMode="contain"
-            {...otherProps}
-          />
-        );
-      },
       table: (node: any, children: any, parent: any, styles: any) => (
         <View key={node.key} style={styles.tableWrapper}>
           <ScrollView
@@ -804,6 +792,7 @@ const markdownStyles = StyleSheet.create({
     color: theme.colors.text.primary,
     fontSize: 28, // increased
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     marginTop: 24, // increased margin
     marginBottom: 12, // increased
     lineHeight: 38, // increased
@@ -813,6 +802,7 @@ const markdownStyles = StyleSheet.create({
     color: theme.colors.text.primary,
     fontSize: 24, // increased
     fontWeight: '600',
+    fontFamily: 'Manrope_600SemiBold',
     marginTop: 20, // increased
     marginBottom: 10,
     lineHeight: 34,
@@ -822,6 +812,7 @@ const markdownStyles = StyleSheet.create({
     color: theme.colors.text.primary,
     fontSize: 22, // increased
     fontWeight: '600',
+    fontFamily: 'Manrope_600SemiBold',
     marginTop: 16,
     marginBottom: 8,
     lineHeight: 32,
@@ -841,7 +832,7 @@ const markdownStyles = StyleSheet.create({
     borderColor: theme.colors.border.subtle,
     fontSize: 15, // Bumped slightly
     fontWeight: '500',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontFamily: theme.typography.fontFamily.mono,
     overflow: 'hidden',
   },
   code_block: {
@@ -850,7 +841,7 @@ const markdownStyles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     fontSize: 14,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontFamily: theme.typography.fontFamily.mono,
     marginVertical: 10,
     overflow: 'hidden',
     borderWidth: 1,
@@ -862,7 +853,7 @@ const markdownStyles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     fontSize: 14,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontFamily: theme.typography.fontFamily.mono,
     marginVertical: 10,
     overflow: 'hidden',
     borderWidth: 1,
@@ -905,6 +896,7 @@ const markdownStyles = StyleSheet.create({
   },
   strong: {
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: theme.colors.text.primary,
   },
   em: {
@@ -954,6 +946,7 @@ const markdownStyles = StyleSheet.create({
     borderColor: theme.colors.border.subtle,
     padding: 10,
     fontWeight: '600',
+    fontFamily: 'Manrope_600SemiBold',
     color: theme.colors.text.primary,
     fontSize: 13,
   },

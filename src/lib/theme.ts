@@ -14,7 +14,7 @@ export const colors = {
     elevated: '#2B2B2E',     // Modals / Elevated surfaces (Web: 240 4% 16%)
     tertiary: '#2B2B2E',     // Tertiary
   },
-  
+
   // Foreground - Text Colors
   text: {
     primary: '#F2F2F2',      // Primary Text (Web: 0 0% 95%)
@@ -22,7 +22,7 @@ export const colors = {
     tertiary: '#666666',     // Tertiary Text
     inverse: '#131315',      // Inverse Text (for primary buttons)
   },
-  
+
   // Accent - Monochrome Action
   accent: {
     primary: '#F2F2F2',      // White (Primary Action)
@@ -31,14 +31,14 @@ export const colors = {
     warning: '#F59E0B',      // Amber
     error: '#7C2D2D',        // Red (Web: 0 62% 30% - Desaturated Red)
   },
-  
+
   // Borders
   border: {
     default: '#2E2E33',      // Default Border (Web: 240 5% 18%)
     subtle: '#262629',       // Subtle Border
     focus: '#F2F2F2',        // Focus ring (White)
   },
-  
+
   // Surface overlays
   surface: {
     overlay: 'rgba(0, 0, 0, 0.8)',
@@ -71,10 +71,10 @@ export const borderRadius = {
 export const typography = {
   // Font families
   fontFamily: {
-    sans: 'System',  // Uses system font
-    mono: 'Menlo',   // Monospace
+    sans: 'Manrope_400Regular',
+    mono: 'JetBrainsMono_400Regular',
   },
-  
+
   // Font sizes
   fontSize: {
     xs: 10,
@@ -87,7 +87,7 @@ export const typography = {
     xxxl: 32,
     display: 40,
   },
-  
+
   // Font weights
   fontWeight: {
     normal: '400' as const,
@@ -95,7 +95,7 @@ export const typography = {
     semibold: '600' as const,
     bold: '700' as const,
   },
-  
+
   // Line heights
   lineHeight: {
     tight: 1.1,
@@ -103,7 +103,7 @@ export const typography = {
     normal: 1.5,
     relaxed: 1.625,
   },
-  
+
   // Letter spacing - Tighter for Swiss Headings
   letterSpacing: {
     tighter: -0.8,    // -0.05em approx
@@ -155,7 +155,7 @@ export const commonStyles = {
     borderWidth: 1,
     borderColor: colors.border.default,
   },
-  
+
   // Input styles - Sharp, Minimal
   input: {
     backgroundColor: 'transparent',
@@ -167,7 +167,7 @@ export const commonStyles = {
     borderWidth: 1,
     borderColor: colors.border.default,
   },
-  
+
   // Button primary - White Background, Black Text
   buttonPrimary: {
     backgroundColor: colors.accent.primary,
@@ -177,7 +177,7 @@ export const commonStyles = {
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
-  
+
   // Button secondary - Transparent, White Border
   buttonSecondary: {
     backgroundColor: 'transparent',
@@ -189,7 +189,7 @@ export const commonStyles = {
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
-  
+
   // Badge styles - Sharp, Outlined
   badge: {
     backgroundColor: colors.background.secondary,
