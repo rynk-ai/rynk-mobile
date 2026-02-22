@@ -26,7 +26,7 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import Markdown from 'react-native-markdown-display';
-import { Copy, Check, Info, ChevronRight, Play, BookOpen, GitBranch, MessageSquare, Pencil, Trash2, Folder, Paperclip } from 'lucide-react-native';
+import { Copy, Check, Info, ChevronRight, Play, BookOpen, GitBranch, MessageSquare, Pencil, Trash2, Folder, Paperclip, TextSelect } from 'lucide-react-native';
 import { theme } from '../../lib/theme';
 import type { Message } from '../../lib/types';
 import type { StatusPill, SearchResult } from '../../lib/hooks/useStreaming';
@@ -109,6 +109,7 @@ interface MessageItemProps {
   onStartEdit?: (message: Message) => void;
   versions?: Message[];
   isEditing?: boolean;
+  onSelectTextRequest?: (message: Message) => void;
 }
 
 // Helper: Format citations from search results (mimicking web Logic)
@@ -164,6 +165,7 @@ function MessageItemBase({
   onStartEdit,
   versions = [],
   isEditing = false,
+  onSelectTextRequest,
 }: MessageItemProps) {
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
@@ -378,6 +380,16 @@ function MessageItemBase({
           </View>
         );
       },
+      image: (node: any, children: any, parent: any, styles: any) => {
+        return (
+          <Image
+            key={node.key}
+            style={[styles.image, { width: '100%', minHeight: 200, resizeMode: 'contain' }]}
+            source={{ uri: node.attributes?.src }}
+            alt={node.attributes?.alt}
+          />
+        );
+      },
     };
 
     // Enable citation parsing without breaking inheritance
@@ -385,13 +397,13 @@ function MessageItemBase({
       try {
         const parts = parseCitationsInText(node.content, citations || []);
         return (
-          <Text key={node.key} style={[inheritedStyles, styles.text]}>
+          <Text key={node.key} style={[inheritedStyles, styles.text]} selectable={true}>
             {parts}
           </Text>
         );
       } catch (e) {
         return (
-          <Text key={node.key} style={[inheritedStyles, styles.text]}>
+          <Text key={node.key} style={[inheritedStyles, styles.text]} selectable={true}>
             {node.content}
           </Text>
         );
@@ -445,6 +457,7 @@ function MessageItemBase({
           )
         ) : displayContent ? (
           <Markdown style={markdownStyles} rules={markdownRules}>{displayContent}</Markdown>
+
         ) : isStreaming ? (
           <Animated.View style={[styles.loadingDots, { opacity: dotsOpacity }]}>
             <View style={styles.dotsContainer}>
@@ -554,6 +567,17 @@ function MessageItemBase({
               versions={effectiveVersions}
               onSwitchVersion={handleSwitchVersion}
             />
+          )}
+
+          {/* Select Text Button (Assistant Only) */}
+          {isAssistant && onSelectTextRequest && !isStreaming && (
+            <Pressable
+              onPress={() => onSelectTextRequest(message)}
+              style={styles.actionButton}
+              hitSlop={8}
+            >
+              <TextSelect size={14} color={theme.colors.text.tertiary} />
+            </Pressable>
           )}
 
           {/* Edit Button (User Only) */}

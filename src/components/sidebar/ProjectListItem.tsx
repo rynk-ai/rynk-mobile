@@ -24,11 +24,11 @@ export function ProjectListItem({
       <View style={styles.iconContainer}>
         <Briefcase size={14} color={isActive ? theme.colors.text.primary : theme.colors.text.tertiary} />
       </View>
-      
+
       <Text style={[styles.name, isActive && styles.activeName]} numberOfLines={1}>
         {project.name}
       </Text>
-      
+
       {/* Placeholder for future actions */}
       {/* <TouchableOpacity style={styles.moreButton}>
          <MoreHorizontal size={12} color={theme.colors.text.tertiary} />

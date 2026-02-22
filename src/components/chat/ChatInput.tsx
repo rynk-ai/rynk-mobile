@@ -41,7 +41,7 @@ export interface ChatInputProps {
   onClearQuote?: () => void;
   contextItems?: ContextItem[];
   // Replaced generic onPressPlus with specific actions for the new menu
-  onAttachFiles?: () => void; 
+  onAttachFiles?: () => void;
   onAddContext?: () => void;
   onRemoveContext?: (id: string) => void;
   isGuest?: boolean;
@@ -91,11 +91,11 @@ export function ChatInput({
   const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const inputRef = useRef<TextInput>(null);
-  
+
   // Loading animation
   const spinValue = useRef(new Animated.Value(0)).current;
   const pulseValue = useRef(new Animated.Value(1)).current;
-  
+
   // Handle loading animation
   useEffect(() => {
     if (isLoading) {
@@ -107,14 +107,14 @@ export function ChatInput({
           useNativeDriver: true,
         })
       );
-      
+
       const pulse = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseValue, {
             toValue: 0.8,
             duration: 500,
             useNativeDriver: true,
-        }),
+          }),
           Animated.timing(pulseValue, {
             toValue: 1,
             duration: 500,
@@ -122,10 +122,10 @@ export function ChatInput({
           }),
         ])
       );
-      
+
       spin.start();
       pulse.start();
-      
+
       return () => {
         spin.stop();
         pulse.stop();
@@ -134,7 +134,7 @@ export function ChatInput({
       };
     }
   }, [isLoading, spinValue, pulseValue]);
-  
+
   const spinRotation = spinValue.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],
@@ -164,22 +164,22 @@ export function ChatInput({
 
   return (
     <View style={styles.container}>
-       {/* Menu Overlay */}
-       {isMenuOpen && (
-          <ChatInputActionMenu
-             visible={isMenuOpen}
-             onClose={() => setIsMenuOpen(false)}
-             onAttachFiles={onAttachFiles}
-             onAddContext={onAddContext}
-             onTakePhoto={onTakePhoto}
-             onPickImage={onPickImage}
-             onPickDocument={onPickDocument}
-          />
-       )}
+      {/* Menu Overlay */}
+      {isMenuOpen && (
+        <ChatInputActionMenu
+          visible={isMenuOpen}
+          onClose={() => setIsMenuOpen(false)}
+          onAttachFiles={onAttachFiles}
+          onAddContext={onAddContext}
+          onTakePhoto={onTakePhoto}
+          onPickImage={onPickImage}
+          onPickDocument={onPickDocument}
+        />
+      )}
 
       {/* Input Card Container */}
       <View style={styles.inputCard}>
-        
+
         {/* Edit Mode Banner */}
         {editMode && onCancelEdit && (
           <View style={styles.editModeBanner}>
@@ -187,7 +187,7 @@ export function ChatInput({
               <View style={styles.editModeDot} />
               <Text style={styles.editModeText}>Editing message</Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.cancelEditButton}
               onPress={onCancelEdit}
             >
@@ -212,7 +212,7 @@ export function ChatInput({
                 {quotedMessage.quotedText}
               </Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.closeQuoteButton}
               onPress={onClearQuote}
             >
@@ -221,44 +221,44 @@ export function ChatInput({
           </View>
         )}
 
-       {/* Attachment Pills */}
-       {attachments && attachments.length > 0 && (
-        <View style={styles.attachmentPillsContainer}>
-          {attachments.map((file) => (
-            <View key={file.url} style={styles.attachmentPill}>
-              <Paperclip size={12} color={theme.colors.text.secondary} />
-              <Text style={styles.attachmentPillText} numberOfLines={1}>
-                {file.name}
-              </Text>
-              <TouchableOpacity
-                onPress={() => onRemoveAttachment?.(file.url)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <X size={12} color={theme.colors.text.secondary} />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-      )}
+        {/* Attachment Pills */}
+        {attachments && attachments.length > 0 && (
+          <View style={styles.attachmentPillsContainer}>
+            {attachments.map((file) => (
+              <View key={file.url} style={styles.attachmentPill}>
+                <Paperclip size={12} color={theme.colors.text.secondary} />
+                <Text style={styles.attachmentPillText} numberOfLines={1}>
+                  {file.name}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => onRemoveAttachment?.(file.url)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <X size={12} color={theme.colors.text.secondary} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
 
-      {/* Context Pills */}
-      {contextItems && contextItems.length > 0 && (
-        <View style={styles.contextPillsContainer}>
-          {contextItems.map((item) => (
-            <View key={item.id} style={styles.contextPill}>
-              <Text style={styles.contextPillText} numberOfLines={1}>
-                {item.title}
-              </Text>
-              <TouchableOpacity
-                onPress={() => onRemoveContext?.(item.id)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <X size={12} color={theme.colors.text.secondary} />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-      )}
+        {/* Context Pills */}
+        {contextItems && contextItems.length > 0 && (
+          <View style={styles.contextPillsContainer}>
+            {contextItems.map((item) => (
+              <View key={item.id} style={styles.contextPill}>
+                <Text style={styles.contextPillText} numberOfLines={1}>
+                  {item.title}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => onRemoveContext?.(item.id)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <X size={12} color={theme.colors.text.secondary} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Input Field (Top) */}
         <TextInput
@@ -283,7 +283,7 @@ export function ChatInput({
         {/* Guest Sign In Overlay */}
         {disabled && isGuest && onShowSignIn && (
           <View style={[StyleSheet.absoluteFill, styles.signInOverlay]}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.signInButton}
               onPress={onShowSignIn}
               activeOpacity={0.9}
@@ -300,8 +300,8 @@ export function ChatInput({
             {!editMode && (
               <TouchableOpacity
                 style={[
-                   styles.actionButton,
-                   isMenuOpen && { backgroundColor: theme.colors.background.tertiary }
+                  styles.actionButton,
+                  isMenuOpen && { backgroundColor: theme.colors.background.tertiary }
                 ]}
                 onPress={() => setIsMenuOpen(!isMenuOpen)}
                 disabled={disabled || isLoading}
@@ -314,15 +314,15 @@ export function ChatInput({
             {!isGuest && !editMode && onDeepResearchChange && (
               <TouchableOpacity
                 style={[
-                   styles.actionButton,
-                   isDeepResearch && { backgroundColor: 'rgba(59, 130, 246, 0.1)' } // Blue tint
+                  styles.actionButton,
+                  isDeepResearch && { backgroundColor: 'rgba(59, 130, 246, 0.1)' } // Blue tint
                 ]}
                 onPress={() => onDeepResearchChange(!isDeepResearch)}
                 disabled={disabled || isLoading}
               >
-                <Globe 
-                  size={18} 
-                  color={isDeepResearch ? '#3B82F6' : theme.colors.text.secondary} 
+                <Globe
+                  size={18}
+                  color={isDeepResearch ? '#3B82F6' : theme.colors.text.secondary}
                 />
               </TouchableOpacity>
             )}
@@ -344,9 +344,9 @@ export function ChatInput({
                 <Loader2 size={16} color={theme.colors.text.inverse} />
               </Animated.View>
             ) : (
-              <ArrowUp 
-                size={18} 
-                color={canSend ? theme.colors.text.inverse : theme.colors.text.tertiary} 
+              <ArrowUp
+                size={18}
+                color={canSend ? theme.colors.text.inverse : theme.colors.text.tertiary}
                 strokeWidth={2.5}
               />
             )}
@@ -361,6 +361,7 @@ const styles = StyleSheet.create({
   container: {
     paddingBottom: 0,
     backgroundColor: theme.colors.background.primary,
+    marginHorizontal: 10
   },
   // Input Card Styles - Swiss Modern (Rounded + Glass effect)
   inputCard: {
@@ -430,7 +431,7 @@ const styles = StyleSheet.create({
   sendButtonLoading: {
     backgroundColor: theme.colors.accent.primary,
   },
-  
+
   // Edit Mode Banner
   editModeBanner: {
     flexDirection: 'row',
@@ -485,18 +486,18 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   quoteBar: {
-    display: 'none', 
+    display: 'none',
   },
   quoteContent: {
     flex: 1,
-    flexDirection: 'column', 
+    flexDirection: 'column',
     gap: 4,
   },
   quoteAuthor: {
     fontSize: 10,
     fontWeight: '700',
     color: theme.colors.text.secondary,
-    textTransform: 'uppercase', 
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
     flexDirection: 'row',
     alignItems: 'center',
@@ -540,7 +541,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flexShrink: 1,
   },
-  
+
   // Sign In Overlay
   signInOverlay: {
     backgroundColor: 'rgba(0,0,0,0.6)', // Dark overlay

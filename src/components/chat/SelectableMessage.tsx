@@ -34,6 +34,8 @@ interface SelectableMessageProps {
   style?: any;
   /** Whether this is a user message */
   isUser?: boolean;
+  /** Optional custom renderer for content (e.g. Markdown) instead of simple TextInput */
+  renderCustomContent?: () => React.ReactNode;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -44,13 +46,14 @@ export function SelectableMessage({
   onDeepDive,
   style,
   isUser = false,
+  renderCustomContent,
 }: SelectableMessageProps) {
   const [selection, setSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
   const [showActions, setShowActions] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const selectedText = selection.start !== selection.end 
-    ? content.substring(selection.start, selection.end) 
+  const selectedText = selection.start !== selection.end
+    ? content.substring(selection.start, selection.end)
     : '';
 
   const handleSelectionChange = useCallback(
@@ -100,27 +103,72 @@ export function SelectableMessage({
     hideActions();
   }, [hideActions]);
 
+  const renderContent = () => {
+    // Basic blockquote parsing for user messages
+    // Find lines starting with >
+    const lines = content.split('\n');
+    const quoteLines: string[] = [];
+    const regularLines: string[] = [];
+
+    let inQuoteBlock = false;
+
+    for (const line of lines) {
+      if (line.startsWith('> ')) {
+        quoteLines.push(line.substring(2));
+        inQuoteBlock = true;
+      } else if (line.trim() === '' && inQuoteBlock) {
+        // Skip empty lines immediately following quotes if part of the block
+        continue;
+      } else {
+        regularLines.push(line);
+        inQuoteBlock = false;
+      }
+    }
+
+    const hasQuotes = quoteLines.length > 0;
+    const regularContent = regularLines.join('\n').trim();
+
+    return (
+      <View style={{ width: '100%' }}>
+        {hasQuotes && (
+          <View style={styles.quoteBlock}>
+            <View style={styles.quoteBar} />
+            <Text style={styles.quoteText} numberOfLines={3}>{quoteLines.join('\n')}</Text>
+          </View>
+        )}
+
+        {renderCustomContent ? (
+          <View style={[styles.customContentWrapper, style]}>
+            {renderCustomContent()}
+          </View>
+        ) : regularContent ? (
+          <TextInput
+            value={regularContent} // Show the rest of the content here
+            editable={false}
+            multiline
+            scrollEnabled={false}
+            style={[
+              styles.textInput,
+              isUser ? styles.userText : styles.assistantText,
+              style,
+            ]}
+            onSelectionChange={handleSelectionChange}
+            selection={selection}
+            selectionColor={theme.colors.accent.primary + '40'}
+            contextMenuHidden={true} // Hide default context menu
+          />
+        ) : null}
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
-      <TextInput
-        value={content}
-        editable={false}
-        multiline
-        scrollEnabled={false}
-        style={[
-          styles.textInput,
-          isUser ? styles.userText : styles.assistantText,
-          style,
-        ]}
-        onSelectionChange={handleSelectionChange}
-        selection={selection}
-        selectionColor={theme.colors.accent.primary + '40'}
-        contextMenuHidden={true} // Hide default context menu
-      />
+      {renderContent()}
 
       {/* Floating action bar */}
       {showActions && selectedText && (
-        <Animated.View 
+        <Animated.View
           style={[
             styles.actionBar,
             { opacity: fadeAnim },
@@ -163,6 +211,9 @@ export function SelectableMessage({
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
+  },
+  customContentWrapper: {
+    width: '100%',
   },
   textInput: {
     padding: 0,
@@ -230,5 +281,26 @@ const styles = StyleSheet.create({
   dismissButton: {
     padding: 8,
     marginLeft: 4,
+  },
+  quoteBlock: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 8,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  quoteBar: {
+    width: 3,
+    backgroundColor: theme.colors.accent.primary,
+    borderRadius: 2,
+    marginRight: 8,
+  },
+  quoteText: {
+    flex: 1,
+    fontSize: 13,
+    color: theme.colors.text.secondary,
+    fontStyle: 'italic',
+    lineHeight: 18,
   },
 });

@@ -229,8 +229,12 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
     onClose();
   };
 
-  const handleSelectProject = () => {
-    Alert.alert("Coming Soon", "Project view is under development.");
+  const handleSelectProject = (projectId: string) => {
+    onClose();
+    // Use timeout to allow drawer to close smoothly
+    setTimeout(() => {
+      router.push({ pathname: '/project/[id]', params: { id: projectId } });
+    }, 300);
   };
 
   const handleSearch = () => {
@@ -458,7 +462,7 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
                     <ProjectListItem
                       key={p.id}
                       project={p}
-                      onSelect={handleSelectProject}
+                      onSelect={() => handleSelectProject(p.id)}
                     />
                   ))}
                 </View>

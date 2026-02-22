@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
 import { theme } from '../../lib/theme';
 import {
   CreditCard,
@@ -20,6 +21,7 @@ interface UserMenuProps {
 }
 
 export function UserMenu({ user, onSignOut }: UserMenuProps) {
+  const router = useRouter();
   const tier = user?.subscriptionTier || 'free';
   const tierName = tier === 'standard_plus' ? 'Standard+' : tier === 'standard' ? 'Standard' : 'Free';
   const tierColor = tier === 'standard_plus' ? theme.colors.accent.primary : tier === 'standard' ? '#3B82F6' : theme.colors.text.tertiary;
@@ -47,7 +49,7 @@ export function UserMenu({ user, onSignOut }: UserMenuProps) {
         {/* Subscription */}
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() => handleLink('https://rynk.io/subscription')}
+          onPress={() => router.push('/subscription' as any)}
         >
           <CreditCard size={18} color={theme.colors.text.secondary} />
           <Text style={styles.menuText}>Manage Subscription</Text>

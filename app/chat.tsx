@@ -14,11 +14,12 @@ import {
   Platform,
   ScrollView,
   Share as RNShare,
+  Modal,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Menu, Plus, AlertCircle, RotateCcw, Search, Share as ShareIcon } from 'lucide-react-native';
+import { Menu, Plus, AlertCircle, RotateCcw, Search, Share as ShareIcon, X } from 'lucide-react-native';
 
 import { ChatProvider, useChatContext } from '../src/lib/contexts/ChatContext';
 import { useAuth } from '../src/lib/auth';
@@ -35,9 +36,10 @@ import {
   type MessageListRef,
   ChatBackground,
   ChatSearchSheet,
+  SelectableMessage,
 } from '../src/components/chat';
 import { AppSidebar } from '../src/components/sidebar/AppSidebar';
-import { useGuestSubChats } from '../src/lib/hooks/useGuestSubChats';
+import { useSubChats } from '../src/lib/hooks/useSubChats';
 import type { Message, Conversation, SurfaceMode } from '../src/lib/types';
 
 function ChatContent() {
@@ -87,7 +89,7 @@ function ChatContent() {
     subChatStreamingContent,
     handleSubChatSendMessage,
     handleDeleteSubChat,
-  } = useGuestSubChats(currentConversationId);
+  } = useSubChats(currentConversationId);
 
   // UI State
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -97,6 +99,7 @@ function ChatContent() {
   const [selectedContext, setSelectedContext] = useState<ContextItem[]>([]);
   const [surfaceMode, setSurfaceMode] = useState<any>('chat');
   const [isScrolledUp, setIsScrolledUp] = useState(false);
+  const [textSelectMessage, setTextSelectMessage] = useState<Message | null>(null);
   const messageListRef = useRef<MessageListRef>(null);
 
   // Initialize with prompt from params if available
@@ -146,11 +149,17 @@ function ChatContent() {
   // Handle deep dive (for sub-chats)
   const handleDeepDive = useCallback((text: string, messageId: string, role: 'user' | 'assistant', fullContent: string) => {
     handleOpenSubChat(text, messageId, role, fullContent);
+    setTextSelectMessage(null);
   }, [handleOpenSubChat]);
 
   // Handle quote from message
   const handleQuote = useCallback((messageId: string, text: string, role: 'user' | 'assistant') => {
     setQuotedMessage({ messageId, quotedText: text, authorRole: role });
+    setTextSelectMessage(null);
+  }, []);
+
+  const handleSelectTextRequest = useCallback((message: Message) => {
+    setTextSelectMessage(message);
   }, []);
 
   // Handle edit start - use context's startEdit
@@ -181,9 +190,10 @@ function ChatContent() {
         conversationId={currentConversationId}
         onStartEdit={handleStartEdit}
         isEditing={editingMessageId === item.id}
+        onSelectTextRequest={handleSelectTextRequest}
       />
     );
-  }, [messages.length, streamingMessageId, streamingContent, statusPills, searchResults, handleQuote, handleDeepDive, subChats, handleOpenExistingSubChat, currentConversationId, handleStartEdit, editingMessageId]);
+  }, [messages.length, streamingMessageId, streamingContent, statusPills, searchResults, handleQuote, handleDeepDive, subChats, handleOpenExistingSubChat, currentConversationId, handleStartEdit, editingMessageId, handleSelectTextRequest]);
 
   // Handle new chat
   const handleNewChat = useCallback(() => {
@@ -421,6 +431,38 @@ function ChatContent() {
         }}
       />
 
+      {/* Select Text Modal for AI Messages */}
+      <Modal
+        visible={!!textSelectMessage}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setTextSelectMessage(null)}
+      >
+        <SafeAreaView style={styles.selectTextModalContainer}>
+          <View style={styles.selectTextModalHeader}>
+            <Text style={styles.selectTextModalTitle}>Select Text</Text>
+            <TouchableOpacity onPress={() => setTextSelectMessage(null)}>
+              <X size={24} color={theme.colors.text.secondary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.selectTextModalContent}>
+            {textSelectMessage && (
+              <SelectableMessage
+                content={textSelectMessage.content}
+                onQuote={(text: string, start: number, end: number) =>
+                  handleQuote(textSelectMessage.id, text, textSelectMessage.role as 'user' | 'assistant')
+                }
+                onDeepDive={(text: string, start: number, end: number) =>
+                  handleDeepDive(text, textSelectMessage.id, textSelectMessage.role as 'user' | 'assistant', textSelectMessage.content)
+                }
+                isUser={false}
+              />
+            )}
+            <View style={{ height: 100 }} />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -533,6 +575,26 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
+  },
+  selectTextModalContainer: {
+    flex: 1,
+    backgroundColor: theme.colors.background.primary,
+  },
+  selectTextModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.subtle,
+  },
+  selectTextModalTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+  },
+  selectTextModalContent: {
+    padding: 16,
   },
 });
 

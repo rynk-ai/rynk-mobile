@@ -90,9 +90,10 @@ export function useOptionalChatContext() {
 interface ChatProviderProps {
   children: React.ReactNode;
   initialConversationId?: string | null;
+  projectId?: string | null; // Added projectId prop
 }
 
-export function ChatProvider({ children, initialConversationId }: ChatProviderProps) {
+export function ChatProvider({ children, initialConversationId, projectId }: ChatProviderProps) {
   const { user } = useAuth();
 
   // State
@@ -168,14 +169,25 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
   const loadData = useCallback(async () => {
     try {
       setIsLoadingConversations(true);
+      const endpoint = projectId
+        ? `/mobile/conversations?projectId=${projectId}`
+        : `/mobile/conversations`;
+
       const [convRes, foldRes, projRes] = await Promise.all([
-        api.get<{ conversations: Conversation[] }>('/mobile/conversations'),
+        api.get<{ conversations: Conversation[] }>(endpoint),
         // Assuming these endpoints exist, wrap in try/catch if uncertain or handle gracefully
         api.get<{ folders: Folder[] }>('/mobile/folders').catch(() => ({ folders: [] })),
         api.get<{ projects: Project[] }>('/mobile/projects').catch(() => ({ projects: [] })),
       ]);
 
-      setConversations(convRes.conversations || []);
+      let loadedConversations = convRes.conversations || [];
+      if (projectId) {
+        loadedConversations = loadedConversations.filter(c => c.projectId === projectId);
+      } else {
+        loadedConversations = loadedConversations.filter(c => !c.projectId);
+      }
+      setConversations(loadedConversations);
+
       setFolders(foldRes.folders || []);
       setProjects(projRes.projects || []);
     } catch (err) {
@@ -183,7 +195,7 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
     } finally {
       setIsLoadingConversations(false);
     }
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     loadData();
@@ -604,7 +616,12 @@ export function ChatProvider({ children, initialConversationId }: ChatProviderPr
       let convId = currentConversationId;
       const isNewConversation = !convId;
       if (!convId) {
-        const response = await api.post<{ conversationId: string }>('/mobile/conversations', {});
+        const payload: Record<string, string> = {};
+        if (projectId) {
+          payload.projectId = projectId;
+        }
+
+        const response = await api.post<{ conversationId: string }>('/mobile/conversations', payload);
         if (!response?.conversationId) {
           throw new Error('Failed to create conversation: No ID returned');
         }
