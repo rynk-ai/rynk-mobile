@@ -21,8 +21,10 @@ import {
   Easing,
   Pressable,
   Image,
+  ScrollView,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import { LinearGradient } from 'expo-linear-gradient';
 import Markdown from 'react-native-markdown-display';
 import { Copy, Check, Info, ChevronRight, Play, BookOpen, GitBranch, MessageSquare, Pencil, Trash2, Folder, Paperclip } from 'lucide-react-native';
 import { theme } from '../../lib/theme';
@@ -42,6 +44,47 @@ import { useOptionalChatContext } from '../../lib/contexts/ChatContext';
 import { useRouter } from 'expo-router';
 import { VersionIndicator } from './VersionIndicator';
 import { Alert } from 'react-native';
+
+const tableColumnWidthsCache = new WeakMap<any, number[]>();
+
+const getTableColWidths = (tableNode: any) => {
+  if (!tableNode || !tableNode.children) return [];
+  if (tableColumnWidthsCache.has(tableNode)) {
+    return tableColumnWidthsCache.get(tableNode)!;
+  }
+
+  const colWidths: number[] = [];
+
+  const walkRow = (trNode: any) => {
+    trNode.children?.forEach((cell: any, index: number) => {
+      let text = '';
+      const extractText = (n: any) => {
+        if (n.content) text += n.content;
+        if (n.children) n.children.forEach(extractText);
+      };
+      extractText(cell);
+
+      const contentLen = text.trim().length;
+      // Rough estimation: ~8px per char + 32px padding
+      const estimatedWidth = Math.min(300, Math.max(90, (contentLen * 8) + 32));
+
+      if (!colWidths[index] || estimatedWidth > colWidths[index]) {
+        colWidths[index] = estimatedWidth;
+      }
+    });
+  };
+
+  tableNode.children?.forEach((part: any) => {
+    if (part.type === 'thead' || part.type === 'tbody') {
+      part.children?.forEach((tr: any) => {
+        if (tr.type === 'tr') walkRow(tr);
+      });
+    }
+  });
+
+  tableColumnWidthsCache.set(tableNode, colWidths);
+  return colWidths;
+};
 
 interface MessageItemProps {
   message: Message;
@@ -297,22 +340,70 @@ function MessageItemBase({
           />
         );
       },
+      table: (node: any, children: any, parent: any, styles: any) => (
+        <View key={node.key} style={styles.tableWrapper}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ width: '100%' }}
+            contentContainerStyle={styles.tableScrollContent}
+          >
+            <View style={styles.table}>
+              {children}
+            </View>
+          </ScrollView>
+          <LinearGradient
+            colors={[`${theme.colors.background.primary}00`, theme.colors.background.primary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.tableScrollIndicator}
+            pointerEvents="none"
+          />
+        </View>
+      ),
+      tr: (node: any, children: any, parent: any, styles: any) => (
+        <View key={node.key} style={styles.tr}>
+          {children}
+        </View>
+      ),
+      th: (node: any, children: any, parent: any, styles: any) => {
+        const tableNode = parent?.find((n: any) => n.type === 'table');
+        const trNode = parent?.find((n: any) => n.type === 'tr');
+        const colIndex = trNode?.children?.indexOf(node) ?? 0;
+        const width = tableNode ? getTableColWidths(tableNode)[colIndex] : 100;
+
+        return (
+          <View key={node.key} style={[styles.th, { width }]}>
+            {children}
+          </View>
+        );
+      },
+      td: (node: any, children: any, parent: any, styles: any) => {
+        const tableNode = parent?.find((n: any) => n.type === 'table');
+        const trNode = parent?.find((n: any) => n.type === 'tr');
+        const colIndex = trNode?.children?.indexOf(node) ?? 0;
+        const width = tableNode ? getTableColWidths(tableNode)[colIndex] : 100;
+
+        return (
+          <View key={node.key} style={[styles.td, { width }]}>
+            {children}
+          </View>
+        );
+      },
     };
 
     // Enable citation parsing without breaking inheritance
-    rules.text = (node: any, children: any, parent: any, styles: any) => {
+    rules.text = (node: any, children: any, parent: any, styles: any, inheritedStyles: any = {}) => {
       try {
         const parts = parseCitationsInText(node.content, citations || []);
-        // NO explicit style passed here means it will cleanly inherit fontWeight/fontFamily
-        // from parent parent nodes like `strong` or `em`.
         return (
-          <Text key={node.key} style={{ color: theme.colors.text.primary }}>
+          <Text key={node.key} style={[inheritedStyles, styles.text]}>
             {parts}
           </Text>
         );
       } catch (e) {
         return (
-          <Text key={node.key} style={{ color: theme.colors.text.primary }}>
+          <Text key={node.key} style={[inheritedStyles, styles.text]}>
             {node.content}
           </Text>
         );
@@ -701,8 +792,11 @@ const styles = StyleSheet.create({
 
 const markdownStyles = StyleSheet.create({
   body: {
+    // Body is a View, text styles here are ignored by pure RN Views.
+  },
+  textgroup: {
     color: theme.colors.text.primary,
-    fontSize: 18, // increased font size
+    fontSize: 16, // increased font size
     lineHeight: 28,
     letterSpacing: -0.2,
   },
@@ -734,10 +828,6 @@ const markdownStyles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   paragraph: {
-    color: theme.colors.text.primary,
-    fontSize: 18, // increased font size
-    lineHeight: 28,
-    letterSpacing: -0.2,
     marginTop: 0,
     marginBottom: 16, // slightly more gap
   },
@@ -829,21 +919,40 @@ const markdownStyles = StyleSheet.create({
   hr: {
     backgroundColor: theme.colors.border.subtle,
     height: 1,
-    marginVertical: 20,
+    marginVertical: 12,
   },
   // Table styles
-  table: {
+  tableWrapper: {
+    marginVertical: 12,
+    position: 'relative',
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
-    marginVertical: 12,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  tableScrollContent: {
+    minWidth: '100%',
+  },
+  tableScrollIndicator: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 24,
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  table: {
+    // border moved to wrapper
   },
   thead: {
     backgroundColor: theme.colors.background.secondary,
   },
   th: {
-    borderWidth: 1,
+    borderBottomWidth: 1,
+    borderRightWidth: 1,
     borderColor: theme.colors.border.subtle,
-    padding: 8,
+    padding: 10,
     fontWeight: '600',
     color: theme.colors.text.primary,
     fontSize: 13,
@@ -851,11 +960,12 @@ const markdownStyles = StyleSheet.create({
   tr: {
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border.subtle,
+    flexDirection: 'row',
   },
   td: {
-    borderWidth: 1,
+    borderRightWidth: 1,
     borderColor: theme.colors.border.subtle,
-    padding: 8,
+    padding: 10,
     color: theme.colors.text.secondary,
     fontSize: 13,
   },

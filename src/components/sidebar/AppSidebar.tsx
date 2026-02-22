@@ -120,10 +120,26 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
   const [recentExpanded, setRecentExpanded] = useState(true);
   const [olderExpanded, setOlderExpanded] = useState(true);
 
+  // Track which folders are individually expanded
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+
   const toggleSection = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setter(prev => !prev);
   };
+
+  const toggleFolderExpand = useCallback((folderId: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedFolders(prev => {
+      const next = new Set(prev);
+      if (next.has(folderId)) {
+        next.delete(folderId);
+      } else {
+        next.add(folderId);
+      }
+      return next;
+    });
+  }, []);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [menuConversation, setMenuConversation] = useState<Conversation | null>(null);
 
@@ -455,14 +471,34 @@ export function AppSidebar({ isOpen, onClose, onSearch }: AppSidebarProps) {
                   expanded={foldersExpanded}
                   onToggle={() => toggleSection(setFoldersExpanded)}
                 >
-                  {folders.map(folder => (
-                    <FolderListItem
-                      key={folder.id}
-                      folder={folder}
-                      itemCount={folder.conversationIds?.length || 0}
-                      onLongPress={() => handleFolderContextMenu(folder)}
-                    />
-                  ))}
+                  {folders.map(folder => {
+                    const isExpanded = expandedFolders.has(folder.id);
+                    return (
+                      <View key={folder.id}>
+                        <FolderListItem
+                          folder={folder}
+                          itemCount={folder.conversationIds?.length || 0}
+                          isExpanded={isExpanded}
+                          onToggleExpand={() => toggleFolderExpand(folder.id)}
+                          onLongPress={() => handleFolderContextMenu(folder)}
+                        />
+                        {isExpanded && folder.conversationIds?.map(convId => {
+                          const conv = conversations.find(c => c.id === convId);
+                          if (!conv) return null;
+                          return (
+                            <View key={`folder-conv-${folder.id}-${conv.id}`} style={{ paddingLeft: 16 }}>
+                              <ConversationListItem
+                                conversation={conv}
+                                isActive={currentConversationId === conv.id}
+                                onSelect={handleSelectConversation}
+                                onShowMenu={handleShowMenu}
+                              />
+                            </View>
+                          );
+                        })}
+                      </View>
+                    );
+                  })}
                 </CollapsibleSection>
               )}
             </>

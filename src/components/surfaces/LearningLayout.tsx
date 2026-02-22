@@ -155,7 +155,7 @@ export const LearningLayout = memo(function LearningLayout({
               ) : currentContent ? (
                 <View style={styles.contentBody}>
                   <Markdown style={markdownStyles}>{currentContent}</Markdown>
-                  
+
                   {getChapterStatus(activeChapter) === 'current' && (
                     <TouchableOpacity
                       style={styles.markCompleteButton}
@@ -184,7 +184,8 @@ export const LearningLayout = memo(function LearningLayout({
 });
 
 const markdownStyles = StyleSheet.create({
-  body: { color: theme.colors.text.primary, fontSize: 15, lineHeight: 26 },
+  body: {},
+  textgroup: { color: theme.colors.text.primary, fontSize: 15, lineHeight: 26 },
   heading2: { fontSize: 18, fontWeight: '700', marginTop: 20, marginBottom: 10, color: theme.colors.text.primary },
   heading3: { fontSize: 16, fontWeight: '600', marginTop: 16, marginBottom: 8, color: theme.colors.text.primary },
   paragraph: { marginBottom: 14 },

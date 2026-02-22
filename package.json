@@ -35,6 +35,8 @@
     "deploy:android": "./deploy-local.sh a"
   },
   "dependencies": {
+    "@expo-google-fonts/jetbrains-mono": "^0.4.1",
+    "@expo-google-fonts/manrope": "^0.4.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-google-signin/google-signin": "^16.1.1",
     "@react-navigation/drawer": "^7.7.10",
