@@ -41,3 +41,4 @@ yarn-error.*
 /android
 GoogleService-Info.plist
 google-services.json
+billing-key.json

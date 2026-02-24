@@ -1,20 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, SafeAreaView } from 'react-native';
+import {
+    View,
+    Text,
+    StyleSheet,
+    ScrollView,
+    TouchableOpacity,
+    ActivityIndicator,
+    Alert,
+    Platform,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Check, Sparkles, Zap } from 'lucide-react-native';
+import { ArrowLeft, Check, Sparkles, Zap, RotateCcw } from 'lucide-react-native';
 import { theme } from '../src/lib/theme';
 import { useAuth } from '../src/lib/auth';
+import { IAP_PRODUCT_IDS, IAP_SKUS } from '../src/lib/hooks/useIAP';
+import { useIAP as useLibIAP } from 'react-native-iap';
 
-// Mock Subscription Data Types
+// Subscription tier config for display
 type Tier = 'free' | 'standard';
-
-interface SubscriptionInfo {
-    tier: Tier;
-    status: 'none' | 'active' | 'canceled' | 'past_due';
-    credits: number;
-    carryoverCredits: number;
-    creditsResetAt: string | null;
-}
 
 const tierConfig = {
     free: {
@@ -23,6 +27,7 @@ const tierConfig = {
         queries: 20,
         icon: Sparkles,
         color: theme.colors.text.secondary,
+        description: 'Get started with AI-powered chat',
         features: [
             '20 queries per month',
             'Basic AI chat',
@@ -34,76 +39,112 @@ const tierConfig = {
         name: 'rynk+',
         price: '$5.99',
         period: '/mo',
+        productId: IAP_PRODUCT_IDS.standardMonthly,
         queries: 2500,
         icon: Zap,
-        color: '#3B82F6', // Blue accent for pro
+        color: '#3B82F6',
+        description: 'Power users and professionals',
         features: [
             '2,500 queries per month',
             'Everything in Free',
-            'Priority support',
-            'Credits reset monthly (no rollover)',
+            'Priority AI model access',
+            'Credits reset monthly',
         ],
     },
-};
+} as const;
 
 export default function SubscriptionScreen() {
     const router = useRouter();
-    const { session, isAuthenticated } = useAuth();
-    const [loading, setLoading] = useState(true);
-    const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
-    const [checkoutLoading, setCheckoutLoading] = useState<Tier | null>(null);
+    const { user, isAuthenticated, refreshSession } = useAuth();
+    const [isPurchasingLocal, setIsPurchasingLocal] = useState(false);
 
-    useEffect(() => {
-        // Mock fetching subscription status
-        const fetchSubscription = async () => {
-            try {
-                // Simulate network delay
-                await new Promise(resolve => setTimeout(resolve, 800));
-
-                // Mock data
-                setSubscription({
-                    tier: 'free',
-                    status: 'active',
-                    credits: 20,
-                    carryoverCredits: 0,
-                    creditsResetAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                });
-            } catch (error) {
-                Alert.alert('Error', 'Failed to load subscription info');
-            } finally {
-                setLoading(false);
+    // Library's built-in hook manages the store connection and product state
+    const {
+        subscriptions,
+        fetchProducts,
+        requestPurchase,
+        restorePurchases,
+    } = useLibIAP({
+        onPurchaseSuccess: async (purchase) => {
+            await handlePurchaseVerification(purchase);
+        },
+        onPurchaseError: (err) => {
+            if ((err as any).code !== 'E_USER_CANCELLED') {
+                Alert.alert('Purchase Failed', err.message || 'Something went wrong. Please try again.');
             }
-        };
+            setIsPurchasingLocal(false);
+        },
+    });
 
-        fetchSubscription();
-    }, []);
+    // Fetch subscription products from store on mount
+    useEffect(() => {
+        fetchProducts({ skus: IAP_SKUS, type: 'subs' }).catch(() => { });
+    }, [fetchProducts]);
 
-    const handleUpgrade = async (tier: Tier) => {
-        if (!isAuthenticated) {
-            Alert.alert('Authentication Required', 'Please sign in to subscribe.');
-            return;
-        }
+    const currentTier = (user?.subscriptionTier as Tier) ?? 'free';
 
-        setCheckoutLoading(tier);
-        // TODO: Implement actual IAP logic here (RevenueCat or react-native-iap)
-        setTimeout(() => {
-            setCheckoutLoading(null);
-            Alert.alert(
-                'Subscription integration pending',
-                'This will trigger the native in-app purchase flow once configured.'
-            );
-        }, 1500);
+    const getProductPrice = (productId: string): string => {
+        const product = subscriptions.find((p) => (p as any).productId === productId);
+        return (product as any)?.localizedPrice ?? '$5.99';
     };
 
-    const currentTier = subscription?.tier || 'free';
+    const handlePurchaseVerification = async (purchase: any) => {
+        try {
+            const session = await import('../src/lib/auth/storage').then(m => m.loadSession());
+            if (!session) return;
+            const receipt = purchase.purchaseToken;
+            if (!receipt) return;
+            const response = await fetch('https://rynk.io/api/mobile/subscription/verify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.accessToken}`,
+                },
+                body: JSON.stringify({
+                    platform: Platform.OS === 'ios' ? 'ios' : 'android',
+                    receipt,
+                    productId: purchase.productId,
+                    transactionId: purchase.transactionId ?? '',
+                }),
+            });
+            const data = await response.json() as any;
+            if (!response.ok) throw new Error(data.error || 'Verification failed');
+            await refreshSession();
+            setIsPurchasingLocal(false);
+            Alert.alert(
+                '🎉 Welcome to rynk+!',
+                'Your subscription is now active. Enjoy 2,500 queries per month.',
+                [{ text: "Let's Go!", onPress: () => router.back() }]
+            );
+        } catch (err: any) {
+            Alert.alert('Verification Pending', 'Payment received. If tier is not updated in 24h, contact support@rynk.io.');
+            setIsPurchasingLocal(false);
+        }
+    };
 
-    if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.colors.accent.primary} />
-            </View>
-        );
-    }
+    const handleUpgrade = async (tier: keyof typeof tierConfig) => {
+        if (tier === 'free') return;
+        if (!isAuthenticated) {
+            Alert.alert('Sign In Required', 'Please sign in to subscribe.');
+            return;
+        }
+        const config = tierConfig[tier];
+        if (!('productId' in config)) return;
+        setIsPurchasingLocal(true);
+        try {
+            await requestPurchase({
+                type: 'subs',
+                request: {
+                    apple: { sku: config.productId },
+                    google: { skus: [config.productId] },
+                },
+            });
+        } catch (err: any) {
+            if ((err as any).code !== 'E_USER_CANCELLED') {
+                setIsPurchasingLocal(false);
+            }
+        }
+    };
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -112,7 +153,9 @@ export default function SubscriptionScreen() {
                     <ArrowLeft size={24} color={theme.colors.text.primary} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Subscription</Text>
-                <View style={{ width: 40 }} /> {/* Spacer for centering */}
+                <TouchableOpacity style={styles.backButton} onPress={() => restorePurchases()}>
+                    <RotateCcw size={18} color={theme.colors.text.secondary} />
+                </TouchableOpacity>
             </View>
 
             <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -121,24 +164,24 @@ export default function SubscriptionScreen() {
                     <Text style={styles.subtitle}>Manage your plan and usage</Text>
                 </View>
 
-                {/* Current Plan Stats */}
-                {isAuthenticated && subscription && (
+                {/* Current Usage Stats */}
+                {isAuthenticated && user && (
                     <View style={styles.statsCard}>
                         <View style={styles.statsRow}>
                             <View style={styles.statItem}>
-                                <Text style={styles.statLabel}>Credits</Text>
-                                <Text style={styles.statValue}>{subscription.credits}</Text>
+                                <Text style={styles.statLabel}>Credits Left</Text>
+                                <Text style={styles.statValue}>{user.credits}</Text>
                             </View>
                             <View style={styles.statDivider} />
                             <View style={styles.statItem}>
-                                <Text style={styles.statLabel}>Allowance</Text>
-                                <Text style={styles.statValue}>{tierConfig[currentTier].queries}</Text>
+                                <Text style={styles.statLabel}>Monthly Limit</Text>
+                                <Text style={styles.statValue}>{tierConfig[currentTier].queries.toLocaleString()}</Text>
                             </View>
                             <View style={styles.statDivider} />
                             <View style={styles.statItem}>
-                                <Text style={styles.statLabel}>Reset</Text>
-                                <Text style={styles.statValue}>
-                                    {subscription.creditsResetAt ? new Date(subscription.creditsResetAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'N/A'}
+                                <Text style={styles.statLabel}>Plan</Text>
+                                <Text style={[styles.statValue, { color: tierConfig[currentTier].color }]}>
+                                    {tierConfig[currentTier].name}
                                 </Text>
                             </View>
                         </View>
@@ -150,13 +193,16 @@ export default function SubscriptionScreen() {
                 <View style={styles.plansContainer}>
                     {(Object.entries(tierConfig) as [Tier, typeof tierConfig.free][]).map(([tier, config]) => {
                         const isCurrentPlan = currentTier === tier;
+                        const isPro = tier === 'standard';
+                        const livePrice = isPro ? getProductPrice(IAP_PRODUCT_IDS.standardMonthly) : '$0';
 
                         return (
                             <View
                                 key={tier}
                                 style={[
                                     styles.planCard,
-                                    isCurrentPlan && styles.currentPlanCard
+                                    isCurrentPlan && styles.currentPlanCard,
+                                    isPro && styles.proPlanCard,
                                 ]}
                             >
                                 {isCurrentPlan && (
@@ -166,19 +212,23 @@ export default function SubscriptionScreen() {
                                 )}
 
                                 <View style={styles.planHeader}>
-                                    <Text style={styles.planName}>{config.name}</Text>
+                                    <Text style={[styles.planName, isPro ? styles.proName : undefined]}>{config.name}</Text>
                                     <config.icon size={20} color={config.color} />
                                 </View>
 
+                                <Text style={styles.planDescription}>{config.description}</Text>
+
                                 <View style={styles.priceContainer}>
-                                    <Text style={styles.planPrice}>{config.price}</Text>
-                                    {config.period && <Text style={styles.planPeriod}>{config.period}</Text>}
+                                    <Text style={[styles.planPrice, isPro && styles.proPlanPrice]}>{livePrice}</Text>
+                                    {'period' in config && (
+                                        <Text style={styles.planPeriod}>{String((config as any).period)}</Text>
+                                    )}
                                 </View>
 
                                 <View style={styles.featuresList}>
                                     {config.features.map((feature, idx) => (
                                         <View key={idx} style={styles.featureItem}>
-                                            <Check size={16} color={config.color} style={styles.featureIcon} />
+                                            <Check size={16} color={config.color} />
                                             <Text style={styles.featureText}>{feature}</Text>
                                         </View>
                                     ))}
@@ -188,19 +238,27 @@ export default function SubscriptionScreen() {
                                     style={[
                                         styles.upgradeButton,
                                         isCurrentPlan && styles.upgradeButtonDisabled,
-                                        !isCurrentPlan && styles.upgradeButtonActive
+                                        !isCurrentPlan && isPro && styles.upgradeButtonPro,
+                                        !isCurrentPlan && !isPro && styles.upgradeButtonDowngrade,
                                     ]}
-                                    disabled={isCurrentPlan || checkoutLoading === tier}
+                                    disabled={isCurrentPlan || isPurchasingLocal}
                                     onPress={() => handleUpgrade(tier)}
                                 >
-                                    {checkoutLoading === tier ? (
-                                        <ActivityIndicator size="small" color={theme.colors.text.inverse} />
+                                    {isPurchasingLocal && !isCurrentPlan ? (
+                                        <ActivityIndicator size="small" color="#fff" />
                                     ) : (
-                                        <Text style={[
-                                            styles.upgradeButtonText,
-                                            isCurrentPlan ? styles.upgradeButtonTextDisabled : styles.upgradeButtonTextActive
-                                        ]}>
-                                            {isCurrentPlan ? 'Current Plan' : (tier === 'standard' ? 'Upgrade' : 'Downgrade')}
+                                        <Text
+                                            style={[
+                                                styles.upgradeButtonText,
+                                                isCurrentPlan && styles.upgradeButtonTextDisabled,
+                                                !isCurrentPlan && styles.upgradeButtonTextActive,
+                                            ]}
+                                        >
+                                            {isCurrentPlan
+                                                ? 'Current Plan'
+                                                : isPro
+                                                    ? `Upgrade to rynk+`
+                                                    : 'Downgrade to Free'}
                                         </Text>
                                     )}
                                 </TouchableOpacity>
@@ -210,7 +268,16 @@ export default function SubscriptionScreen() {
                 </View>
 
                 <Text style={styles.footerText}>
-                    Have questions? Contact us at support@rynk.io
+                    Prices shown in your local currency. Subscription auto-renews monthly.
+                    Cancel anytime through {Platform.OS === 'ios' ? 'App Store Settings' : 'Google Play'}.
+                </Text>
+
+                <TouchableOpacity onPress={() => restorePurchases()} style={styles.restoreButton}>
+                    <Text style={styles.restoreText}>Restore Purchases</Text>
+                </TouchableOpacity>
+
+                <Text style={styles.legalText}>
+                    Questions? Contact support@rynk.io
                 </Text>
             </ScrollView>
         </SafeAreaView>
@@ -239,6 +306,8 @@ const styles = StyleSheet.create({
     },
     backButton: {
         padding: theme.spacing.xs,
+        width: 40,
+        alignItems: 'center',
     },
     headerTitle: {
         fontSize: theme.typography.fontSize.lg,
@@ -247,7 +316,7 @@ const styles = StyleSheet.create({
     },
     container: {
         padding: theme.spacing.lg,
-        paddingBottom: theme.spacing.xxxl,
+        paddingBottom: 60,
     },
     headerContent: {
         alignItems: 'center',
@@ -313,6 +382,10 @@ const styles = StyleSheet.create({
         borderColor: theme.colors.border.default,
         position: 'relative',
     },
+    proPlanCard: {
+        borderColor: '#3B82F6' + '50',
+        backgroundColor: '#3B82F6' + '08',
+    },
     currentPlanCard: {
         borderColor: theme.colors.accent.primary,
     },
@@ -330,6 +403,7 @@ const styles = StyleSheet.create({
         fontWeight: theme.typography.fontWeight.bold,
         color: theme.colors.text.inverse,
         textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
     planHeader: {
         flexDirection: 'row',
@@ -342,6 +416,14 @@ const styles = StyleSheet.create({
         fontWeight: theme.typography.fontWeight.semibold,
         color: theme.colors.text.primary,
     },
+    proName: {
+        color: '#3B82F6',
+    },
+    planDescription: {
+        fontSize: theme.typography.fontSize.sm,
+        color: theme.colors.text.secondary,
+        marginBottom: theme.spacing.md,
+    },
     priceContainer: {
         flexDirection: 'row',
         alignItems: 'baseline',
@@ -351,6 +433,9 @@ const styles = StyleSheet.create({
         fontSize: 36,
         fontWeight: theme.typography.fontWeight.bold,
         color: theme.colors.text.primary,
+    },
+    proPlanPrice: {
+        color: '#3B82F6',
     },
     planPeriod: {
         fontSize: theme.typography.fontSize.md,
@@ -366,9 +451,6 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
         gap: theme.spacing.sm,
     },
-    featureIcon: {
-        marginTop: 2,
-    },
     featureText: {
         fontSize: theme.typography.fontSize.base,
         color: theme.colors.text.primary,
@@ -381,8 +463,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    upgradeButtonActive: {
-        backgroundColor: theme.colors.accent.primary,
+    upgradeButtonPro: {
+        backgroundColor: '#3B82F6',
+    },
+    upgradeButtonDowngrade: {
+        borderWidth: 1,
+        borderColor: theme.colors.border.default,
     },
     upgradeButtonDisabled: {
         backgroundColor: theme.colors.background.tertiary,
@@ -392,7 +478,7 @@ const styles = StyleSheet.create({
         fontWeight: theme.typography.fontWeight.semibold,
     },
     upgradeButtonTextActive: {
-        color: theme.colors.text.inverse,
+        color: '#fff',
     },
     upgradeButtonTextDisabled: {
         color: theme.colors.text.secondary,
@@ -400,7 +486,24 @@ const styles = StyleSheet.create({
     footerText: {
         marginTop: theme.spacing.xxxl,
         textAlign: 'center',
+        fontSize: theme.typography.fontSize.xs,
+        color: theme.colors.text.tertiary,
+        lineHeight: 18,
+    },
+    restoreButton: {
+        marginTop: theme.spacing.lg,
+        alignItems: 'center',
+        paddingVertical: theme.spacing.sm,
+    },
+    restoreText: {
         fontSize: theme.typography.fontSize.sm,
-        color: theme.colors.text.secondary,
-    }
+        color: theme.colors.accent.primary,
+        fontWeight: theme.typography.fontWeight.medium,
+    },
+    legalText: {
+        marginTop: theme.spacing.md,
+        textAlign: 'center',
+        fontSize: theme.typography.fontSize.xs,
+        color: theme.colors.text.tertiary,
+    },
 });

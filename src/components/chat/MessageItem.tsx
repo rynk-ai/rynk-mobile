@@ -456,8 +456,16 @@ function MessageItemBase({
             <Text style={styles.userText}>{message.content}</Text>
           )
         ) : displayContent ? (
-          <Markdown style={markdownStyles} rules={markdownRules}>{displayContent}</Markdown>
-
+          isAssistant && onSelectTextRequest ? (
+            <Pressable
+              onLongPress={() => onSelectTextRequest(message)}
+              delayLongPress={300}
+            >
+              <Markdown style={markdownStyles} rules={markdownRules}>{displayContent}</Markdown>
+            </Pressable>
+          ) : (
+            <Markdown style={markdownStyles} rules={markdownRules}>{displayContent}</Markdown>
+          )
         ) : isStreaming ? (
           <Animated.View style={[styles.loadingDots, { opacity: dotsOpacity }]}>
             <View style={styles.dotsContainer}>
@@ -467,6 +475,7 @@ function MessageItemBase({
             </View>
           </Animated.View>
         ) : null}
+
 
         {/* Onboarding Images (for welcome messages) */}
         {isAssistant && message.onboardingImages && message.onboardingImages.length > 0 && (
