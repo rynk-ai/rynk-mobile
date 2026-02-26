@@ -51,8 +51,7 @@ export interface Message {
   // Context references
   referencedConversations?: { id: string; title: string }[] | null;
   referencedFolders?: { id: string; name: string }[] | null;
-  // Onboarding images for mobile (keys from ONBOARDING_IMAGES)
-  onboardingImages?: string[];
+
 }
 
 export interface Attachment {

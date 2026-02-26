@@ -38,7 +38,7 @@ import { MermaidDiagram } from './MermaidDiagram';
 import { SourceImages, type SourceImage } from './SourceImages';
 import { SourcesFooter, type Citation } from './SourcesFooter';
 import { CodeBlock } from './markdown/CodeBlock';
-import { ONBOARDING_IMAGES } from '../../lib/services/onboarding-content';
+
 import { InlineCitation, parseCitationsInText } from './InlineCitation';
 import { useOptionalChatContext } from '../../lib/contexts/ChatContext';
 import { useRouter } from 'expo-router';
@@ -477,23 +477,6 @@ function MessageItemBase({
         ) : null}
 
 
-        {/* Onboarding Images (for welcome messages) */}
-        {isAssistant && message.onboardingImages && message.onboardingImages.length > 0 && (
-          <View style={styles.onboardingImagesContainer}>
-            {message.onboardingImages.map((imageKey, idx) => {
-              const imageSource = ONBOARDING_IMAGES[imageKey as keyof typeof ONBOARDING_IMAGES];
-              if (!imageSource) return null;
-              return (
-                <Image
-                  key={`${imageKey}-${idx}`}
-                  source={imageSource}
-                  style={styles.onboardingImage}
-                  resizeMode="contain"
-                />
-              );
-            })}
-          </View>
-        )}
 
         {/* Context Badges (User messages only) */}
         {isUser && ((message.referencedConversations?.length ?? 0) > 0 || (message.referencedFolders?.length ?? 0) > 0) && (
@@ -798,17 +781,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     maxWidth: 120,
   },
-  // Onboarding images
-  onboardingImagesContainer: {
-    marginTop: 12,
-    gap: 12,
-  },
-  onboardingImage: {
-    width: '100%',
-    height: 180,
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.background.secondary,
-  },
+
 });
 
 const markdownStyles = StyleSheet.create({
